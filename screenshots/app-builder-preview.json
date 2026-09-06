@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "SureDose",
+      "hasCanvas": false,
+      "bodyTextLen": 55,
+      "bodyTextHash": "cb6da112d1ec480294f6372c90617f30769edabaca4cedc15d707d512fd9652f",
+      "bodyTextPrefix": "SUREDOSE SureDose Loading your pills… Home Pills Family",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "SureDose",
+      "hasCanvas": false,
+      "bodyTextLen": 357,
+      "bodyTextHash": "289b5c0dd8521e8c5df378b514dff1b64562708f50ce812edc467400c161146e",
+      "bodyTextPrefix": "SUREDOSE Welcome This app helps you take the right pill at the r",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}

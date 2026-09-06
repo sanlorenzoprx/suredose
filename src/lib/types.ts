@@ -1,0 +1,57 @@
+export type DoseStatus = "upcoming" | "due" | "taken" | "missed";
+
+export type Medicine = {
+  id: string;
+  name: string;
+  strength: string;
+  instructions: string;
+  bottleImage: string;
+  pillImage: string;
+  times: string[];
+  createdAt: number;
+};
+
+export type DoseEvent = {
+  id: string;
+  medicineId: string;
+  date: string;
+  time: string;
+  status: "taken" | "missed" | "skipped";
+  takenAt?: number;
+  verified: boolean;
+  checkImage?: string;
+  notified: boolean;
+};
+
+export type Settings = {
+  patientName: string;
+  caregiverName: string;
+  caregiverPhone: string;
+  soundOn: boolean;
+  vibrateOn: boolean;
+  speakOn: boolean;
+  onboardingDone: boolean;
+};
+
+export type DoseSlot = {
+  medicine: Medicine;
+  date: string;
+  time: string;
+  scheduledAt: Date;
+  status: DoseStatus;
+  event?: DoseEvent;
+};
+
+export type BottleRead = {
+  name: string;
+  strength: string;
+  timesPerDay: number;
+  times: string[];
+  instructions: string;
+};
+
+export type PillMatch = {
+  match: boolean;
+  confidence: number;
+  reason: string;
+};
