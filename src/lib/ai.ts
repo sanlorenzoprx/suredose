@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { BottleRead, PillMatch } from "./types";
 import { defaultTimesForCount } from "./schedule";
+import { vertexVision } from "./vertex";
 
 const imageSchema = z.string().min(20).max(3_500_000);
 
@@ -12,50 +13,6 @@ function extractJson(text: string): unknown {
   const end = raw.lastIndexOf("}");
   if (start < 0 || end <= start) throw new Error("AI did not return usable data.");
   return JSON.parse(raw.slice(start, end + 1));
-}
-
-async function grokVision(opts: {
-  prompt: string;
-  images: string[];
-  maxTokens: number;
-}): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
-  const apiKey = process.env.XAI_API_KEY;
-  if (!apiKey) return { ok: false, error: "AI is not available right now." };
-
-  const content: Array<
-    | { type: "text"; text: string }
-    | { type: "image_url"; image_url: { url: string; detail: "high" } }
-  > = [{ type: "text", text: opts.prompt }];
-  for (const url of opts.images) {
-    content.push({
-      type: "image_url",
-      image_url: { url, detail: "high" },
-    });
-  }
-
-  const res = await fetch("https://api.x.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "grok-4.5",
-      temperature: 0,
-      max_tokens: opts.maxTokens,
-      messages: [{ role: "user", content }],
-    }),
-  });
-
-  if (!res.ok) {
-    return { ok: false, error: `Could not read this photo (${res.status}).` };
-  }
-  const body = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const text = body.choices?.[0]?.message?.content ?? "";
-  if (!text) return { ok: false, error: "AI did not return a result." };
-  return { ok: true, text };
 }
 
 const bottleResult = z.object({
@@ -71,7 +28,7 @@ const bottleResult = z.object({
 export const readBottleLabel = createServerFn({ method: "POST" })
   .validator((input: { image: string }) => ({ image: imageSchema.parse(input.image) }))
   .handler(async ({ data }): Promise<{ ok: true; bottle: BottleRead } | { ok: false; error: string }> => {
-    const vision = await grokVision({
+    const vision = await vertexVision({
       maxTokens: 500,
       images: [data.image],
       prompt: `You read pharmacy prescription bottle labels for older adults.
@@ -145,7 +102,7 @@ export const comparePills = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }): Promise<{ ok: true; result: PillMatch } | { ok: false; error: string }> => {
-    const vision = await grokVision({
+    const vision = await vertexVision({
       maxTokens: 350,
       images: [data.reference, data.candidate],
       prompt: `You compare two photos of pills for a medication safety app used by older adults.

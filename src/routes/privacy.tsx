@@ -75,9 +75,9 @@ function PrivacyPage() {
 
         <Section title="A third-party AI service reads your photos">
           Reading a prescription bottle and comparing a pill photo to your saved reference photo
-          is done by sending that photo to a third-party AI service (currently xAI's Grok models)
-          for that one request. We don't control how that provider handles the request on their
-          end beyond what they publish themselves.
+          is done by sending that photo to a third-party AI service (currently Google's Gemini
+          models on Google Cloud Vertex AI) for that one request. We don't control how that
+          provider handles the request on their end beyond what they publish themselves.
         </Section>
 
         <Section title="Deleting your data">

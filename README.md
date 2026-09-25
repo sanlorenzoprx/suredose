@@ -41,8 +41,12 @@ need any of this and work with nothing configured:
    (`OPENFDA_API_KEY`). Without R2, e.g. local `npm run dev`, photos are
    kept in Postgres instead.
 
-4. **An xAI API key**, for the AI photo/label reading. Get one at
-   [console.x.ai](https://console.x.ai) and set `XAI_API_KEY`.
+4. **Google Vertex AI (Gemini)**, for reading bottle photos and comparing
+   pill photos (`src/lib/vertex.ts`). Enable the Vertex AI API in a Google
+   Cloud project with billing, then set either `GOOGLE_VERTEX_API_KEY`
+   (express-mode key) or `GOOGLE_SERVICE_ACCOUNT_JSON` (a service account
+   key with the "Vertex AI User" role, pasted whole). The model defaults to
+   `gemini-3.6-flash`; change it with `VERTEX_MODEL`.
 
 See `.env.example` for the full list with explanations.
 
@@ -55,7 +59,8 @@ npx wrangler login
 wrangler secret put DATABASE_URL
 wrangler secret put VAPID_PRIVATE_KEY
 wrangler secret put VAPID_SUBJECT
-wrangler secret put XAI_API_KEY
+wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON   # or GOOGLE_VERTEX_API_KEY
+wrangler secret put OPENFDA_API_KEY
 # VITE_VAPID_PUBLIC_KEY isn't secret — it's baked into the client build, so
 # set it as a plain var in wrangler.jsonc (or export it before building).
 npm run cf:deploy      # builds, then `wrangler deploy`
@@ -200,7 +205,7 @@ app store (and a family trusting it with health-adjacent data) reasonably
 expects. Added:
 
 - **`/privacy`** — what's stored locally vs. shared once paired, that a
-  third-party AI (xAI) reads bottle/pill photos, and how to delete
+  third-party AI (Google Vertex AI / Gemini) reads bottle/pill photos, and how to delete
   everything. Written to accurately match what the code actually does.
 - **`/terms`** — leads with a clear "this is not medical advice" notice
   (always look at the pill yourself; call your pharmacist if unsure; call
