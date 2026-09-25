@@ -6,6 +6,16 @@
     "directory": "./.output/public",
     "binding": "ASSETS"
   },
+  // Official pill photos from FDA labels (DailyMed), cached by
+  // src/lib/drug-lookup.server.ts. Create the bucket once with:
+  //   npx wrangler r2 bucket create suredose-pill-images
+  // Keep it private — photos are served through the app.
+  "r2_buckets": [
+    {
+      "binding": "PILL_IMAGES",
+      "bucket_name": "suredose-pill-images"
+    }
+  ],
   "observability": {
     "enabled": true
   }

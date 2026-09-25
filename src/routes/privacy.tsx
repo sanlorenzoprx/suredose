@@ -17,10 +17,12 @@ function PrivacyPage() {
         </p>
 
         <Section title="The short version">
-          SureDose keeps your medicine list, photos, and schedule on your own phone. Nothing
-          leaves your phone unless you choose to connect a family member. If you do, only what
-          they need to see — the medicine names and times, and a photo each time you confirm a
-          dose — is shared with them. We do not sell your data or show you ads.
+          SureDose keeps your medicine list, photos, and schedule on your own phone. To check a
+          new medicine, the app looks up its name, strength, and product code in public U.S.
+          government drug lists — nothing about you is sent. Your personal information leaves your
+          phone only if you choose to connect a family member. If you do, only what they need to
+          see — the medicine names and times, and a photo each time you confirm a dose — is shared
+          with them. We do not sell your data or show you ads.
         </Section>
 
         <Section title="Information stored only on your phone">
@@ -55,6 +57,22 @@ function PrivacyPage() {
           </p>
         </Section>
 
+        <Section title="Checking your medicine against U.S. drug data">
+          <p>
+            When you add a medicine, the app sends the medicine name, strength, and the product
+            code (NDC) printed on the bottle to our server. Our server looks them up in free public
+            drug databases run by the U.S. government: the FDA's drug directory (openFDA) and the
+            National Library of Medicine's DailyMed and RxNorm. This is how the app fills in the
+            medicine for you and shows the maker's photo of the pill.
+          </p>
+          <p className="mt-2">
+            Your name, your photos, your pharmacy, and your prescription number are never sent for
+            this. Our server keeps a shared copy of the public drug facts and pill photos it looks
+            up, so the next person with the same medicine gets an answer faster; that copy contains
+            nothing about who asked.
+          </p>
+        </Section>
+
         <Section title="A third-party AI service reads your photos">
           Reading a prescription bottle and comparing a pill photo to your saved reference photo
           is done by sending that photo to a third-party AI service (currently xAI's Grok models)
@@ -63,8 +81,9 @@ function PrivacyPage() {
         </Section>
 
         <Section title="Deleting your data">
-          If you never connect a family member, nothing ever leaves your phone, and uninstalling
-          the app removes everything. If you have connected a family member, the patient's Family
+          If you never connect a family member, none of your personal information is stored on
+          our server, and uninstalling the app removes everything. (The public drug facts described
+          above are not personal and are not linked to you.) If you have connected a family member, the patient's Family
           tab has a "Delete shared data" option that permanently deletes the family code and
           everything stored under it from our server, immediately, with no account or login
           needed. A family member can also disconnect their own phone at any time from their

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { formatTimeLabel, periodOfDay } from "@/lib/schedule";
@@ -79,11 +79,21 @@ function PatientMedicines() {
                 <img
                   src={med.pillImage}
                   alt={med.name}
-                  className="size-24 rounded-md object-cover"
+                  className={
+                    med.pillImageSource === "official"
+                      ? "size-24 rounded-md bg-bg object-contain"
+                      : "size-24 rounded-md object-cover"
+                  }
                 />
                 <div className="min-w-0 flex-1">
                   <h2 className="text-2xl font-bold leading-tight">{med.name}</h2>
                   <p className="text-xl text-muted">{med.strength}</p>
+                  {med.verifiedBy === "ndc" || med.verifiedBy === "name" ? (
+                    <p className="mt-1 flex items-center gap-1 text-lg text-success">
+                      <ShieldCheck className="size-5 shrink-0" />
+                      Checked
+                    </p>
+                  ) : null}
                   <p className="mt-2 text-lg">
                     {med.times
                       .map((t) => `${periodOfDay(t)} ${formatTimeLabel(t)}`)

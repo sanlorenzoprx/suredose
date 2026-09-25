@@ -17,6 +17,7 @@ import { Route as HelpRouteImport } from './routes/help'
 import { Route as MedicinesRouteImport } from './routes/medicines'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as ApiDrugCacheWarmRouteImport } from './routes/api/drug-cache/warm'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDrugCacheWarmRoute = ApiDrugCacheWarmRouteImport.update({
+  id: '/api/drug-cache/warm',
+  path: '/api/drug-cache/warm',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/medicines': typeof MedicinesRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/api/drug-cache/warm': typeof ApiDrugCacheWarmRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/medicines': typeof MedicinesRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/api/drug-cache/warm': typeof ApiDrugCacheWarmRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/medicines': typeof MedicinesRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/api/drug-cache/warm': typeof ApiDrugCacheWarmRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/medicines'
     | '/privacy'
     | '/terms'
+    | '/api/drug-cache/warm'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/medicines'
     | '/privacy'
     | '/terms'
+    | '/api/drug-cache/warm'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/medicines'
     | '/privacy'
     | '/terms'
+    | '/api/drug-cache/warm'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   MedicinesRoute: typeof MedicinesRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
+  ApiDrugCacheWarmRoute: typeof ApiDrugCacheWarmRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/drug-cache/warm': {
+      id: '/api/drug-cache/warm'
+      path: '/api/drug-cache/warm'
+      fullPath: '/api/drug-cache/warm'
+      preLoaderRoute: typeof ApiDrugCacheWarmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   MedicinesRoute: MedicinesRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
+  ApiDrugCacheWarmRoute: ApiDrugCacheWarmRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

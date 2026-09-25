@@ -105,7 +105,7 @@ function Home() {
               Time for your pill
             </p>
             <div className="mt-4 flex items-center gap-4">
-              <PillThumb src={due.medicine.pillImage} alt={due.medicine.name} />
+              <PillThumb src={due.medicine.pillImage} alt={due.medicine.name} official={due.medicine.pillImageSource === "official"} />
               <div>
                 <h2 className="text-3xl font-bold leading-tight">{due.medicine.name}</h2>
                 <p className="text-xl opacity-90">{due.medicine.strength}</p>
@@ -145,7 +145,7 @@ function Home() {
               Next pill
             </p>
             <div className="mt-4 flex items-center gap-4">
-              <PillThumb src={next.medicine.pillImage} alt={next.medicine.name} />
+              <PillThumb src={next.medicine.pillImage} alt={next.medicine.name} official={next.medicine.pillImageSource === "official"} />
               <div>
                 <h2 className="text-3xl font-bold leading-tight">{next.medicine.name}</h2>
                 <p className="text-xl text-muted">{next.medicine.strength}</p>
@@ -199,7 +199,7 @@ function Home() {
                   key={`${slot.medicine.id}-${slot.time}`}
                   className="flex items-center gap-4 rounded-lg bg-paper p-3 shadow-card"
                 >
-                  <PillThumb src={slot.medicine.pillImage} alt="" size="sm" />
+                  <PillThumb src={slot.medicine.pillImage} alt="" size="sm" official={slot.medicine.pillImageSource === "official"} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xl font-bold">{slot.medicine.name}</p>
                     <p className="text-lg text-muted">
@@ -242,10 +242,13 @@ function PillThumb({
   src,
   alt,
   size = "md",
+  official = false,
 }: {
   src: string;
   alt: string;
   size?: "sm" | "md";
+  /** Maker's photos show front and back side by side, so fit rather than crop. */
+  official?: boolean;
 }) {
   return (
     <div
@@ -255,7 +258,7 @@ function PillThumb({
       )}
     >
       {src ? (
-        <img src={src} alt={alt} className="size-full object-cover" />
+        <img src={src} alt={alt} className={official ? "size-full object-contain" : "size-full object-cover"} />
       ) : (
         <div className="flex size-full items-center justify-center text-muted">
           <Pill className="size-8" />

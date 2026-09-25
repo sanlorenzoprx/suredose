@@ -64,6 +64,8 @@ const bottleResult = z.object({
   timesPerDay: z.number().optional(),
   times: z.array(z.string()).optional(),
   instructions: z.string().optional().default(""),
+  ndc: z.string().optional().default(""),
+  pillDescription: z.string().optional().default(""),
 });
 
 export const readBottleLabel = createServerFn({ method: "POST" })
@@ -79,7 +81,9 @@ Return ONLY JSON with this shape:
   "strength": "e.g. 10 mg",
   "timesPerDay": 1,
   "times": ["08:00"],
-  "instructions": "short plain-language directions"
+  "instructions": "short plain-language directions",
+  "ndc": "the NDC number printed on the label, digits and dashes exactly as printed, or empty string",
+  "pillDescription": "the label's line describing what the pill looks like (e.g. white round tablet imprinted M 367), or empty string"
 }
 Rules:
 - times use 24-hour HH:mm
@@ -88,6 +92,7 @@ Rules:
 - three times daily → ["08:00","14:00","20:00"]
 - every morning → ["08:00"]; every night → ["21:00"]
 - If you cannot read a field, use an empty string or best guess
+- Never guess an NDC digit. If any digit is unclear, return "" for ndc.
 - No markdown`,
     });
     if (!vision.ok) return vision;
@@ -101,11 +106,13 @@ Rules:
       return {
         ok: true,
         bottle: {
-          name: parsed.name.trim() || "Medicine",
+          name: parsed.name.trim(),
           strength: parsed.strength.trim(),
           timesPerDay: count,
           times,
           instructions: parsed.instructions.trim(),
+          ndc: /\d{4}/.test(parsed.ndc) ? parsed.ndc.trim().slice(0, 20) : "",
+          pillDescription: parsed.pillDescription.trim().slice(0, 160),
         },
       };
     } catch {
@@ -120,17 +127,33 @@ const matchResult = z.object({
 });
 
 export const comparePills = createServerFn({ method: "POST" })
-  .validator((input: { reference: string; candidate: string; name: string }) => ({
-    reference: imageSchema.parse(input.reference),
-    candidate: imageSchema.parse(input.candidate),
-    name: z.string().max(80).parse(input.name ?? ""),
-  }))
+  .validator(
+    (input: {
+      reference: string;
+      candidate: string;
+      name: string;
+      /** Official look from the FDA label, e.g. "White round tablet, marked M / 367". */
+      appearance?: string;
+      /** The reference is the maker's photo (usually front and back side by side on a plain background). */
+      officialReference?: boolean;
+    }) => ({
+      reference: imageSchema.parse(input.reference),
+      candidate: imageSchema.parse(input.candidate),
+      name: z.string().max(80).parse(input.name ?? ""),
+      appearance: z.string().max(200).parse(input.appearance ?? ""),
+      officialReference: Boolean(input.officialReference),
+    }),
+  )
   .handler(async ({ data }): Promise<{ ok: true; result: PillMatch } | { ok: false; error: string }> => {
     const vision = await grokVision({
       maxTokens: 350,
       images: [data.reference, data.candidate],
       prompt: `You compare two photos of pills for a medication safety app used by older adults.
-Image 1 is the SAVED reference photo of ${data.name || "the prescribed pill"}.
+Image 1 is the SAVED reference photo of ${data.name || "the prescribed pill"}.${
+        data.officialReference
+          ? "\nImage 1 is the manufacturer's official photo: it usually shows the front and back of ONE pill side by side on a plain background. Match either side."
+          : ""
+      }${data.appearance ? `\nOfficial description of the correct pill: ${data.appearance}. An imprint that clearly differs means match=false.` : ""}
 Image 2 is the pill the person is about to take now.
 
 Decide if they are the same medicine (same shape, color, size, coating, and imprint if visible).

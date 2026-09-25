@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Check, Loader2, ShieldAlert, TriangleAlert } from "lucide-react";
+import { Check, Loader2, ShieldAlert, ShieldCheck, TriangleAlert } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { PhotoCapture } from "@/components/photo-capture";
 import { Button } from "@/components/ui/button";
@@ -120,7 +120,13 @@ function CheckReady({
         return;
       }
       const res = await comparePills({
-        data: { reference, candidate: photo, name: `${medicine.name} ${medicine.strength}` },
+        data: {
+          reference,
+          candidate: photo,
+          name: `${medicine.name} ${medicine.strength}`,
+          appearance: medicine.appearance,
+          officialReference: medicine.pillImageSource === "official",
+        },
       });
       if (res.ok) setResult(res.result);
       else setError(res.error);
@@ -277,15 +283,37 @@ function CheckReady({
           <p className="text-lg font-bold text-muted">
             {periodOfDay(time)} · {formatTimeLabel(time)}
           </p>
-          <h2 className="mt-1 text-3xl font-bold leading-tight">{medicine.name}</h2>
-          <p className="text-xl text-muted">{medicine.strength}</p>
-          {medicine.instructions ? <p className="mt-2 text-xl">{medicine.instructions}</p> : null}
+          <p className="mt-2 text-lg font-bold">Check your bottle says:</p>
+          <h2 className="mt-1 text-4xl font-bold leading-tight">{medicine.name}</h2>
+          <p className="text-2xl font-bold">
+            {[medicine.strength, medicine.form].filter(Boolean).join(" · ")}
+          </p>
+          {medicine.appearance ? (
+            <p className="mt-3 rounded-lg bg-bg-warm p-3 text-xl">
+              <span className="font-bold">The pill:</span> {medicine.appearance}
+            </p>
+          ) : null}
+          {medicine.instructions ? <p className="mt-3 text-xl">{medicine.instructions}</p> : null}
+          {medicine.verifiedBy === "ndc" || medicine.verifiedBy === "name" ? (
+            <p className="mt-2 flex items-center gap-2 text-lg text-success">
+              <ShieldCheck className="size-6 shrink-0" />
+              Checked with the U.S. drug list
+            </p>
+          ) : null}
           <div className="mt-4">
-            <p className="mb-2 text-lg font-bold">This is what it looks like</p>
+            <p className="mb-2 text-lg font-bold">
+              {medicine.pillImageSource === "official"
+                ? "The maker's photo of this pill"
+                : "Your photo of this pill"}
+            </p>
             <img
               src={medicine.pillImage}
-              alt={`Saved photo of ${medicine.name}`}
-              className="aspect-square w-full rounded-lg object-cover"
+              alt={`Photo of ${medicine.name}`}
+              className={
+                medicine.pillImageSource === "official"
+                  ? "aspect-square w-full rounded-lg bg-paper object-contain"
+                  : "aspect-square w-full rounded-lg object-cover"
+              }
             />
           </div>
         </section>

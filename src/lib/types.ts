@@ -9,6 +9,25 @@ export type Medicine = {
   pillImage: string;
   times: string[];
   createdAt: number;
+  /**
+   * How the medicine was checked against official U.S. drug data when it
+   * was set up: "ndc" = exact product from the bottle's product code
+   * (openFDA + DailyMed), "name" = name and strength found in RxNorm,
+   * "none" = could not be checked. Missing on medicines saved before this
+   * existed.
+   */
+  verifiedBy?: "ndc" | "name" | "none";
+  /** FDA product code (labeler-product), e.g. "0378-1805". */
+  ndc?: string;
+  rxcui?: string;
+  /** The maker, e.g. "Mylan Pharmaceuticals Inc.". Only known from the NDC. */
+  labeler?: string;
+  /** Plain words, e.g. "tablet", "extended-release capsule". */
+  form?: string;
+  /** What the pill looks like: "White round tablet, marked M / 367". */
+  appearance?: string;
+  /** "official" = the maker's photo from the FDA label; "own" = taken by the patient. */
+  pillImageSource?: "official" | "own";
 };
 
 export type DoseEvent = {
@@ -54,7 +73,32 @@ export type BottleRead = {
   timesPerDay: number;
   times: string[];
   instructions: string;
+  /** NDC printed on the label, as printed ("" when not visible). */
+  ndc: string;
+  /** The label's own pill description line, e.g. "white round tablet imprinted M 367". */
+  pillDescription: string;
 };
+
+/** A medicine as confirmed by official U.S. drug data. */
+export type VerifiedMedicine = {
+  by: "ndc" | "name";
+  name: string;
+  strength: string;
+  form: string;
+  /** Only known when checked by NDC. */
+  labeler: string;
+  ndc: string;
+  rxcui: string;
+  /** From the FDA label (NDC checks only), "" otherwise. */
+  appearance: string;
+  /** The maker's pill photo from the FDA label, as a JPEG data URL. */
+  officialImage: string | null;
+};
+
+export type MedicineCheck =
+  | { status: "verified"; medicine: VerifiedMedicine; note?: string }
+  | { status: "not_found"; message: string; drugName?: string }
+  | { status: "unavailable"; message: string };
 
 export type PillMatch = {
   match: boolean;

@@ -35,7 +35,13 @@ need any of this and work with nothing configured:
    phone. Generate one with `npx web-push generate-vapid-keys` and set
    `VITE_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`
    (`mailto:you@example.com` or an `https://` URL).
-3. **An xAI API key**, for the AI photo/label reading. Get one at
+3. **An R2 bucket** for official pill photos:
+   `npx wrangler r2 bucket create suredose-pill-images` (the `PILL_IMAGES`
+   binding is already in `wrangler.jsonc`), and a free **openFDA API key**
+   (`OPENFDA_API_KEY`). Without R2, e.g. local `npm run dev`, photos are
+   kept in Postgres instead.
+
+4. **An xAI API key**, for the AI photo/label reading. Get one at
    [console.x.ai](https://console.x.ai) and set `XAI_API_KEY`.
 
 See `.env.example` for the full list with explanations.
@@ -76,8 +82,11 @@ fit for this specific feature, not just a cheaper one.
 ## What's already built
 
 - **Add a medicine**: photograph the prescription bottle → AI reads the
-  name, strength, and how many times a day → confirm/edit → photograph the
-  pill itself, which becomes the saved reference photo.
+  name, strength, NDC and schedule → the app checks it against official U.S.
+  drug data and asks "Is this your medicine?" (no typing unless the check
+  fails) → the pill picture: the maker's official photo from the FDA label
+  ("Does your pill look like this?") or the person's own photo. See
+  "Medicine verification" below.
 - **Reminders**: loud chime, spoken reminder ("It is time to take your
   Lisinopril"), and vibration, repeating until acted on.
 - **Take a pill**: photograph the pill in hand, AI compares it to the saved
@@ -110,6 +119,57 @@ fit for this specific feature, not just a cheaper one.
   sentences) throughout, including the caregiver-side screens.
 - **Privacy Policy, Terms of Use, and Help/FAQ pages** — see "Pages added
   for publishing" below.
+
+## Medicine verification (official U.S. drug data)
+
+When a bottle is photographed, the AI reads the name, strength, the NDC
+(product code) and the label's pill description, then
+`verifyMedicine` (`src/lib/drug-verify.ts`) checks it:
+
+1. **NDC → exact product.** The openFDA NDC directory gives the product's
+   name, strength, form and maker; its DailyMed label gives the pill's
+   color, shape and imprint and, when the maker submitted one, their pill
+   photo. The NDC is only trusted if it agrees with the name and strength on
+   the label, since a one-digit misread can land on a different real product.
+   The 11-digit billing format and undashed NDCs are handled
+   (`productNdcCandidates`).
+2. **Otherwise name + strength → RxNorm**, which confirms the drug exists
+   in that strength (it catches "lisinopril 100 mg"). The maker is unknown
+   this way, so the person takes their own pill photo.
+3. If neither works, or the government services are down, the person can
+   type the details and continue with a clear "ask your pharmacist" note;
+   the medicine is saved as `verifiedBy: "none"`.
+
+**The cache is keyed by product (NDC), not by drug name**, because the same
+drug and strength from different makers are different-looking pills.
+`drug_products` (`migrations/0003_drug_cache.sql`) holds one row per product
+and the pill photo goes to R2 at `official/<sha256>.jpg`; `drug_name_lookups`
+caches RxNorm answers. Nothing personal is stored. Rows refresh after 90 days
+(names after 30); if a government service is down, the stale row is used.
+
+**Refills / maker changes.** Scanning a bottle for a medicine already on the
+list updates it instead of adding a duplicate, keeps its times, and says so
+when the NDC shows a different maker ("your pills may look different now").
+
+**At pill time** the Check screen shows the bottle description first — name,
+strength, form and "The pill: White round tablet, marked M / 367" — with the
+reference photo underneath. The pill-photo AI check also receives the
+official description and knows when the reference is a maker's front/back
+photo.
+
+**Seeding the cache.** `scripts/seed-drug-cache.mjs` walks
+`scripts/common-oral-medicines.txt` (a starter list, not a ranking),
+finds each medicine's DailyMed labels and asks the deployed app to cache
+every product on them through `POST /api/drug-cache/warm` (off unless
+`DRUG_CACHE_ADMIN_TOKEN` is set). Set `OPENFDA_API_KEY` first. Seeding
+is optional: every scan fills the cache anyway.
+
+**Limits.** Not every FDA label includes a maker's pill photo; those
+medicines fall back to the person's own photo with the official
+description shown. The parsers are unit-tested against the documented
+formats and the lookup/cache flow against mocked responses, but they have
+not been run against the live government APIs from here — run one real
+scan of a bottle with an NDC after deploying.
 
 ## Design choices worth knowing about
 

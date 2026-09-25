@@ -1,0 +1,64 @@
+# Starter list of widely prescribed oral medicines for seeding the official
+# drug cache (scripts/seed-drug-cache.mjs). One generic name per line.
+# This is not a ranked list — replace or extend it with a current ranking
+# (for example the ClinCalc DrugStats top 300) before relying on coverage.
+atorvastatin
+levothyroxine
+lisinopril
+metformin
+amlodipine
+metoprolol succinate
+metoprolol tartrate
+omeprazole
+simvastatin
+losartan
+gabapentin
+hydrochlorothiazide
+sertraline
+rosuvastatin
+pantoprazole
+escitalopram
+bupropion
+furosemide
+montelukast
+pravastatin
+trazodone
+tamsulosin
+carvedilol
+fluoxetine
+meloxicam
+clopidogrel
+prednisone
+citalopram
+potassium chloride
+allopurinol
+glipizide
+spironolactone
+atenolol
+duloxetine
+warfarin
+apixaban
+rivaroxaban
+tramadol
+cyclobenzaprine
+venlafaxine
+lamotrigine
+donepezil
+finasteride
+glimepiride
+valsartan
+diltiazem
+losartan and hydrochlorothiazide
+lisinopril and hydrochlorothiazide
+famotidine
+alprazolam
+quetiapine
+propranolol
+buspirone
+topiramate
+oxybutynin
+sitagliptin
+ezetimibe
+hydralazine
+isosorbide mononitrate
+memantine

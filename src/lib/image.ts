@@ -53,3 +53,9 @@ export function captureFromVideo(video: HTMLVideoElement): string {
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL("image/jpeg", QUALITY);
 }
+
+/** Re-encode any image data URL (e.g. an official pill photo) to the app's 720px JPEG. */
+export async function shrinkDataUrl(dataUrl: string): Promise<string> {
+  const res = await fetch(dataUrl);
+  return compressImage(await res.blob());
+}
