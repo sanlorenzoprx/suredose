@@ -13,7 +13,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AddRouteImport } from './routes/add'
 import { Route as CheckRouteImport } from './routes/check'
 import { Route as FamilyRouteImport } from './routes/family'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as MedicinesRouteImport } from './routes/medicines'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as TermsRouteImport } from './routes/terms'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,9 +38,24 @@ const FamilyRoute = FamilyRouteImport.update({
   path: '/family',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MedicinesRoute = MedicinesRouteImport.update({
   id: '/medicines',
   path: '/medicines',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -46,14 +64,20 @@ export interface FileRoutesByFullPath {
   '/add': typeof AddRoute
   '/check': typeof CheckRoute
   '/family': typeof FamilyRoute
+  '/help': typeof HelpRoute
   '/medicines': typeof MedicinesRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
   '/check': typeof CheckRoute
   '/family': typeof FamilyRoute
+  '/help': typeof HelpRoute
   '/medicines': typeof MedicinesRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -61,14 +85,42 @@ export interface FileRoutesById {
   '/add': typeof AddRoute
   '/check': typeof CheckRoute
   '/family': typeof FamilyRoute
+  '/help': typeof HelpRoute
   '/medicines': typeof MedicinesRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/add' | '/check' | '/family' | '/medicines'
+  fullPaths:
+    | '/'
+    | '/add'
+    | '/check'
+    | '/family'
+    | '/help'
+    | '/medicines'
+    | '/privacy'
+    | '/terms'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/add' | '/check' | '/family' | '/medicines'
-  id: '__root__' | '/' | '/add' | '/check' | '/family' | '/medicines'
+  to:
+    | '/'
+    | '/add'
+    | '/check'
+    | '/family'
+    | '/help'
+    | '/medicines'
+    | '/privacy'
+    | '/terms'
+  id:
+    | '__root__'
+    | '/'
+    | '/add'
+    | '/check'
+    | '/family'
+    | '/help'
+    | '/medicines'
+    | '/privacy'
+    | '/terms'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,7 +128,10 @@ export interface RootRouteChildren {
   AddRoute: typeof AddRoute
   CheckRoute: typeof CheckRoute
   FamilyRoute: typeof FamilyRoute
+  HelpRoute: typeof HelpRoute
   MedicinesRoute: typeof MedicinesRoute
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -109,11 +164,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FamilyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/medicines': {
       id: '/medicines'
       path: '/medicines'
       fullPath: '/medicines'
       preLoaderRoute: typeof MedicinesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -124,7 +200,10 @@ const rootRouteChildren: RootRouteChildren = {
   AddRoute: AddRoute,
   CheckRoute: CheckRoute,
   FamilyRoute: FamilyRoute,
+  HelpRoute: HelpRoute,
   MedicinesRoute: MedicinesRoute,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

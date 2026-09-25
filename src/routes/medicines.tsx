@@ -4,16 +4,55 @@ import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { formatTimeLabel, periodOfDay } from "@/lib/schedule";
 import { useAppStore } from "@/lib/store";
+import { useCareActivity } from "@/lib/use-care-activity";
 
 export const Route = createFileRoute("/medicines")({ component: MedicinesPage });
 
 function MedicinesPage() {
+  const role = useAppStore((s) => s.settings.role);
+  return (
+    <AppShell title="Pills">
+      {role === "caregiver" ? <CaregiverMedicines /> : <PatientMedicines />}
+    </AppShell>
+  );
+}
+
+function CaregiverMedicines() {
+  const { data, error, loading } = useCareActivity();
+
+  if (loading) return <p className="text-xl text-muted">Loading…</p>;
+  if (error) return <p className="text-xl font-bold text-danger">{error}</p>;
+  if (!data || data.medicines.length === 0) {
+    return <p className="text-xl text-muted">No medicines on file yet.</p>;
+  }
+
+  return (
+    <>
+      <p className="mb-5 text-xl text-muted">
+        {data.patientName}'s medicine list, kept in sync from their phone.
+      </p>
+      <ul className="flex flex-col gap-4">
+        {data.medicines.map((med) => (
+          <li key={med.id} className="rounded-xl bg-paper p-4 shadow-card">
+            <h2 className="text-2xl font-bold leading-tight">{med.name}</h2>
+            <p className="text-xl text-muted">{med.strength}</p>
+            <p className="mt-2 text-lg">
+              {med.times.map((t) => `${periodOfDay(t)} ${formatTimeLabel(t)}`).join(" · ")}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function PatientMedicines() {
   const medicines = useAppStore((s) => s.medicines);
   const removeMedicine = useAppStore((s) => s.removeMedicine);
   const loadSamples = useAppStore((s) => s.loadSamples);
 
   return (
-    <AppShell title="Your pills">
+    <>
       <p className="mb-5 text-xl text-muted">
         Each pill has a saved photo and the times you take it.
       </p>
@@ -77,6 +116,6 @@ function MedicinesPage() {
           </Button>
         </Link>
       ) : null}
-    </AppShell>
+    </>
   );
 }

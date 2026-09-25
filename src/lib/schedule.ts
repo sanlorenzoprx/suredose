@@ -46,7 +46,9 @@ export function periodOfDay(time: string): "Morning" | "Noon" | "Evening" | "Nig
   return "Night";
 }
 
-const GRACE_MS = 2 * 60 * 60 * 1000;
+// Also used by the server-side missed-dose check (server/tasks/care/missed-doses.ts)
+// so both sides agree on how "late" counts as "missed".
+export const GRACE_MS = 2 * 60 * 60 * 1000;
 
 export function eventKey(medicineId: string, date: string, time: string): string {
   return `${medicineId}|${date}|${time}`;

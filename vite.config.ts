@@ -170,11 +170,18 @@ export default defineConfig(({ command, isPreview }) => ({
     ...(command === "build" || isPreview
       ? [
           nitro({
-            preset: "vercel",
+            preset: "cloudflare_module",
             // Auto-registers server/middleware/* (the PWA install page +
-            // manifest + head-tag middleware). Nitro v3 defaults serverDir to
-            // false, so removing this silently unwires /?install=1 on deploys.
+            // manifest + head-tag middleware) and server/tasks/* (the
+            // missed-dose check, see server/tasks/care/missed-doses.ts).
             serverDir: "./server",
+            experimental: { tasks: true },
+            // Cloudflare Cron Triggers, wired up automatically at build time
+            // — no manual wrangler.toml [triggers] section needed. Runs
+            // every 15 minutes; each run only pushes an alert for a dose
+            // that just crossed its grace period, so this cadence is a
+            // reminder-latency setting, not a spam risk.
+            scheduledTasks: { "*/15 * * * *": ["care:missed-doses"] },
           }),
         ]
       : []),

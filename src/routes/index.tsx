@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Bell, Check, Clock, Pill, Plus, Volume2 } from "lucide-react";
+import { Bell, Check, Clock, Heart, Pill, Plus, RefreshCw, Volume2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -10,6 +10,8 @@ import {
   startDoseAlarm,
   stopDoseAlarm,
 } from "@/lib/alerts";
+import { getHousehold } from "@/lib/care";
+import { enableCaregiverAlerts } from "@/lib/push-client";
 import {
   buildDaySlots,
   currentDose,
@@ -20,6 +22,7 @@ import {
   periodOfDay,
 } from "@/lib/schedule";
 import { useAppStore } from "@/lib/store";
+import { useCareActivity } from "@/lib/use-care-activity";
 import { useNow } from "@/lib/use-hydrated";
 import { cn } from "@/lib/utils";
 
@@ -41,9 +44,10 @@ function Home() {
   const next = nextUpcoming(slots);
   const takenCount = slots.filter((s) => s.status === "taken").length;
   const alarmLive = Boolean(due) && Date.now() >= alarmMutedUntil;
+  const isCaregiver = settings.onboardingDone && settings.role === "caregiver";
 
   useEffect(() => {
-    if (!due || !alarmLive || !settings.onboardingDone) {
+    if (isCaregiver || !due || !alarmLive || !settings.onboardingDone) {
       stopDoseAlarm();
       return;
     }
@@ -58,6 +62,7 @@ function Home() {
     showDoseNotification("Time for your pill", phrase);
     return () => stopDoseAlarm();
   }, [
+    isCaregiver,
     due?.medicine.id,
     due?.time,
     alarmLive,
@@ -71,6 +76,14 @@ function Home() {
     return (
       <AppShell title="Welcome" hideNav>
         <Onboarding />
+      </AppShell>
+    );
+  }
+
+  if (isCaregiver) {
+    return (
+      <AppShell>
+        <CaregiverHome />
       </AppShell>
     );
   }
@@ -114,7 +127,7 @@ function Home() {
                 onClick={() =>
                   navigate({
                     to: "/check",
-                    search: { medicineId: due.medicine.id, date: due.date, time: due.time },
+                    search: { medicineId: due.medicine.id, date: due.date, time: due.time, practice: false },
                   })
                 }
               >
@@ -150,7 +163,7 @@ function Home() {
               onClick={() =>
                 navigate({
                   to: "/check",
-                  search: { medicineId: next.medicine.id, date: next.date, time: next.time },
+                  search: { medicineId: next.medicine.id, date: next.date, time: next.time, practice: true },
                 })
               }
             >
@@ -275,6 +288,38 @@ function EmptyMedicines({ onSample }: { onSample: () => void }) {
 }
 
 function Onboarding() {
+  const [step, setStep] = useState<"choose" | "patient" | "caregiver">("choose");
+
+  if (step === "choose") {
+    return (
+      <div className="flex flex-col gap-6">
+        <p className="text-2xl leading-snug text-muted">Whose phone is this?</p>
+        <Button size="xl" onClick={() => setStep("patient")}>
+          <Pill className="size-7" />
+          I take medicine
+        </Button>
+        <Button size="xl" variant="secondary" onClick={() => setStep("caregiver")}>
+          <Heart className="size-7" />
+          I'm helping a family member
+        </Button>
+        <Link
+          to="/privacy"
+          className="mt-2 text-center text-lg font-bold text-muted underline"
+        >
+          Privacy Policy
+        </Link>
+      </div>
+    );
+  }
+
+  if (step === "caregiver") {
+    return <CaregiverJoin onBack={() => setStep("choose")} />;
+  }
+
+  return <PatientOnboarding onBack={() => setStep("choose")} />;
+}
+
+function PatientOnboarding({ onBack }: { onBack: () => void }) {
   const setSettings = useAppStore((s) => s.setSettings);
   const loadSamples = useAppStore((s) => s.loadSamples);
   const settings = useAppStore((s) => s.settings);
@@ -284,7 +329,7 @@ function Onboarding() {
       className="flex flex-col gap-6"
       onSubmit={(e) => {
         e.preventDefault();
-        setSettings({ onboardingDone: true });
+        setSettings({ role: "patient", onboardingDone: true });
         void requestNotifyPermission();
       }}
     >
@@ -351,6 +396,192 @@ function Onboarding() {
       >
         Show me a sample day
       </Button>
+      <Button type="button" size="xl" variant="secondary" onClick={onBack}>
+        Back
+      </Button>
     </form>
+  );
+}
+
+function CaregiverJoin({ onBack }: { onBack: () => void }) {
+  const setSettings = useAppStore((s) => s.setSettings);
+  const settings = useAppStore((s) => s.settings);
+  const [code, setCode] = useState("");
+  const [status, setStatus] = useState<"idle" | "checking" | "error">("idle");
+  const [error, setError] = useState("");
+
+  return (
+    <form
+      className="flex flex-col gap-6"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const trimmed = code.trim();
+        if (!trimmed) return;
+        setStatus("checking");
+        setError("");
+        try {
+          const res = await getHousehold({ data: { code: trimmed } });
+          if (!res.ok) {
+            setStatus("error");
+            setError(res.error);
+            return;
+          }
+          setSettings({
+            role: "caregiver",
+            householdCode: trimmed.toUpperCase(),
+            patientName: res.patientName,
+            onboardingDone: true,
+          });
+        } catch {
+          setStatus("error");
+          setError("Something went wrong. Check your connection and try again.");
+        }
+      }}
+    >
+      <p className="text-2xl leading-snug text-muted">
+        Enter the family code from your family member's phone. You will see when they take their
+        medicine, with a photo, and get an alert if a dose is missed.
+      </p>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="your-name">Your first name</Label>
+        <Input
+          id="your-name"
+          autoComplete="given-name"
+          value={settings.caregiverName}
+          onChange={(e) => setSettings({ caregiverName: e.target.value })}
+          placeholder="For example, Alex"
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="code">Family code</Label>
+        <Input
+          id="code"
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="For example, K3F7QM"
+          autoCapitalize="characters"
+        />
+        {status === "error" ? <p className="text-lg font-bold text-danger">{error}</p> : null}
+      </div>
+
+      <Button type="submit" size="xl" disabled={status === "checking" || !code.trim()}>
+        {status === "checking" ? "Checking…" : "Connect"}
+      </Button>
+      <Button type="button" size="xl" variant="secondary" onClick={onBack}>
+        Back
+      </Button>
+    </form>
+  );
+}
+
+function CaregiverHome() {
+  const settings = useAppStore((s) => s.settings);
+  const { data, error, loading, reload } = useCareActivity(20);
+  const [alertStatus, setAlertStatus] = useState<"idle" | "working" | "on" | "error">("idle");
+  const [alertError, setAlertError] = useState("");
+
+  const todaySlots = (data?.medicines ?? []).flatMap((m) => m.times.map((t) => `${m.id}|${t}`));
+  const today = new Date().toISOString().slice(0, 10);
+  const takenToday = (data?.activity ?? []).filter((a) => a.date === today && a.status === "taken").length;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <p className="text-lg font-bold text-muted">Alerts for</p>
+        <h1 className="text-4xl font-bold leading-tight">{data?.patientName ?? settings.patientName}</h1>
+      </div>
+
+      {loading ? (
+        <p className="text-xl text-muted">Loading…</p>
+      ) : error ? (
+        <section className="rounded-xl bg-danger p-5 text-danger-fg shadow-card">
+          <p className="text-xl font-bold">{error}</p>
+        </section>
+      ) : (
+        <>
+          {todaySlots.length > 0 ? (
+            <section className="rounded-xl bg-paper p-5 shadow-card">
+              <p className="text-lg font-bold text-muted">Today</p>
+              <p className="mt-1 text-3xl font-bold">
+                {takenToday} of {todaySlots.length} taken
+              </p>
+            </section>
+          ) : null}
+
+          <section className="rounded-lg bg-paper p-4 shadow-card">
+            <p className="flex items-center gap-2 text-xl font-bold">
+              <Bell className="size-6" />
+              Alerts on this phone
+            </p>
+            <p className="mt-2 text-lg text-muted">
+              Turn this on to get a notification here when a dose is taken or missed, even with the
+              app closed.
+            </p>
+            {alertStatus === "error" ? (
+              <p className="mt-2 text-lg font-bold text-danger">{alertError}</p>
+            ) : null}
+            <Button
+              size="xl"
+              className="mt-4 w-full"
+              disabled={alertStatus === "working" || alertStatus === "on"}
+              onClick={async () => {
+                setAlertStatus("working");
+                const res = await enableCaregiverAlerts(settings.householdCode);
+                if (res.ok) {
+                  setAlertStatus("on");
+                } else {
+                  setAlertStatus("error");
+                  setAlertError(res.error ?? "Could not turn on alerts.");
+                }
+              }}
+            >
+              {alertStatus === "on" ? "Alerts are on" : "Turn on alerts"}
+            </Button>
+          </section>
+
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Activity</h2>
+              <button
+                type="button"
+                onClick={() => void reload()}
+                className="flex items-center gap-2 text-lg font-bold text-primary"
+              >
+                <RefreshCw className="size-5" />
+                Refresh
+              </button>
+            </div>
+            {(data?.activity.length ?? 0) === 0 ? (
+              <p className="text-xl text-muted">Nothing yet today.</p>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {data?.activity.map((item) => (
+                  <li key={item.id} className="flex items-center gap-4 rounded-lg bg-paper p-3 shadow-card">
+                    <div className="size-16 shrink-0 overflow-hidden rounded-md bg-bg-warm">
+                      {item.checkImage ? (
+                        <img src={item.checkImage} alt="" className="size-full object-cover" />
+                      ) : (
+                        <div className="flex size-full items-center justify-center text-muted">
+                          <Pill className="size-7" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xl font-bold">{item.medicineName}</p>
+                      <p className="text-lg text-muted">
+                        {formatTimeLabel(item.time)} · {item.strength}
+                      </p>
+                    </div>
+                    <StatusChip status={item.status === "skipped" ? "missed" : item.status} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      )}
+    </div>
   );
 }

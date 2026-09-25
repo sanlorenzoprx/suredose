@@ -1,4 +1,4 @@
-import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import { createRootRoute, HeadContent, Link, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import appCss from "../styles.css?url";
@@ -31,6 +31,18 @@ export const Route = createRootRoute({
       },
     ],
   }),
+  notFoundComponent: () => (
+    <div className="mx-auto flex min-h-dvh max-w-lg flex-col items-center justify-center gap-6 bg-bg px-6 text-center">
+      <p className="text-3xl font-bold leading-snug">We could not find that page.</p>
+      <p className="text-xl text-muted">It may have moved, or the link was typed wrong.</p>
+      <Link
+        to="/"
+        className="mt-2 inline-flex min-h-16 items-center justify-center rounded-lg bg-primary px-8 text-2xl font-bold text-primary-fg shadow-card"
+      >
+        Go to Home
+      </Link>
+    </div>
+  ),
   component: () => (
     <html lang="en" className="antialiased" suppressHydrationWarning>
       <head>

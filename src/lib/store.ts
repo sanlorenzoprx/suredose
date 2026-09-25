@@ -22,9 +22,11 @@ type AppState = {
     notified: boolean;
   }) => void;
   markMissed: (medicineId: string, date: string, time: string) => void;
+  markNotified: (medicineId: string, date: string, time: string) => void;
   muteAlarm: (ms: number) => void;
   loadSamples: () => void;
   resetAll: () => void;
+  leaveHousehold: () => void;
 };
 
 const defaultSettings: Settings = {
@@ -35,6 +37,8 @@ const defaultSettings: Settings = {
   vibrateOn: true,
   speakOn: true,
   onboardingDone: false,
+  role: "patient",
+  householdCode: "",
 };
 
 function hhmm(date: Date): string {
@@ -154,6 +158,14 @@ export const useAppStore = create<AppState>()(
           };
         });
       },
+      markNotified: (medicineId, date, time) => {
+        const key = eventKey(medicineId, date, time);
+        set((s) => ({
+          events: s.events.map((e) =>
+            eventKey(e.medicineId, e.date, e.time) === key ? { ...e, notified: true } : e,
+          ),
+        }));
+      },
       muteAlarm: (ms) => set({ alarmMutedUntil: Date.now() + ms }),
       loadSamples: () => {
         set((s) => {
@@ -177,6 +189,10 @@ export const useAppStore = create<AppState>()(
           events: get().events.filter((e) => e.date !== todayISO()),
           alarmMutedUntil: 0,
         }),
+      leaveHousehold: () =>
+        set((s) => ({
+          settings: { ...s.settings, role: "patient", householdCode: "", onboardingDone: false },
+        })),
     }),
     {
       name: "suredose-v1",

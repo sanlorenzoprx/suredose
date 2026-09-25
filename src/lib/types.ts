@@ -23,6 +23,8 @@ export type DoseEvent = {
   notified: boolean;
 };
 
+export type CareRole = "patient" | "caregiver";
+
 export type Settings = {
   patientName: string;
   caregiverName: string;
@@ -31,6 +33,10 @@ export type Settings = {
   vibrateOn: boolean;
   speakOn: boolean;
   onboardingDone: boolean;
+  /** Whose phone this is. "patient" takes the pills; "caregiver" watches. */
+  role: CareRole;
+  /** The shared family pairing code, once created or joined. Empty = not paired. */
+  householdCode: string;
 };
 
 export type DoseSlot = {
@@ -54,4 +60,25 @@ export type PillMatch = {
   match: boolean;
   confidence: number;
   reason: string;
+};
+
+/** One row in the caregiver's activity feed — a dose that was taken or missed. */
+export type CareActivityItem = {
+  id: string;
+  medicineName: string;
+  strength: string;
+  date: string;
+  time: string;
+  status: "taken" | "missed" | "skipped";
+  takenAt: number | null;
+  verified: boolean;
+  checkImage: string | null;
+};
+
+/** A patient's medicine, as mirrored to the server for the caregiver's read-only view. */
+export type CareMedicineSummary = {
+  id: string;
+  name: string;
+  strength: string;
+  times: string[];
 };

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Heart, Home, Pill } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCareSync } from "@/lib/care-sync";
 
 const NAV = [
   { to: "/", label: "Home", icon: Home },
@@ -19,6 +20,8 @@ export function AppShell({
   hideNav?: boolean;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  useCareSync();
+
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col bg-bg">
