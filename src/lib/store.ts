@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { DoseEvent, Medicine, Settings } from "./types";
 import { eventKey, todayISO } from "./schedule";
+import { forgetPillReferences } from "./pill-cache";
 import { uid } from "./utils";
 
 type AppState = {
@@ -27,6 +28,10 @@ type AppState = {
   loadSamples: () => void;
   resetAll: () => void;
   leaveHousehold: () => void;
+  /** This phone's pill-library id, created the first time it's needed. */
+  ensureDeviceId: () => string;
+  /** Delete every pill photo this phone added to the pill library. */
+  forgetAllPillPhotos: () => Promise<number>;
 };
 
 const defaultSettings: Settings = {
@@ -39,7 +44,23 @@ const defaultSettings: Settings = {
   onboardingDone: false,
   role: "patient",
   householdCode: "",
+  deviceId: "",
+  sharePillPhotos: false,
 };
+
+function newDeviceId(): string {
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === "function") return `dev_${c.randomUUID().replace(/-/g, "")}`;
+  return `dev_${uid("x")}${uid("y")}`.replace(/[^A-Za-z0-9_]/g, "");
+}
+
+/** Best effort: drop this phone's library photos from the server. */
+function forgetPills(deviceId: string | undefined, medicineId?: string): void {
+  if (!deviceId) return;
+  void forgetPillReferences({ data: { deviceId, medicineId } }).catch(() => {
+    /* offline or server down — the Family tab has a "delete all" button */
+  });
+}
 
 function hhmm(date: Date): string {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
@@ -107,11 +128,13 @@ export const useAppStore = create<AppState>()(
         set((s) => ({
           medicines: s.medicines.map((m) => (m.id === id ? { ...m, ...patch } : m)),
         })),
-      removeMedicine: (id) =>
+      removeMedicine: (id) => {
+        forgetPills(get().settings.deviceId, id);
         set((s) => ({
           medicines: s.medicines.filter((m) => m.id !== id),
           events: s.events.filter((e) => e.medicineId !== id),
-        })),
+        }));
+      },
       markTaken: ({ medicineId, date, time, verified, checkImage, notified }) => {
         const key = eventKey(medicineId, date, time);
         set((s) => {
@@ -182,13 +205,29 @@ export const useAppStore = create<AppState>()(
           };
         });
       },
-      resetAll: () =>
+      resetAll: () => {
+        // A reset forgets this phone's id, so delete its library photos first.
+        forgetPills(get().settings.deviceId);
         set({
           settings: defaultSettings,
           medicines: [],
           events: get().events.filter((e) => e.date !== todayISO()),
           alarmMutedUntil: 0,
-        }),
+        });
+      },
+      ensureDeviceId: () => {
+        const existing = get().settings.deviceId;
+        if (existing) return existing;
+        const deviceId = newDeviceId();
+        set((s) => ({ settings: { ...s.settings, deviceId } }));
+        return deviceId;
+      },
+      forgetAllPillPhotos: async () => {
+        const deviceId = get().settings.deviceId;
+        if (!deviceId) return 0;
+        const res = await forgetPillReferences({ data: { deviceId } });
+        return res.deleted;
+      },
       leaveHousehold: () =>
         set((s) => ({
           settings: { ...s.settings, role: "patient", householdCode: "", onboardingDone: false },

@@ -9,6 +9,7 @@ import { readBottleLabel } from "@/lib/ai";
 import { canonicalProductNdc, normName, normStrength } from "@/lib/drug-data";
 import { verifyMedicine } from "@/lib/drug-verify";
 import { shrinkDataUrl, toDataUrl } from "@/lib/image";
+import { cachePillReference, forgetPillReferences } from "@/lib/pill-cache";
 import { formatTimeLabel, periodPreset } from "@/lib/schedule";
 import { useAppStore } from "@/lib/store";
 import type { Medicine, MedicineCheck, VerifiedMedicine } from "@/lib/types";
@@ -41,6 +42,11 @@ function AddMedicine() {
   const medicines = useAppStore((s) => s.medicines);
   const addMedicine = useAppStore((s) => s.addMedicine);
   const updateMedicine = useAppStore((s) => s.updateMedicine);
+  const ensureDeviceId = useAppStore((s) => s.ensureDeviceId);
+  const setSettings = useAppStore((s) => s.setSettings);
+  const deviceId = useAppStore((s) => s.settings.deviceId);
+  // Opt-in: only an explicit "yes" from this person shares a photo.
+  const sharePillPhotos = useAppStore((s) => s.settings.sharePillPhotos === true);
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [bottleImage, setBottleImage] = useState<string | null>(null);
@@ -61,6 +67,8 @@ function AddMedicine() {
   const [confirmed, setConfirmed] = useState<VerifiedMedicine | null>(null);
 
   const [pillImage, setPillImage] = useState<string | null>(null);
+  // Practice photos from /samples are never added to the pill library.
+  const [pillIsSample, setPillIsSample] = useState(false);
   const [officialRejected, setOfficialRejected] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -164,6 +172,12 @@ function AddMedicine() {
     (!officialRejected && confirmed?.appearance) || labelDescription || "",
   );
 
+  // The library only takes the person's own photo of a real pill, for a
+  // medicine with no maker's photo — and never one that looked different
+  // from the maker's photo (its label may be wrong).
+  const canShareToLibrary =
+    Boolean(pillImage) && !pillIsSample && !officialRejected && !confirmed?.officialImage;
+
   async function save(image: string, source: "official" | "own") {
     if (!name.trim() || times.length === 0 || saving) return;
     setSaving(true);
@@ -187,8 +201,29 @@ function AddMedicine() {
         appearance: appearance || undefined,
         pillImageSource: source,
       };
+      const medicineId = existing ? existing.id : addMedicine(fields);
       if (existing) updateMedicine(existing.id, fields);
-      else addMedicine(fields);
+
+      if (source === "own" && canShareToLibrary && sharePillPhotos) {
+        // Only the pill photo, never the bottle photo. Fire and forget:
+        // saving the medicine never waits on this.
+        void cachePillReference({
+          data: {
+            deviceId: ensureDeviceId(),
+            medicineId,
+            name: fields.name,
+            strength: fields.strength,
+            ndc: confirmed?.ndc ?? "",
+            verifiedBy: fields.verifiedBy,
+            image,
+          },
+        }).catch(() => {
+          /* offline or AI unavailable — the medicine is saved either way */
+        });
+      } else if (existing && deviceId) {
+        // A refill that is no longer shared: drop the old library photo.
+        void forgetPillReferences({ data: { deviceId, medicineId: existing.id } }).catch(() => {});
+      }
       navigate({ to: "/" });
     } finally {
       setSaving(false);
@@ -429,9 +464,38 @@ function AddMedicine() {
                 title="Picture of the pill"
                 hint="Put one pill on a dark table. We save this so we can check it later."
                 preview={pillImage}
-                onCapture={setPillImage}
-                extraAction={<SamplePillPicker onPick={(src) => void toDataUrl(src).then(setPillImage)} />}
+                onCapture={(img) => {
+                  setPillImage(img);
+                  setPillIsSample(false);
+                }}
+                extraAction={
+                  <SamplePillPicker
+                    onPick={(src) =>
+                      void toDataUrl(src).then((img) => {
+                        setPillImage(img);
+                        setPillIsSample(true);
+                      })
+                    }
+                  />
+                }
               />
+              {canShareToLibrary ? (
+                <label className="flex min-h-20 cursor-pointer items-start gap-4 rounded-lg bg-paper p-4 shadow-card">
+                  <input
+                    type="checkbox"
+                    checked={sharePillPhotos}
+                    onChange={(e) => setSettings({ sharePillPhotos: e.target.checked })}
+                    className="mt-1 size-8 shrink-0 accent-[var(--color-primary)]"
+                  />
+                  <span className="text-xl leading-snug">
+                    <span className="block font-bold">Also add this pill photo to the SureDose pill library</span>
+                    <span className="mt-1 block text-lg text-muted">
+                      Optional. It helps us recognize pills in the future. Only the pill picture and the
+                      medicine name are shared — never your bottle or your name. You can delete it any time.
+                    </span>
+                  </span>
+                </label>
+              ) : null}
               {pillImage ? (
                 <Button size="xl" disabled={saving} onClick={() => void save(pillImage, "own")}>
                   <Check className="size-7" />

@@ -6,7 +6,7 @@ import { vertexVision } from "./vertex";
 
 const imageSchema = z.string().min(20).max(3_500_000);
 
-function extractJson(text: string): unknown {
+export function extractJson(text: string): unknown {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const raw = (fenced?.[1] ?? text).trim();
   const start = raw.indexOf("{");

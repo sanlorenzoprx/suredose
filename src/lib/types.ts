@@ -56,6 +56,25 @@ export type Settings = {
   role: CareRole;
   /** The shared family pairing code, once created or joined. Empty = not paired. */
   householdCode: string;
+  /**
+   * Random id for this phone, used only to find and delete the pill photos
+   * this phone added to the pill library. Created the first time it's needed.
+   */
+  deviceId?: string;
+  /**
+   * The person ticked "Add this pill photo to the SureDose pill library".
+   * Off unless they choose it: a pill photo plus its medicine name is
+   * health information, so it is shared only with consent.
+   */
+  sharePillPhotos?: boolean;
+};
+
+/** Visible features of a pill, as read from a photo by the vision model. */
+export type PillFeatures = {
+  imprint: string;
+  color: string;
+  shape: string;
+  form: string;
 };
 
 export type DoseSlot = {

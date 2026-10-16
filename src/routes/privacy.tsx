@@ -22,7 +22,8 @@ function PrivacyPage() {
           government drug lists — nothing about you is sent. Your personal information leaves your
           phone only if you choose to connect a family member. If you do, only what they need to
           see — the medicine names and times, and a photo each time you confirm a dose — is shared
-          with them. We do not sell your data or show you ads.
+          with them. If you choose to, you can also add a close-up pill photo to the SureDose pill
+          library (it's off unless you tick that box). We do not sell your data or show you ads.
         </Section>
 
         <Section title="Information stored only on your phone">
@@ -73,6 +74,31 @@ function PrivacyPage() {
           </p>
         </Section>
 
+        <Section title="The pill library (only if you choose it)">
+          <p>
+            When you take your own photo of a pill while adding a medicine, the app may offer a
+            box: "Also add this pill photo to the SureDose pill library". It is not ticked unless
+            you tick it. If you do, our server keeps a copy of that pill photo together with the
+            medicine name and strength, how it was checked against U.S. drug data, and what our AI
+            reads on the pill (the letters or numbers pressed into it, its color, and its shape).
+            These photos are meant to help recognize pills in the future.
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-6">
+            <li>Only the close-up photo of one pill is saved — never the photo of your bottle</li>
+            <li>
+              Our AI first checks the photo shows a pill. If that check can't run, the photo is
+              not saved
+            </li>
+            <li>Practice photos, and pills that looked different from the maker's photo, are never added</li>
+            <li>It is not linked to your name, phone number, or family code</li>
+            <li>
+              It is linked to a random number stored on your phone, so you can delete it: removing a
+              medicine deletes its pill photo, and the Family tab has "Delete my pill library
+              photos"
+            </li>
+          </ul>
+        </Section>
+
         <Section title="A third-party AI service reads your photos">
           Reading a prescription bottle and comparing a pill photo to your saved reference photo
           is done by sending that photo to a third-party AI service (currently Google's Gemini
@@ -81,8 +107,11 @@ function PrivacyPage() {
         </Section>
 
         <Section title="Deleting your data">
-          If you never connect a family member, none of your personal information is stored on
-          our server, and uninstalling the app removes everything. (The public drug facts described
+          If you never connect a family member and never add a photo to the pill library, none of
+          your personal information is stored on our server, and uninstalling the app removes
+          everything. To delete pill library photos, use "Delete my pill library photos" on the
+          Family tab while you are online — do this before uninstalling, because the random
+          number that lets you delete them is stored only on your phone. (The public drug facts described
           above are not personal and are not linked to you.) If you have connected a family member, the patient's Family
           tab has a "Delete shared data" option that permanently deletes the family code and
           everything stored under it from our server, immediately, with no account or login

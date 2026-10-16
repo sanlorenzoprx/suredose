@@ -176,6 +176,35 @@ formats and the lookup/cache flow against mocked responses, but they have
 not been run against the live government APIs from here — run one real
 scan of a bottle with an NDC after deploying.
 
+## Pill library (opt-in, groundwork for pill search)
+
+When someone adds a medicine with **their own** pill photo, step 4 offers an
+unticked box: "Also add this pill photo to the SureDose pill library". If
+ticked (remembered as `settings.sharePillPhotos`), `cachePillReference`
+(`src/lib/pill-cache.ts`) saves the photo to R2 at `pills/<sha256>.jpg`
+and a row in `pill_images` (`migrations/0004_pill_library.sql`) with the
+confirmed name/strength, the NDC and how it was verified, and the imprint,
+color and shape read by the vision model.
+
+Safety rules:
+
+- **Opt-in, off by default.** A pill photo plus a medicine name is health
+  information.
+- **Fails closed.** The vision model must confirm "exactly one pill"; if it
+  can't run, nothing is saved, so a bottle photo can't slip in.
+- **Only where it adds something:** never practice photos, never a pill
+  that looked different from the maker's photo, and never a medicine that
+  already has a maker's photo in `drug_products`.
+- **Deletable:** removing a medicine deletes its row; the Family tab has
+  "Delete my pill library photos". Rows are keyed by a random per-phone
+  `deviceId`, not a name or family code. Capped at 40 rows per phone.
+- **No search endpoint yet.** It would be unauthenticated and spend AI
+  credits per call. Before adding one, put a Cloudflare rate-limiting rule
+  on the server-function path, and rank NDC-verified rows first.
+
+Labels come from users. Never use the library to confirm a dose — the dose
+check compares against the person's own saved reference.
+
 ## Design choices worth knowing about
 
 **SMS is one-tap, not automatic.** The app pre-fills the text message and

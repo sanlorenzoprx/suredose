@@ -215,8 +215,65 @@ function PatientFamilyPage() {
 
       <TestTextButton />
 
+      <PillLibrarySection />
+
       <LegalFooterLinks />
     </div>
+  );
+}
+
+/**
+ * Lets a person who opted in to the pill library see that setting and
+ * delete everything this phone added, without removing medicines.
+ */
+function PillLibrarySection() {
+  const sharing = useAppStore((s) => s.settings.sharePillPhotos === true);
+  const deviceId = useAppStore((s) => s.settings.deviceId);
+  const setSettings = useAppStore((s) => s.setSettings);
+  const forgetAllPillPhotos = useAppStore((s) => s.forgetAllPillPhotos);
+  const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+
+  if (!sharing && !deviceId) return null;
+
+  return (
+    <section className="rounded-xl bg-paper p-5 shadow-card">
+      <h2 className="text-2xl font-bold">Pill library</h2>
+      <ToggleRow
+        label="Offer to add new pill photos"
+        on={sharing}
+        onChange={(sharePillPhotos) => setSettings({ sharePillPhotos })}
+      />
+      {deviceId ? (
+        <>
+          <p className="mt-3 text-lg text-muted">
+            Pill photos you added help us recognize pills. They are not linked to your name.
+          </p>
+          <Button
+            size="lg"
+            variant="secondary"
+            className="mt-4 w-full"
+            disabled={state === "busy"}
+            onClick={() => {
+              setState("busy");
+              forgetAllPillPhotos()
+                .then(() => setState("done"))
+                .catch(() => setState("error"));
+            }}
+          >
+            <Trash2 className="size-6" />
+            Delete my pill library photos
+          </Button>
+          {state === "done" ? (
+            <p className="mt-3 text-lg font-bold">Done. Your pill photos were deleted from the library.</p>
+          ) : null}
+          {state === "error" ? (
+            <p className="mt-3 text-lg font-bold text-danger">
+              Could not reach our server. Please try again when you are online.
+            </p>
+          ) : null}
+        </>
+      ) : null}
+    </section>
   );
 }
 
