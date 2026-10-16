@@ -10,6 +10,7 @@ import {
   parseFdaNdcResponse,
   parseSplAppearance,
   plainForm,
+  productAgreesWithLabel,
   productNdcCandidates,
   strengthMatches,
 } from "./drug-data.ts";
@@ -184,4 +185,15 @@ test("RxNorm approximate term + clinical drug names", () => {
     parseClinicalDrugName("acetaminophen 325 MG / hydrocodone bitartrate 5 MG Oral Tablet")?.strength,
     "325 mg / 5 mg",
   );
+});
+
+test("product agrees with the label it was read from", () => {
+  const lisinopril10 = { names: ["Lisinopril", "LISINOPRIL", ""], strength: "10 mg" };
+  assert.equal(productAgreesWithLabel(lisinopril10, { name: "Lisinopril", strength: "10mg" }), true);
+  assert.equal(productAgreesWithLabel(lisinopril10, { name: "Lisinopril", strength: "20 mg" }), false);
+  assert.equal(productAgreesWithLabel(lisinopril10, { name: "Losartan", strength: "10 mg" }), false);
+  // Strength not read off the label: name alone decides.
+  assert.equal(productAgreesWithLabel(lisinopril10, { name: "Lisinopril" }), true);
+  // No hint at all (e.g. the cache warmer): anything agrees.
+  assert.equal(productAgreesWithLabel(lisinopril10, {}), true);
 });

@@ -12,6 +12,7 @@ import {
   parseFdaNdcResponse,
   parseRxProperties,
   parseSplAppearance,
+  productAgreesWithLabel,
   productNdcCandidates,
   strengthMatches,
   type FdaProduct,
@@ -209,28 +210,50 @@ export async function ingestProducts(setId: string, products: FdaProduct[]): Pro
  * The exact product for an NDC read off a bottle: cache first, then
  * openFDA + DailyMed. Returns null when no reading of the NDC is a real
  * product. Serves a stale cached row if the government services are down.
+ *
+ * An NDC printed without dashes can be read several ways, and more than
+ * one reading can be a real product. `hint` (the name and strength read
+ * off the same label) picks the reading that agrees with the label, so a
+ * different drug that happens to share the digits isn't returned first.
  */
-export async function lookupByNdc(rawNdc: string): Promise<ProductRow | null> {
+export async function lookupByNdc(
+  rawNdc: string,
+  hint: { name?: string; strength?: string } = {},
+): Promise<ProductRow | null> {
   const candidates = productNdcCandidates(rawNdc);
   if (candidates.length === 0) return null;
+  const agrees = (r: ProductRow) =>
+    productAgreesWithLabel({ names: [r.name, r.generic_name, r.brand_name], strength: r.strength }, hint);
+
   const sql = await getSql();
   const cached = await sql<ProductRow>`
     select * from drug_products where product_ndc = any(${candidates.map(canonicalProductNdc)})
   `;
-  const fresh = cached.find((r) => isFresh(r.fetched_at, PRODUCT_TTL_DAYS));
-  if (fresh) return fresh;
+  const fresh = cached.filter((r) => isFresh(r.fetched_at, PRODUCT_TTL_DAYS));
+  const freshMatch = fresh.find(agrees);
+  if (freshMatch) return freshMatch;
+  // A single reading that's fresh in the cache is the answer even if it
+  // disagrees with the label; verifyMedicine reports the disagreement.
+  if (candidates.length === 1 && fresh[0]) return fresh[0];
 
+  const found: ProductRow[] = [];
   try {
     for (const c of candidates) {
-      const product = await fdaByProductNdc(c);
-      if (!product) continue;
-      const setId = product.splSetId || (await dailyMedSetIdForNdc(product.productNdc).catch(() => ""));
-      const [row] = await ingestProducts(setId, [product]);
-      return row ?? null;
+      let row = fresh.find((r) => r.product_ndc === canonicalProductNdc(c));
+      if (!row) {
+        const product = await fdaByProductNdc(c);
+        if (!product) continue;
+        const setId = product.splSetId || (await dailyMedSetIdForNdc(product.productNdc).catch(() => ""));
+        [row] = await ingestProducts(setId, [product]);
+      }
+      if (!row) continue;
+      if (agrees(row)) return row;
+      found.push(row);
     }
-    return null;
+    return found[0] ?? null;
   } catch (err) {
-    if (cached[0]) return cached[0];
+    const fallback = found[0] ?? cached.find(agrees) ?? cached[0];
+    if (fallback) return fallback;
     throw err;
   }
 }

@@ -118,6 +118,20 @@ export function namesMatch(readName: string, officialNames: string[]): boolean {
   return false;
 }
 
+/**
+ * Does an official product agree with what the label says? Name must share
+ * a real drug word; strength must not contradict (unknown is fine). With no
+ * hint at all, anything agrees.
+ */
+export function productAgreesWithLabel(
+  product: { names: string[]; strength: string },
+  label: { name?: string; strength?: string },
+): boolean {
+  const nameOk = !label.name || namesMatch(label.name, product.names.filter(Boolean));
+  const strengthOk = !label.strength || strengthMatches(label.strength, product.strength) !== false;
+  return nameOk && strengthOk;
+}
+
 /* ------------------------------------------------------------------ */
 /* Strength                                                            */
 /* ------------------------------------------------------------------ */
