@@ -61,8 +61,7 @@ test("the auth schema ships outside the globbed directory", () => {
   // Product migrations belong here; only the opt-in auth schema is excluded.
   const pending = pendingMigrations(readdirSync(migrationsDir), []);
   assert.ok(pending.every((entry) => entry.name !== AUTH_MIGRATION));
-  assert.ok(pending.some((entry) => entry.name === "0002_care_circle.sql"));
-  assert.ok(pending.some((entry) => entry.name === "0004_pill_library.sql"));
+  assert.ok(pending.some((entry) => entry.name === "0001_init.sql"));
   assert.ok(readdirSync(join(migrationsDir, "auth")).includes("0001_auth.sql"));
 });
 
