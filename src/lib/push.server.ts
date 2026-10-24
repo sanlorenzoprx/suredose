@@ -6,7 +6,7 @@ import { q, run } from "./db";
  * services) plus a contact subject. Generate one with, e.g., the `web-push`
  * CLI (`npx web-push generate-vapid-keys` — the CLI is fine to run locally
  * even though we don't use that package's runtime code) and set:
- *   VITE_VAPID_PUBLIC_KEY  (also readable client-side, not secret)
+ *   VITE_VAPID_PUBLIC_KEY  (not secret; export it before `npm run build`)
  *   VAPID_PRIVATE_KEY      (server-only secret)
  *   VAPID_SUBJECT          ("mailto:you@example.com" or an https URL)
  * On Cloudflare, set these with `wrangler secret put <NAME>` (or as plain
@@ -22,7 +22,10 @@ import { q, run } from "./db";
  * Node (Vercel, etc.) and on Cloudflare Workers.
  */
 function vapidKeys(): { subject: string; publicKey: string; privateKey: string } | null {
-  const publicKey = process.env.VITE_VAPID_PUBLIC_KEY;
+  // The public key is not secret and the phones already get it in the client
+  // build, so the build's copy is the fallback: exporting it once before
+  // `npm run build` is enough, with no runtime variable to keep in sync.
+  const publicKey = process.env.VITE_VAPID_PUBLIC_KEY || (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined);
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT;
   if (!publicKey || !privateKey || !subject) return null;
