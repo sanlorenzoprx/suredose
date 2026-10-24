@@ -20,11 +20,10 @@ function HelpPage() {
 
         <Section title="What does the photo comparison mean?">
           <p>
-            Photos can look similar without showing the same medicine. SureDose cannot confirm a
-            medicine's identity or tell you whether to take it. Follow your prescription label and
-            ask your pharmacist if you are unsure. A different or unclear photo does not mark a dose
-            taken. When you record a dose, it is your own confirmation, not verified medication
-            identity.
+            “Pill matched” means the letters, numbers, shape, and color match your saved pill photo.
+            Check your bottle for the dose and time. If asked, turn the pill over and take another
+            photo. If the pill does not match, or we still cannot check it, ask your pharmacist. Tap
+            “I took it” only after you take your dose.
           </p>
         </Section>
 

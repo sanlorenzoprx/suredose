@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { toCrossJSON, fromJSON } from "seroval";
 import { chromium } from "playwright";
 import { checkedUrl } from "./browser-guard.mjs";
 
@@ -9,7 +10,10 @@ import { checkedUrl } from "./browser-guard.mjs";
 const base = checkedUrl(process.argv[2] ?? "http://127.0.0.1:8080/");
 const screenshots = "/workspace/screenshots";
 mkdirSync(screenshots, { recursive: true });
-const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
+const browser = await chromium.launch({
+  headless: true,
+  args: ["--no-sandbox", "--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
+});
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 page.setDefaultTimeout(15000);
 const errors = [];
@@ -21,12 +25,12 @@ try {
     const image = new Image();
     image.src = "/samples/white-tablet.jpg";
     await image.decode();
-    const scale = Math.min(1, 720 / Math.max(image.width, image.height));
+    const scale = Math.min(1, 1600 / Math.max(image.width, image.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(image.width * scale));
     canvas.height = Math.max(1, Math.round(image.height * scale));
     canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
-    const reference = canvas.toDataURL("image/jpeg", 0.74);
+    const reference = canvas.toDataURL("image/jpeg", 0.9);
     localStorage.setItem(
       "suredose-v1",
       JSON.stringify({
@@ -71,7 +75,9 @@ try {
   // SSR buttons are visible before React has attached their event handlers.
   // Wait for that attachment so an early click cannot be silently ignored.
   await page.waitForFunction(() =>
-    Object.keys(document.querySelector("button") ?? {}).some((key) => key.startsWith("__reactProps$")),
+    Object.keys(document.querySelector("button") ?? {}).some((key) =>
+      key.startsWith("__reactProps$"),
+    ),
   );
   await page.getByRole("button", { name: "Skip — I will type it" }).click();
   const check = page.getByRole("button", { name: "Check this medicine" });
@@ -134,6 +140,107 @@ try {
     false,
   );
   await page.screenshot({ path: join(screenshots, "suredose-replay-mobile.png"), fullPage: true });
+  // UI fixtures below exercise rendering and state transitions, not model accuracy.
+  // The real server replay rejection above remains unmocked.
+  let reply = {
+    ok: true,
+    result: {
+      observation: "uncertain",
+      nextAction: "other_side",
+      reason: "Turn the pill over. Take a photo of the other side.",
+    },
+  };
+  const requests = [];
+  await page.route("**/*", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    requests.push(fromJSON(route.request().postDataJSON()));
+    await route.fulfill({
+      status: 200,
+      headers: { "content-type": "application/json", "x-tss-serialized": "true" },
+      body: JSON.stringify(toCrossJSON({ result: reply, context: {} })),
+    });
+  });
+  await page.getByRole("button", { name: "Open camera", exact: true }).click();
+  const takePhoto = page.getByRole("button", { name: "Take photo", exact: true });
+  await takePhoto.waitFor();
+  await page.waitForFunction(() => {
+    const v = document.querySelector("video");
+    return v && v.videoWidth > 0 && v.srcObject;
+  });
+  await takePhoto.click();
+  await page.getByRole("heading", { name: "Show the other side." }).waitFor();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].data.candidateBack, undefined);
+  const firstPhoto = requests[0].data.candidate;
+  await page.getByRole("button", { name: "Take photo of other side", exact: true }).click();
+  await page.getByRole("heading", { name: "Turn the pill over", exact: true }).waitFor();
+  reply = {
+    ok: true,
+    result: {
+      observation: "similar",
+      nextAction: "none",
+      reason: "The markings, shape, and color match your saved pill photo.",
+    },
+  };
+  await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
+  await page.getByRole("heading", { name: "Pill matched.", exact: true }).waitFor();
+  assert.equal(requests[1].data.candidate, firstPhoto, "second view must retain first photo");
+  assert.ok(requests[1].data.candidateBack);
+  const took = page.getByRole("button", { name: "I took it", exact: true });
+  assert.equal(await took.isDisabled(), true);
+  await page.screenshot({ path: join(screenshots, "suredose-match-mobile.png"), fullPage: true });
+  await page.getByRole("button", { name: "Start a new check", exact: true }).click();
+  reply = {
+    ok: true,
+    result: {
+      observation: "different",
+      nextAction: "none",
+      reason:
+        "The letters or numbers do not match. Do not take this pill. Check with your pharmacist.",
+    },
+  };
+  await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
+  await page.getByRole("heading", { name: "Pill does not match.", exact: true }).waitFor();
+  assert.equal(await took.count(), 0);
+  assert.equal(requests[2].data.candidateBack, undefined, "new check must discard old second view");
+  await page.screenshot({
+    path: join(screenshots, "suredose-mismatch-mobile.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Start a new check", exact: true }).click();
+  reply = {
+    ok: true,
+    result: {
+      observation: "uncertain",
+      nextAction: "retake",
+      reason: "The photo is blurry. Rest your phone on a steady surface and try again.",
+    },
+  };
+  await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
+  await page.getByText("The photo is blurry.", { exact: false }).waitFor();
+  assert.equal(await took.count(), 0);
+  await page.getByRole("button", { name: "Start a new check", exact: true }).click();
+  reply = {
+    ok: true,
+    result: {
+      observation: "similar",
+      nextAction: "none",
+      reason: "The markings, shape, and color match your saved pill photo.",
+    },
+  };
+  await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
+  await page.getByRole("checkbox", { name: "I checked the dose and time on my bottle." }).check();
+  await took.click();
+  await page.getByRole("heading", { name: "You marked this dose taken.", exact: true }).waitFor();
+  const recorded = await page.evaluate(
+    () => JSON.parse(localStorage.getItem("suredose-v1")).state.events,
+  );
+  assert.equal(recorded.length, 1);
+  assert.equal(recorded[0].verified, false);
+  await page.reload();
+  await page.getByRole("heading", { name: /You already took/ }).waitFor();
+  assert.equal(await page.getByRole("button", { name: /log it again/ }).count(), 0);
+  assert.deepEqual(errors, [], "new flow has no uncaught browser errors");
   console.log(
     JSON.stringify({
       ok: true,
@@ -144,13 +251,24 @@ try {
         "edits invalidate acknowledgement",
         "no saved-photo shortcut",
         "server rejects replay",
-        "no dose event recorded",
+        "no dose event recorded for replay",
+        "camera stream attaches after mount and capture works",
+        "second photo retains first view",
+        "simple match, mismatch and blurry results",
+        "new check clears old second view",
+        "label acknowledgement gates recording",
+        "already-taken dose cannot be recorded again",
       ],
     }),
   );
 } catch (error) {
-  console.error(JSON.stringify({ url: page.url(), body: await page.locator("body").innerText(), errors }));
-  await page.screenshot({ path: join(screenshots, "suredose-regression-failure.png"), fullPage: true });
+  console.error(
+    JSON.stringify({ url: page.url(), body: await page.locator("body").innerText(), errors }),
+  );
+  await page.screenshot({
+    path: join(screenshots, "suredose-regression-failure.png"),
+    fullPage: true,
+  });
   throw error;
 } finally {
   await browser.close();

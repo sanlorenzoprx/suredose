@@ -55,7 +55,43 @@ export function captureFromVideo(video: HTMLVideoElement): string {
 }
 
 /** Re-encode any image data URL (e.g. an official pill photo) to the app's 720px JPEG. */
-export async function shrinkDataUrl(dataUrl: string): Promise<string> {
+export async function shrinkDataUrl(
+  dataUrl: string,
+  maxEdge = MAX_EDGE,
+  quality = QUALITY,
+): Promise<string> {
   const res = await fetch(dataUrl);
-  return compressImage(await res.blob());
+  return compressImage(await res.blob(), maxEdge, quality);
+}
+
+/** Keep detail for imprint reading; no sharpening or generated pixels. */
+export const PILL_MAX_EDGE = 1600;
+export const PILL_QUALITY = 0.9;
+
+type StillCapture = { takePhoto(): Promise<Blob> };
+type StillCaptureConstructor = new (track: MediaStreamTrack) => StillCapture;
+
+export async function capturePillPhoto(
+  video: HTMLVideoElement,
+  track: MediaStreamTrack,
+): Promise<string> {
+  const Camera = (globalThis as typeof globalThis & { ImageCapture?: StillCaptureConstructor })
+    .ImageCapture;
+  if (Camera) {
+    try {
+      const blob = await new Camera(track).takePhoto();
+      return await compressImage(blob, PILL_MAX_EDGE, PILL_QUALITY);
+    } catch {
+      // Some Android browsers expose ImageCapture but cannot take a still.
+    }
+  }
+  if (!video.videoWidth || !video.videoHeight) throw new Error("Camera is not ready. Try again.");
+  const canvas = document.createElement("canvas");
+  const scale = Math.min(1, PILL_MAX_EDGE / Math.max(video.videoWidth, video.videoHeight));
+  canvas.width = Math.round(video.videoWidth * scale);
+  canvas.height = Math.round(video.videoHeight * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not take this photo.");
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", PILL_QUALITY);
 }

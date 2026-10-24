@@ -208,7 +208,7 @@ function AddMedicine() {
       return;
     setSaving(true);
     try {
-      const pill = source === "official" ? await shrinkDataUrl(image) : image;
+      const pill = source === "official" ? await shrinkDataUrl(image, 1600, 0.9) : image;
       const fields = {
         name: name.trim(),
         strength: strength.trim(),
@@ -572,6 +572,7 @@ function AddMedicine() {
                 </p>
               ) : null}
               <PhotoCapture
+                pillDetail
                 title="Picture of the pill"
                 hint="Put one pill on a dark table. We save this so we can check it later."
                 preview={pillImage}

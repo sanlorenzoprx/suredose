@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { captureFromVideo, compressImage } from "@/lib/image";
+import {
+  captureFromVideo,
+  capturePillPhoto,
+  compressImage,
+  PILL_MAX_EDGE,
+  PILL_QUALITY,
+} from "@/lib/image";
 
 type Props = {
   title: string;
@@ -9,59 +15,111 @@ type Props = {
   onCapture: (dataUrl: string) => void;
   preview?: string | null;
   extraAction?: React.ReactNode;
+  pillDetail?: boolean;
 };
 
-export function PhotoCapture({ title, hint, onCapture, preview, extraAction }: Props) {
+export function PhotoCapture({
+  title,
+  hint,
+  onCapture,
+  preview,
+  extraAction,
+  pillDetail = false,
+}: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    return () => stopCamera();
+    return () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
   }, []);
+
+  useEffect(() => {
+    if (!cameraOn || !videoRef.current || !streamRef.current) return;
+    const video = videoRef.current;
+    video.srcObject = streamRef.current;
+    void video.play().catch(() => {
+      setError("Could not start the camera. Try again.");
+      stopCamera();
+    });
+  }, [cameraOn]);
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     setCameraOn(false);
+    setCameraReady(false);
   }
 
   async function startCamera() {
     setError(null);
+    setBusy(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } },
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: pillDetail ? 1920 : 1280 },
+          height: { ideal: pillDetail ? 1080 : 720 },
+        },
         audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+      const track = stream.getVideoTracks()[0];
+      // Request autofocus only when the device advertises it. Unsupported controls are optional.
+      const capabilities = track.getCapabilities?.() as MediaTrackCapabilities & {
+        focusMode?: string[];
+      };
+      if (capabilities?.focusMode?.includes("continuous")) {
+        await track
+          .applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] })
+          .catch(() => {});
       }
       setCameraOn(true);
     } catch {
       setError("Camera is not available here. Choose a photo from your phone instead.");
-      setCameraOn(false);
+      stopCamera();
+    } finally {
+      setBusy(false);
     }
   }
 
-  function snap() {
+  async function snap() {
     const video = videoRef.current;
     if (!video) return;
-    const data = captureFromVideo(video);
-    stopCamera();
-    onCapture(data);
+    setBusy(true);
+    setError(null);
+    try {
+      const track = streamRef.current?.getVideoTracks()[0];
+      if (!track) throw new Error("Camera is not ready. Try again.");
+      const data = pillDetail ? await capturePillPhoto(video, track) : captureFromVideo(video);
+      stopCamera();
+      onCapture(data);
+    } catch {
+      setError("Could not take the photo. Hold still and try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function onFile(file: File | undefined) {
-    if (!file) return;
+    if (!file || busy) return;
+    setBusy(true);
+    setError(null);
     try {
-      const data = await compressImage(file);
+      const data = pillDetail
+        ? await compressImage(file, PILL_MAX_EDGE, PILL_QUALITY)
+        : await compressImage(file);
       onCapture(data);
     } catch {
       setError("Could not open that photo. Try another one.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -76,7 +134,8 @@ export function PhotoCapture({ title, hint, onCapture, preview, extraAction }: P
         {cameraOn ? (
           <video
             ref={videoRef}
-            className="aspect-square w-full object-cover"
+            className="aspect-square w-full object-contain"
+            onLoadedData={() => setCameraReady(true)}
             playsInline
             muted
             autoPlay
@@ -107,9 +166,9 @@ export function PhotoCapture({ title, hint, onCapture, preview, extraAction }: P
 
       {cameraOn ? (
         <div className="flex flex-col gap-3">
-          <Button size="xl" onClick={snap}>
+          <Button size="xl" disabled={busy || !cameraReady} onClick={() => void snap()}>
             <Camera className="size-7" />
-            Take photo
+            {busy ? "Taking photo…" : "Take photo"}
           </Button>
           <Button size="xl" variant="secondary" onClick={stopCamera}>
             Cancel camera
@@ -117,11 +176,16 @@ export function PhotoCapture({ title, hint, onCapture, preview, extraAction }: P
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <Button size="xl" onClick={() => void startCamera()}>
+          <Button size="xl" disabled={busy} onClick={() => void startCamera()}>
             <Camera className="size-7" />
             Open camera
           </Button>
-          <Button size="xl" variant="secondary" onClick={() => inputRef.current?.click()}>
+          <Button
+            size="xl"
+            disabled={busy}
+            variant="secondary"
+            onClick={() => inputRef.current?.click()}
+          >
             <ImagePlus className="size-7" />
             Choose a photo
           </Button>

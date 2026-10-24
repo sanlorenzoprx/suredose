@@ -17,6 +17,7 @@ export const comparePills = createServerFn({ method: "POST" })
     (input: {
       reference: string;
       candidate: string;
+      candidateBack?: string;
       name: string;
       /** Official look from the FDA label, e.g. "White round tablet, marked M / 367". */
       appearance?: string;
@@ -25,6 +26,8 @@ export const comparePills = createServerFn({ method: "POST" })
     }) => ({
       reference: imageSchema.parse(input.reference),
       candidate: imageSchema.parse(input.candidate),
+      candidateBack:
+        input.candidateBack === undefined ? undefined : imageSchema.parse(input.candidateBack),
       name: z
         .string()
         .max(200)

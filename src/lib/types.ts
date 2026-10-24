@@ -123,6 +123,7 @@ export type PillMatch = {
   /** Visual observation only; never proof of identity or permission to dose. */
   observation: "similar" | "different" | "uncertain";
   reason: string;
+  nextAction: "none" | "retake" | "other_side" | "reference" | "pharmacist";
 };
 
 /** One row in the caregiver's activity feed — a dose that was taken or missed. */

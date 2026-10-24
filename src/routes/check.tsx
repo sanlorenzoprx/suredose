@@ -88,13 +88,14 @@ function CheckReady({
   const markTaken = useAppStore((s) => s.markTaken);
   const markNotified = useAppStore((s) => s.markNotified);
   const [candidate, setCandidate] = useState<string | null>(null);
+  const [takingBack, setTakingBack] = useState(false);
+  const [candidateBack, setCandidateBack] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<PillMatch | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [smsNote, setSmsNote] = useState<string | null>(null);
   const [doneAt, setDoneAt] = useState(false);
   const [reviewedLabel, setReviewedLabel] = useState(false);
-  const [overrideAlreadyTaken, setOverrideAlreadyTaken] = useState(false);
 
   const existingEvent = events.find(
     (e) => e.medicineId === medicine.id && e.date === date && e.time === time,
@@ -113,7 +114,10 @@ function CheckReady({
   );
 
   async function runCheck(photo: string) {
-    setCandidate(photo);
+    const front = takingBack && candidate ? candidate : photo;
+    const back = takingBack ? photo : undefined;
+    setCandidate(front);
+    setCandidateBack(back ?? null);
     setChecking(true);
     setError(null);
     setResult(null);
@@ -124,7 +128,8 @@ function CheckReady({
       const res = await comparePills({
         data: {
           reference,
-          candidate: photo,
+          candidate: front,
+          candidateBack: back,
           name: `${medicine.name} ${medicine.strength}`,
           appearance: medicine.appearance,
           officialReference: medicine.pillImageSource === "official",
@@ -141,7 +146,13 @@ function CheckReady({
 
   async function confirmTaken() {
     // A visual observation is never medication verification, even when similar.
-    if (!candidate || result?.observation !== "similar" || !reviewedLabel) return;
+    if (
+      !candidate ||
+      result?.observation !== "similar" ||
+      !reviewedLabel ||
+      (!practice && existingEvent?.status === "taken")
+    )
+      return;
     const verified = false;
     // Practice runs the full photo-check experience but never actually
     // records anything — no local event, no server sync, no text to family.
@@ -240,7 +251,7 @@ function CheckReady({
   // session, or a reminder notification tapped a second time) needs a
   // deliberate second tap before it can be logged again, so a forgotten
   // "did I take this?" moment can't accidentally turn into a double dose.
-  if (existingEvent?.status === "taken" && !overrideAlreadyTaken) {
+  if (!practice && existingEvent?.status === "taken") {
     return (
       <AppShell title="Already taken">
         <div className="flex flex-col gap-6">
@@ -261,9 +272,6 @@ function CheckReady({
           </section>
           <Button size="xl" onClick={() => navigate({ to: "/" })}>
             Go back home
-          </Button>
-          <Button size="lg" variant="ghost" onClick={() => setOverrideAlreadyTaken(true)}>
-            I really do need to log it again
           </Button>
         </div>
       </AppShell>
@@ -322,7 +330,7 @@ function CheckReady({
           <div className="flex flex-col items-center gap-4 py-8 text-center">
             <Loader2 className="size-12 animate-spin text-primary" />
             <p className="text-2xl font-bold">Checking your pill…</p>
-            <p className="text-xl text-muted">Hold still. This takes a few seconds.</p>
+            <p className="text-xl text-muted">Reading the letters and numbers.</p>
             {candidate ? (
               <img
                 src={candidate}
@@ -332,17 +340,22 @@ function CheckReady({
             ) : null}
           </div>
         ) : result ? (
-          <section className="rounded-xl bg-paper p-5 shadow-card">
-            <p className="flex items-center gap-2 text-lg font-bold text-muted">
-              <TriangleAlert className="size-6 shrink-0" />
-              Photo comparison only
-            </p>
-            <h3 className="mt-3 text-3xl font-bold leading-tight">
+          <section aria-live="polite" className="rounded-xl bg-paper p-5 shadow-card">
+            <h3
+              className={`flex items-center gap-3 text-3xl font-bold leading-tight ${result.observation === "similar" ? "text-success" : result.observation === "different" ? "text-danger" : "text-ink"}`}
+            >
+              {result.observation === "similar" ? (
+                <Check className="size-10 shrink-0" />
+              ) : (
+                <TriangleAlert className="size-10 shrink-0" />
+              )}
               {result.observation === "similar"
-                ? "The photos look similar."
+                ? "Pill matched."
                 : result.observation === "different"
-                  ? "The photos look different."
-                  : "We cannot tell from these photos."}
+                  ? "Pill does not match."
+                  : result.nextAction === "other_side"
+                    ? "Show the other side."
+                    : "We can’t check this pill."}
             </h3>
             <p className="mt-3 text-xl">{result.reason}</p>
             <div className="mt-4 grid grid-cols-2 gap-3">
@@ -352,7 +365,7 @@ function CheckReady({
                   alt="Saved pill"
                   className="aspect-square w-full rounded-md object-cover"
                 />
-                <figcaption className="mt-2 text-center text-lg">Saved reference</figcaption>
+                <figcaption className="mt-2 text-center text-lg">Saved pill</figcaption>
               </figure>
               <figure>
                 <img
@@ -365,10 +378,7 @@ function CheckReady({
             </div>
             {result.observation === "similar" ? (
               <>
-                <p className="mt-4 text-xl">
-                  Follow your prescription label. This comparison does not identify a medicine or
-                  tell you whether to take it. If you are unsure, ask your pharmacist.
-                </p>
+                <p className="mt-4 text-xl">Check your bottle for how much to take and when.</p>
                 <label className="mt-4 flex min-h-20 items-start gap-3 text-xl">
                   <input
                     type="checkbox"
@@ -376,7 +386,7 @@ function CheckReady({
                     onChange={(e) => setReviewedLabel(e.target.checked)}
                     className="mt-1 size-8 shrink-0"
                   />
-                  I checked my prescription label and directions myself.
+                  I checked the dose and time on my bottle.
                 </label>
                 <Button
                   size="xl"
@@ -384,29 +394,28 @@ function CheckReady({
                   disabled={!reviewedLabel}
                   onClick={() => void confirmTaken()}
                 >
-                  {practice ? "Finish practice" : "I took it — record my confirmation"}
+                  {practice ? "Finish practice" : "I took it"}
                 </Button>
-                <p className="mt-3 text-lg text-muted">
-                  Recorded as your confirmation, not verified medication identity.
-                </p>
               </>
             ) : (
-              <p className="mt-4 text-xl font-bold">
-                Do not rely on this photo check to decide what to take. Check with your pharmacist.
-                This dose has not been marked taken.
-              </p>
+              <p className="mt-4 text-xl font-bold">No dose has been marked taken.</p>
             )}
             <Button
               size="xl"
               variant="secondary"
               className="mt-4"
               onClick={() => {
+                setTakingBack(result.nextAction === "other_side");
+                if (result.nextAction !== "other_side") setCandidate(null);
+                setCandidateBack(null);
+                setError(null);
                 setResult(null);
-                setCandidate(null);
                 setReviewedLabel(false);
               }}
             >
-              Take another photo
+              {result.nextAction === "other_side"
+                ? "Take photo of other side"
+                : "Start a new check"}
             </Button>
           </section>
         ) : (
@@ -417,10 +426,16 @@ function CheckReady({
                 {error}
               </p>
             ) : null}
+            {takingBack ? (
+              <p className="text-xl font-bold">
+                First photo saved. Now show the other side of the same pill.
+              </p>
+            ) : null}
             <PhotoCapture
-              title="Picture of the pill in your hand"
-              hint="Take a new photo of the pill in front of you, including any letters or numbers."
-              preview={candidate}
+              pillDetail
+              title={takingBack ? "Turn the pill over" : "Picture of the pill in your hand"}
+              hint="Put one pill on a plain surface in bright light. Show the letters and numbers. Hold your phone steady."
+              preview={takingBack ? candidateBack : candidate}
               onCapture={(img) => void runCheck(img)}
             />
           </>

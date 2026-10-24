@@ -14,13 +14,26 @@ blank; frequency alone never generates clock times. During setup, the person
 checks name and strength, explicitly chooses reminder times, and confirms those
 times and directions against their prescription or pharmacist's guidance.
 
-Pill photos produce a visual observation: similar, different, or uncertain. They
-cannot establish medication identity or authorize a dose. Unreadable imprints
-cannot produce a similar result. Model-generated confidence and advice are not
-shown. Similarity requires a separate label-review acknowledgement before the
-person can record their own dose confirmation; that event has verified=false.
-Different, uncertain, failed, and replayed-image comparisons cannot confirm a dose.
-Practice still creates no dose event or caregiver message.
+Pill capture uses ImageCapture still photos when supported, with a video-frame
+fallback, continuous autofocus when advertised, and up to 1600px JPEG at 0.9 quality.
+Camera controls vary by phone; no optical stabilization or aperture control is promised.
+Reference setup uses the same detail settings for new pill photos. Existing low-resolution
+references must be replaced if markings cannot be read.
+
+Reference and candidate markings are extracted in separate model calls. Candidate
+reading never receives the expected medication name, description, or reference image.
+Code compares complete readable markings (only case and whitespace normalized), shape,
+and color. Missing reverse-side markings request a second photo; conflicting markings,
+poor quality, unclear references, errors and replay cannot pass. A second incomplete
+view directs the user to a pharmacist. The UI says "Pill matched", "Pill does not match",
+or "We can’t check this pill" with one next action.
+
+"Pill matched" means the extracted visible features match the saved photo. It is
+not validated medication identity or permission to dose. The user checks their bottle
+before recording "I took it"; verified=false remains intentional. Already-taken doses
+cannot be logged again through this screen. Practice creates no event or caregiver message.
+Provider selection and real-model false-match measurement remain outstanding. Unit tests
+use synthetic provider responses; browser response fixtures test UI flow, not AI accuracy.
 
 The saved-photo shortcut has been removed, and the server rejects the same image
 bytes even if the data-URL MIME type/whitespace differs. This does not establish
