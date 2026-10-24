@@ -157,3 +157,11 @@ test("deleteHousehold removes the household and everything under it", async () =
     assert.deepEqual(await q(`select * from ${table}`), [], table);
   }
 });
+
+test("creating a household surfaces a missing database instead of reporting a code clash", async () => {
+  (globalThis as { __env__?: unknown }).__env__ = undefined;
+  await assert.rejects(
+    createHousehold({ data: { patientName: "Ana", caregiverName: "", caregiverPhone: "" } }),
+    /binding `DB` is missing/,
+  );
+});

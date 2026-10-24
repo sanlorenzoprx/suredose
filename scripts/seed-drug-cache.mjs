@@ -10,7 +10,7 @@
  * For each medicine name it asks DailyMed for the matching human
  * prescription labels, then POSTs each label's set id to the app's
  * /api/drug-cache/warm endpoint, which fetches openFDA + DailyMed data and
- * pill photos and stores them (R2 + Postgres) exactly as a live scan would.
+ * pill photos and stores them (R2 + the D1 database) exactly as a live scan would.
  *
  * Every label is one openFDA call plus a few DailyMed calls. Set
  * OPENFDA_API_KEY on the app first: without a key openFDA allows only

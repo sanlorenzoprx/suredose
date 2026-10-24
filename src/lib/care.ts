@@ -41,8 +41,10 @@ export const createHousehold = createServerFn({ method: "POST" })
           [code, data.patientName, data.caregiverName, data.caregiverPhone, toIso()],
         );
         return { ok: true, code };
-      } catch {
+      } catch (err) {
         // Extremely unlikely code collision — try again with a fresh code.
+        // Anything else (no database, a bad schema) is a real failure.
+        if (!/UNIQUE constraint failed/i.test(err instanceof Error ? err.message : String(err))) throw err;
       }
     }
     return { ok: false, error: "Could not create a family code. Please try again." };

@@ -17,9 +17,6 @@ jobs:
       fail-fast: false
       matrix:
         check: [test, typecheck, build]
-    env:
-      # A verification build must never apply migrations to the live database.
-      DATABASE_URL: ""
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,8 +29,6 @@ jobs:
   browser:
     name: Verify (browser)
     runs-on: ubuntu-latest
-    env:
-      DATABASE_URL: ""
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

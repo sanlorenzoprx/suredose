@@ -16,6 +16,18 @@
       "bucket_name": "suredose-pill-images"
     }
   ],
+  // Care circle, drug cache and pill library. Create the database once with
+  //   npx wrangler d1 create suredose
+  // then replace database_id below with the id it prints. Apply the schema
+  // with `npm run d1:migrate:remote` (or `d1:migrate:local` for local dev).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "suredose",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
   "observability": {
     "enabled": true
   }

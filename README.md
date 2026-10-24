@@ -43,7 +43,7 @@ Real-world model accuracy, Android behavior, and delivery still require testing.
 `npm test` runs all script and application test groups even when one group fails.
 Generic PWA test fixtures do not read the product workspace's branding. GitHub
 Actions checks tests, typechecking, and the Cloudflare production build separately;
-verification builds have no live DATABASE_URL and do not deploy.
+verification builds have no live database and do not deploy.
 
 ## What this actually is
 
@@ -63,12 +63,19 @@ Three things must be set up before the caregiver-facing features work in
 production — the reminder/schedule/photo-check/SMS parts of the app don't
 need any of this and work with nothing configured:
 
-1. **A real Postgres database.** Locally, with nothing configured, the app
-   falls back to an embedded in-memory Postgres — fine for trying things out
-   on one machine, but a caregiver's phone and the patient's phone are two
-   separate devices that both need to reach the *same* database, so this
-   fallback cannot work once deployed. Get a free one at
-   [neon.tech](https://neon.tech) and set it as `DATABASE_URL`.
+1. **A Cloudflare D1 database** (binding `DB` in `wrangler.jsonc`). A
+   caregiver's phone and the patient's phone are two separate devices that
+   both need to reach the *same* database. Create it once and apply the
+   schema:
+
+   ```bash
+   npx wrangler d1 create suredose            # prints the database_id
+   # put that id in wrangler.jsonc -> d1_databases[0].database_id
+   npx wrangler d1 migrations apply suredose --remote
+   ```
+
+   The schema is `migrations/0001_init.sql`; later changes are new numbered
+   files in `migrations/`, applied the same way.
 2. **A VAPID key pair**, for sending push notifications to the caregiver's
    phone. Generate one with `npx web-push generate-vapid-keys` and set
    `VITE_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`
@@ -77,7 +84,7 @@ need any of this and work with nothing configured:
    `npx wrangler r2 bucket create suredose-pill-images` (the `PILL_IMAGES`
    binding is already in `wrangler.jsonc`), and a free **openFDA API key**
    (`OPENFDA_API_KEY`). Without R2, e.g. local `npm run dev`, photos are
-   kept in Postgres instead.
+   kept inline in the database row instead.
 
 4. **Google Vertex AI (Gemini)**, for reading bottle photos and comparing
    pill photos (`src/lib/vertex.ts`). Enable the Vertex AI API in a Google
@@ -94,7 +101,6 @@ npm run dev            # local dev server at http://localhost:8080
 
 # Deploy to Cloudflare:
 npx wrangler login
-wrangler secret put DATABASE_URL
 wrangler secret put VAPID_PRIVATE_KEY
 wrangler secret put VAPID_SUBJECT
 wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON   # or GOOGLE_VERTEX_API_KEY
@@ -104,8 +110,16 @@ wrangler secret put OPENFDA_API_KEY
 npm run cf:deploy      # builds, then `wrangler deploy`
 ```
 
-`npm run cf:dev` runs a local Cloudflare-accurate preview (via Wrangler /
-Miniflare) if you want to test closer to production before deploying.
+`npm run dev` is for the interface only: it has no Cloudflare bindings, so
+anything that touches the database (pairing, the activity feed, the drug
+cache) reports a clear "database binding missing" error there. To run the
+whole app locally, use `npm run cf:dev`: it builds, applies the schema to a
+local D1 database (kept in `.wrangler/`), and starts Wrangler / Miniflare on
+http://localhost:8787.
+
+With `npm run cf:dev` running, `npm run d1:journey` drives the real
+screens against that local database: pairing, a confirmed dose, the caregiver
+feed and the missed-dose check (only the AI photo comparison is faked).
 
 The missed-dose check runs automatically every 15 minutes as a native
 Cloudflare **Cron Trigger** — Nitro generates that trigger config at build
@@ -184,7 +198,7 @@ When a bottle is photographed, the AI reads the name, strength, the NDC
 
 **The cache is keyed by product (NDC), not by drug name**, because the same
 drug and strength from different makers are different-looking pills.
-`drug_products` (`migrations/0003_drug_cache.sql`) holds one row per product
+`drug_products` (`migrations/0001_init.sql`) holds one row per product
 and the pill photo goes to R2 at `official/<sha256>.jpg`; `drug_name_lookups`
 caches RxNorm answers. Nothing personal is stored. Rows refresh after 90 days
 (names after 30); if a government service is down, the stale row is used.
@@ -219,7 +233,7 @@ When someone adds a medicine with **their own** pill photo, step 4 offers an
 unticked box: "Also add this pill photo to the SureDose pill library". If
 ticked (remembered as `settings.sharePillPhotos`), `cachePillReference`
 (`src/lib/pill-cache.ts`) saves the photo to R2 at `pills/<sha256>.jpg`
-and a row in `pill_images` (`migrations/0004_pill_library.sql`) with the
+and a row in `pill_images` (`migrations/0001_init.sql`) with the
 confirmed name/strength, the NDC and how it was verified, and the imprint,
 color and shape read by the vision model.
 
