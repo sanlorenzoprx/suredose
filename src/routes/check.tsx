@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Check, Loader2, ShieldAlert, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Check, Loader2, ShieldAlert, ShieldCheck, TriangleAlert, X } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { PhotoCapture } from "@/components/photo-capture";
 import { Button } from "@/components/ui/button";
@@ -95,7 +95,6 @@ function CheckReady({
   const [error, setError] = useState<string | null>(null);
   const [smsNote, setSmsNote] = useState<string | null>(null);
   const [doneAt, setDoneAt] = useState(false);
-  const [reviewedLabel, setReviewedLabel] = useState(false);
 
   const existingEvent = events.find(
     (e) => e.medicineId === medicine.id && e.date === date && e.time === time,
@@ -121,7 +120,6 @@ function CheckReady({
     setChecking(true);
     setError(null);
     setResult(null);
-    setReviewedLabel(false);
     stopDoseAlarm();
     try {
       const reference = await toDataUrl(medicine.pillImage);
@@ -138,22 +136,22 @@ function CheckReady({
       if (res.ok) setResult(res.result);
       else setError(res.error);
     } catch {
-      setError("Could not compare this photo. Take a clearer photo or ask your pharmacist.");
+      setError("We could not check this photo. Try again, or ask your pharmacist.");
     } finally {
       setChecking(false);
     }
   }
 
   async function confirmTaken() {
-    // A visual observation is never medication verification, even when similar.
+    // Only a green photo check can be confirmed here, so every dose saved
+    // from this screen was checked with a photo.
     if (
       !candidate ||
       result?.observation !== "similar" ||
-      !reviewedLabel ||
       (!practice && existingEvent?.status === "taken")
     )
       return;
-    const verified = false;
+    const verified = true;
     // Practice runs the full photo-check experience but never actually
     // records anything — no local event, no server sync, no text to family.
     // Without this, the Home screen's "Practice" button (for a dose that
@@ -291,7 +289,7 @@ function CheckReady({
           <p className="text-lg font-bold text-muted">
             {periodOfDay(time)} · {formatTimeLabel(time)}
           </p>
-          <p className="mt-2 text-lg font-bold">Check your bottle says:</p>
+          <p className="mt-2 text-lg font-bold">Your bottle should say:</p>
           <h2 className="mt-1 text-4xl font-bold leading-tight">{medicine.name}</h2>
           <p className="text-2xl font-bold">
             {[medicine.strength, medicine.form].filter(Boolean).join(" · ")}
@@ -346,15 +344,17 @@ function CheckReady({
             >
               {result.observation === "similar" ? (
                 <Check className="size-10 shrink-0" />
+              ) : result.observation === "different" ? (
+                <X className="size-10 shrink-0" />
               ) : (
                 <TriangleAlert className="size-10 shrink-0" />
               )}
               {result.observation === "similar"
-                ? "Pill matched."
+                ? "Right pill."
                 : result.observation === "different"
-                  ? "Pill does not match."
+                  ? "Wrong pill. Do not take it."
                   : result.nextAction === "other_side"
-                    ? "Show the other side."
+                    ? "Turn the pill over."
                     : "We can’t check this pill."}
             </h3>
             <p className="mt-3 text-xl">{result.reason}</p>
@@ -362,43 +362,33 @@ function CheckReady({
               <figure>
                 <img
                   src={medicine.pillImage}
-                  alt="Saved pill"
+                  alt="Your saved pill"
                   className="aspect-square w-full rounded-md object-cover"
                 />
-                <figcaption className="mt-2 text-center text-lg">Saved pill</figcaption>
+                <figcaption className="mt-2 text-center text-lg">Your saved pill</figcaption>
               </figure>
               <figure>
                 <img
                   src={candidate ?? ""}
-                  alt="Pill you photographed"
+                  alt="The pill you have now"
                   className="aspect-square w-full rounded-md object-cover"
                 />
-                <figcaption className="mt-2 text-center text-lg">New photo</figcaption>
+                <figcaption className="mt-2 text-center text-lg">Pill you have now</figcaption>
               </figure>
             </div>
             {result.observation === "similar" ? (
               <>
-                <p className="mt-4 text-xl">Check your bottle for how much to take and when.</p>
-                <label className="mt-4 flex min-h-20 items-start gap-3 text-xl">
-                  <input
-                    type="checkbox"
-                    checked={reviewedLabel}
-                    onChange={(e) => setReviewedLabel(e.target.checked)}
-                    className="mt-1 size-8 shrink-0"
-                  />
-                  I checked the dose and time on my bottle.
-                </label>
-                <Button
-                  size="xl"
-                  className="mt-4"
-                  disabled={!reviewedLabel}
-                  onClick={() => void confirmTaken()}
-                >
+                <p className="mt-4 text-2xl font-bold">
+                  {practice
+                    ? "This is only practice. Do not take a pill now."
+                    : "You can take your dose now. Take the amount your bottle says."}
+                </p>
+                <Button size="xl" className="mt-4" onClick={() => void confirmTaken()}>
                   {practice ? "Finish practice" : "I took it"}
                 </Button>
               </>
             ) : (
-              <p className="mt-4 text-xl font-bold">No dose has been marked taken.</p>
+              <p className="mt-4 text-xl font-bold">We did not mark this dose as taken.</p>
             )}
             <Button
               size="xl"
@@ -410,12 +400,11 @@ function CheckReady({
                 setCandidateBack(null);
                 setError(null);
                 setResult(null);
-                setReviewedLabel(false);
               }}
             >
               {result.nextAction === "other_side"
-                ? "Take photo of other side"
-                : "Start a new check"}
+                ? "Take a picture of the other side"
+                : "Try again"}
             </Button>
           </section>
         ) : (
@@ -428,13 +417,13 @@ function CheckReady({
             ) : null}
             {takingBack ? (
               <p className="text-xl font-bold">
-                First photo saved. Now show the other side of the same pill.
+                Good. Now turn the same pill over and take one more picture.
               </p>
             ) : null}
             <PhotoCapture
               pillDetail
-              title={takingBack ? "Turn the pill over" : "Picture of the pill in your hand"}
-              hint="Put one pill on a plain surface in bright light. Show the letters and numbers. Hold your phone steady."
+              title={takingBack ? "Turn the pill over" : "Take a picture of your pill"}
+              hint="Put one pill on a plain table in bright light. Show the letters and numbers. Hold your phone still."
               preview={takingBack ? candidateBack : candidate}
               onCapture={(img) => void runCheck(img)}
             />

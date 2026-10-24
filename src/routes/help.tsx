@@ -20,10 +20,12 @@ function HelpPage() {
 
         <Section title="What does the photo comparison mean?">
           <p>
-            “Pill matched” means the letters, numbers, shape, and color match your saved pill photo.
-            Check your bottle for the dose and time. If asked, turn the pill over and take another
-            photo. If the pill does not match, or we still cannot check it, ask your pharmacist. Tap
-            “I took it” only after you take your dose.
+            A green check and “Right pill” mean the letters, numbers, shape, and color match your
+            pill. You can take your dose. Take the amount your bottle says. A red X and “Wrong pill”
+            mean do not take it. Put it back and call your pharmacist. If the app asks, turn the
+            pill over and take one more picture. If it still can't check the pill, ask your
+            pharmacist. Pills with no letters or numbers can't be checked by the app. Tap “I took
+            it” only after you take your dose.
           </p>
         </Section>
 

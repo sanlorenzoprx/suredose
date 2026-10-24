@@ -121,14 +121,14 @@ try {
   await page.goto(
     new URL("/check?medicineId=ui-test&date=2026-10-24&time=09%3A30&practice=false", base).href,
   );
-  await page.getByRole("heading", { name: "Picture of the pill in your hand" }).waitFor();
+  await page.getByRole("heading", { name: "Take a picture of your pill" }).waitFor();
   assert.equal(
     await page.getByText("Practice — this will not be saved or texted", { exact: true }).count(),
     0,
   );
   assert.equal(await page.getByRole("button", { name: "Use the saved photo instead" }).count(), 0);
   await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
-  await page.getByText("That is the saved reference photo.", { exact: false }).waitFor();
+  await page.getByText("That is your saved photo.", { exact: false }).waitFor();
   assert.equal(await page.getByRole("button", { name: /record my confirmation/ }).count(), 0);
   const events = await page.evaluate(
     () => JSON.parse(localStorage.getItem("suredose-v1")).state.events,
@@ -168,75 +168,74 @@ try {
     return v && v.videoWidth > 0 && v.srcObject;
   });
   await takePhoto.click();
-  await page.getByRole("heading", { name: "Show the other side." }).waitFor();
+  await page.getByRole("heading", { name: "Turn the pill over.", exact: true }).waitFor();
   assert.equal(requests.length, 1);
   assert.equal(requests[0].data.candidateBack, undefined);
   const firstPhoto = requests[0].data.candidate;
-  await page.getByRole("button", { name: "Take photo of other side", exact: true }).click();
+  await page.getByRole("button", { name: "Take a picture of the other side", exact: true }).click();
   await page.getByRole("heading", { name: "Turn the pill over", exact: true }).waitFor();
   reply = {
     ok: true,
     result: {
       observation: "similar",
       nextAction: "none",
-      reason: "The markings, shape, and color match your saved pill photo.",
+      reason: "The letters, numbers, shape, and color match your pill.",
     },
   };
   await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
-  await page.getByRole("heading", { name: "Pill matched.", exact: true }).waitFor();
+  await page.getByRole("heading", { name: "Right pill.", exact: true }).waitFor();
   assert.equal(requests[1].data.candidate, firstPhoto, "second view must retain first photo");
   assert.ok(requests[1].data.candidateBack);
   const took = page.getByRole("button", { name: "I took it", exact: true });
-  assert.equal(await took.isDisabled(), true);
+  assert.equal(await took.isDisabled(), false, "a green check needs no extra checkbox");
   await page.screenshot({ path: join(screenshots, "suredose-match-mobile.png"), fullPage: true });
-  await page.getByRole("button", { name: "Start a new check", exact: true }).click();
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
   reply = {
     ok: true,
     result: {
       observation: "different",
       nextAction: "none",
       reason:
-        "The letters or numbers do not match. Do not take this pill. Check with your pharmacist.",
+        "The letters or numbers on this pill are different. Put it back. Call your pharmacist.",
     },
   };
   await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
-  await page.getByRole("heading", { name: "Pill does not match.", exact: true }).waitFor();
+  await page.getByRole("heading", { name: "Wrong pill. Do not take it.", exact: true }).waitFor();
   assert.equal(await took.count(), 0);
   assert.equal(requests[2].data.candidateBack, undefined, "new check must discard old second view");
   await page.screenshot({
     path: join(screenshots, "suredose-mismatch-mobile.png"),
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Start a new check", exact: true }).click();
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
   reply = {
     ok: true,
     result: {
       observation: "uncertain",
       nextAction: "retake",
-      reason: "The photo is blurry. Rest your phone on a steady surface and try again.",
+      reason: "The photo is blurry. Hold your phone still and try again.",
     },
   };
   await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
   await page.getByText("The photo is blurry.", { exact: false }).waitFor();
   assert.equal(await took.count(), 0);
-  await page.getByRole("button", { name: "Start a new check", exact: true }).click();
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
   reply = {
     ok: true,
     result: {
       observation: "similar",
       nextAction: "none",
-      reason: "The markings, shape, and color match your saved pill photo.",
+      reason: "The letters, numbers, shape, and color match your pill.",
     },
   };
   await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
-  await page.getByRole("checkbox", { name: "I checked the dose and time on my bottle." }).check();
   await took.click();
   await page.getByRole("heading", { name: "You marked this dose taken.", exact: true }).waitFor();
   const recorded = await page.evaluate(
     () => JSON.parse(localStorage.getItem("suredose-v1")).state.events,
   );
   assert.equal(recorded.length, 1);
-  assert.equal(recorded[0].verified, false);
+  assert.equal(recorded[0].verified, true, "photo-checked doses are saved as checked");
   await page.reload();
   await page.getByRole("heading", { name: /You already took/ }).waitFor();
   assert.equal(await page.getByRole("button", { name: /log it again/ }).count(), 0);
@@ -256,7 +255,7 @@ try {
         "second photo retains first view",
         "simple match, mismatch and blurry results",
         "new check clears old second view",
-        "label acknowledgement gates recording",
+        "green check records a photo-checked dose",
         "already-taken dose cannot be recorded again",
       ],
     }),

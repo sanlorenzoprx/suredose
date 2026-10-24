@@ -119,27 +119,35 @@ export function decidePillMatch(
   ): PillMatch => ({ observation, reason, nextAction });
   if (
     reference.quality !== "clear" ||
-    reference.sides.some((s) => !s.readable || (s.marking !== "" && !usableMark(s.marking))) ||
-    !reference.sides.some((s) => normalize(s.marking))
+    reference.sides.some((s) => !s.readable || (s.marking !== "" && !usableMark(s.marking)))
   ) {
     return finish(
       "uncertain",
-      "The saved photo is not clear enough. Ask your pharmacist to help set up this pill.",
+      "Your saved pill photo is not clear. Ask your pharmacist to help you set up this pill.",
       "reference",
     );
   }
+  // Pills with no letters or numbers never get a green check: shape and color
+  // alone cannot tell lookalike pills apart.
+  if (!reference.sides.some((s) => normalize(s.marking))) {
+    return finish(
+      "uncertain",
+      "This pill has no letters or numbers, so the app cannot check it. Ask your pharmacist.",
+      "pharmacist",
+    );
+  }
   const qualityMessages = {
-    blur: "The photo is blurry. Rest your phone on a steady surface and try again.",
-    dark: "The photo is too dark. Move to brighter light and try again.",
-    glare: "Light is hiding the markings. Move the pill away from the glare and try again.",
-    not_pill: "Show one pill on a plain surface. Try again.",
+    blur: "The photo is blurry. Hold your phone still and try again.",
+    dark: "The photo is too dark. Move to a brighter spot and try again.",
+    glare: "A shine is hiding the pill. Move away from the bright light and try again.",
+    not_pill: "We do not see one pill. Put one pill on a plain table and try again.",
   };
   if (candidate.quality !== "clear")
     return finish("uncertain", qualityMessages[candidate.quality], "retake");
   if (candidate.sides.some((s) => !s.readable || (s.marking !== "" && !usableMark(s.marking)))) {
     return finish(
       "uncertain",
-      "We cannot read the letters or numbers. Take a clearer photo.",
+      "We cannot read the letters or numbers. Take a closer photo.",
       "retake",
     );
   }
@@ -148,24 +156,20 @@ export function decidePillMatch(
   if (seen.some((mark) => !expected.includes(mark))) {
     return finish(
       "different",
-      "The letters or numbers do not match. Do not take this pill. Check with your pharmacist.",
+      "The letters or numbers on this pill are different. Put it back. Call your pharmacist.",
     );
   }
   if (!expected.every((mark) => seen.includes(mark))) {
     return finish(
       "uncertain",
       secondView
-        ? "We still cannot match the markings. Ask your pharmacist."
+        ? "We still cannot read the letters or numbers. Ask your pharmacist."
         : "Turn the pill over. Take a photo of the other side.",
       secondView ? "pharmacist" : "other_side",
     );
   }
   if (!reference.shape || !reference.color || !candidate.shape || !candidate.color) {
-    return finish(
-      "uncertain",
-      "We cannot see the whole pill clearly. Take another photo.",
-      "retake",
-    );
+    return finish("uncertain", "We cannot see the whole pill. Take another photo.", "retake");
   }
   if (
     normalize(reference.shape) !== normalize(candidate.shape) ||
@@ -174,11 +178,11 @@ export function decidePillMatch(
     // Color/shape vocabulary and lighting can differ. Do not label a pill wrong on these alone.
     return finish(
       "uncertain",
-      "The pill's shape or color looks different. Ask your pharmacist.",
+      "The shape or color looks different. Ask your pharmacist before you take it.",
       "pharmacist",
     );
   }
-  return finish("similar", "The markings, shape, and color match your saved pill photo.");
+  return finish("similar", "The letters, numbers, shape, and color match your pill.");
 }
 
 export async function comparePillPhotos(
@@ -196,7 +200,7 @@ export async function comparePillPhotos(
   if (photos.some((photo) => samePhoto(data.reference, photo))) {
     return {
       ok: false,
-      error: "That is the saved reference photo. Take a new photo of the pill in front of you.",
+      error: "That is your saved photo. Take a new photo of the pill you have now.",
     };
   }
   if (data.candidateBack && samePhoto(data.candidate, data.candidateBack)) {

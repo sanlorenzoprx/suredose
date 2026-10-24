@@ -162,7 +162,21 @@ test("blank pills cannot match; blank candidate side requests another view", asy
   assert.equal(response.result.nextAction, "other_side");
   const bothBlank = await comparePillPhotos(input, readings(blank, blank));
   assert.ok(bothBlank.ok);
-  assert.equal(bothBlank.result.nextAction, "reference");
+  assert.equal(bothBlank.result.observation, "uncertain");
+  assert.equal(bothBlank.result.nextAction, "pharmacist");
+  assert.match(bothBlank.result.reason, /no letters or numbers/);
+  // Even a perfect shape/color agreement never makes an unmarked pill green.
+  const twoBlankSides = {
+    ...clear,
+    sides: [
+      { marking: "", readable: true },
+      { marking: "", readable: true },
+    ],
+  };
+  const back = { ...input, candidateBack: `data:image/jpeg;base64,${btoa("back photo")}` };
+  const flipped = await comparePillPhotos(back, readings(twoBlankSides, twoBlankSides));
+  assert.ok(flipped.ok);
+  assert.notEqual(flipped.result.observation, "similar");
 });
 
 test("same second photo and saved reference replay never call the provider", async () => {
