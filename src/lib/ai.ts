@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { comparePillPhotos, readLabelPhoto } from "./vision-checks";
 
-import { vertexVision } from "./vertex";
+import { vision } from "./vision";
 
 export { extractJson } from "./vision-checks";
 
@@ -10,7 +10,7 @@ const imageSchema = z.string().min(20).max(3_500_000);
 
 export const readBottleLabel = createServerFn({ method: "POST" })
   .validator((input: { image: string }) => ({ image: imageSchema.parse(input.image) }))
-  .handler(({ data }) => readLabelPhoto(data.image, vertexVision));
+  .handler(({ data }) => readLabelPhoto(data.image, vision));
 
 export const comparePills = createServerFn({ method: "POST" })
   .validator(
@@ -39,4 +39,4 @@ export const comparePills = createServerFn({ method: "POST" })
       officialReference: Boolean(input.officialReference),
     }),
   )
-  .handler(({ data }) => comparePillPhotos(data, vertexVision));
+  .handler(({ data }) => comparePillPhotos(data, vision));

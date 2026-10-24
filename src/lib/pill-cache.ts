@@ -6,7 +6,7 @@ import { normName, normStrength } from "./drug-data";
 import { decodeJpegDataUrl, deleteImage, putImage, r2Available } from "./image-store.server";
 import type { PillFeatures } from "./types";
 import { uid } from "./utils";
-import { vertexVision } from "./vertex";
+import { vision as askVision } from "./vision";
 
 /*
  * Pill library: pill photos people chose to share, for future pill search.
@@ -31,12 +31,33 @@ import { vertexVision } from "./vertex";
  */
 
 const COLORS = [
-  "white", "off-white", "yellow", "orange", "peach", "pink", "red", "purple",
-  "blue", "green", "brown", "gray", "black", "two-tone",
+  "white",
+  "off-white",
+  "yellow",
+  "orange",
+  "peach",
+  "pink",
+  "red",
+  "purple",
+  "blue",
+  "green",
+  "brown",
+  "gray",
+  "black",
+  "two-tone",
 ] as const;
 const SHAPES = [
-  "round", "oval", "oblong", "capsule", "triangle", "square", "rectangle",
-  "diamond", "pentagon", "hexagon", "other",
+  "round",
+  "oval",
+  "oblong",
+  "capsule",
+  "triangle",
+  "square",
+  "rectangle",
+  "diamond",
+  "pentagon",
+  "hexagon",
+  "other",
 ] as const;
 const FORMS = ["tablet", "capsule", "softgel", "other"] as const;
 
@@ -70,7 +91,7 @@ function pick<T extends readonly string[]>(value: string, allowed: T): T[number]
  * save", never as "probably fine".
  */
 async function describePill(image: string): Promise<(PillFeatures & { isPill: boolean }) | null> {
-  const vision = await vertexVision({
+  const vision = await askVision({
     maxTokens: 200,
     images: [image],
     prompt: `You describe one pill in a photo for a medication library.
@@ -106,7 +127,9 @@ Rules:
 /** Delete the stored object for `sha` once no row references it any more. */
 async function releaseObject(sha: string): Promise<void> {
   const sql = await getSql();
-  const refs = await sql<{ n: number }>`select count(*)::int as n from pill_images where sha256 = ${sha}`;
+  const refs = await sql<{
+    n: number;
+  }>`select count(*)::int as n from pill_images where sha256 = ${sha}`;
   if ((refs[0]?.n ?? 0) === 0) await deleteImage("pills", sha);
 }
 
@@ -124,44 +147,60 @@ export const cachePillReference = createServerFn({ method: "POST" })
       deviceId: deviceIdSchema.parse(input.deviceId),
       medicineId: z.string().min(1).max(80).parse(input.medicineId),
       name: z.string().trim().min(1).max(120).parse(input.name),
-      strength: z.string().trim().max(60).parse(input.strength ?? ""),
-      ndc: z.string().trim().max(24).parse(input.ndc ?? ""),
+      strength: z
+        .string()
+        .trim()
+        .max(60)
+        .parse(input.strength ?? ""),
+      ndc: z
+        .string()
+        .trim()
+        .max(24)
+        .parse(input.ndc ?? ""),
       verifiedBy: z.enum(["ndc", "name", "none"]).parse(input.verifiedBy ?? "none"),
       image: imageSchema.parse(input.image),
     }),
   )
-  .handler(async ({ data }): Promise<{ ok: true; features: PillFeatures } | { ok: false; error: string }> => {
-    const img = decodeJpegDataUrl(data.image);
-    if (!img) return { ok: false, error: "This photo could not be saved." };
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: true; features: PillFeatures } | { ok: false; error: string }> => {
+      const img = decodeJpegDataUrl(data.image);
+      if (!img) return { ok: false, error: "This photo could not be saved." };
 
-    const sql = await getSql();
-    const [{ n: rowsForDevice } = { n: 0 }] = await sql<{ n: number }>`
+      const sql = await getSql();
+      const [{ n: rowsForDevice } = { n: 0 }] = await sql<{ n: number }>`
       select count(*)::int as n from pill_images where device_id = ${data.deviceId}
     `;
-    const [existing] = await sql<{ sha256: string }>`
+      const [existing] = await sql<{ sha256: string }>`
       select sha256 from pill_images
       where device_id = ${data.deviceId} and medicine_id = ${data.medicineId}
     `;
-    if (!existing && rowsForDevice >= MAX_ROWS_PER_DEVICE) {
-      return { ok: false, error: "This phone has added the most pill photos we allow." };
-    }
+      if (!existing && rowsForDevice >= MAX_ROWS_PER_DEVICE) {
+        return { ok: false, error: "This phone has added the most pill photos we allow." };
+      }
 
-    // Fail closed: no confirmed "this is a pill" → nothing is saved.
-    const described = await describePill(data.image);
-    if (!described) return { ok: false, error: "We could not check this photo right now, so it was not added." };
-    if (!described.isPill) return { ok: false, error: "This does not look like a photo of one pill." };
-    const features: PillFeatures = {
-      imprint: described.imprint,
-      color: described.color,
-      shape: described.shape,
-      form: described.form,
-    };
+      // Fail closed: no confirmed "this is a pill" → nothing is saved.
+      const described = await describePill(data.image);
+      if (!described)
+        return {
+          ok: false,
+          error: "We could not check this photo right now, so it was not added.",
+        };
+      if (!described.isPill)
+        return { ok: false, error: "This does not look like a photo of one pill." };
+      const features: PillFeatures = {
+        imprint: described.imprint,
+        color: described.color,
+        shape: described.shape,
+        form: described.form,
+      };
 
-    const useR2 = r2Available();
-    const id = uid("pill");
-    // Row first, object second: a concurrent release of the same photo then
-    // either sees this row (and keeps the object) or deletes before our put.
-    await sql`
+      const useR2 = r2Available();
+      const id = uid("pill");
+      // Row first, object second: a concurrent release of the same photo then
+      // either sees this row (and keeps the object) or deletes before our put.
+      await sql`
       insert into pill_images (
         id, device_id, medicine_id, sha256,
         name, name_norm, strength, strength_norm, ndc, verified_by,
@@ -185,19 +224,20 @@ export const cachePillReference = createServerFn({ method: "POST" })
         storage = excluded.storage, inline_image = excluded.inline_image,
         bytes = excluded.bytes, created_at = now()
     `;
-    if (useR2) {
-      try {
-        await putImage("pills", img.bytes);
-      } catch (err) {
-        console.error("pill library put failed:", err instanceof Error ? err.message : err);
-        await sql`delete from pill_images where device_id = ${data.deviceId} and medicine_id = ${data.medicineId}`;
-        return { ok: false, error: "This photo could not be saved." };
+      if (useR2) {
+        try {
+          await putImage("pills", img.bytes);
+        } catch (err) {
+          console.error("pill library put failed:", err instanceof Error ? err.message : err);
+          await sql`delete from pill_images where device_id = ${data.deviceId} and medicine_id = ${data.medicineId}`;
+          return { ok: false, error: "This photo could not be saved." };
+        }
       }
-    }
 
-    if (existing && existing.sha256 !== img.sha256) await releaseObject(existing.sha256);
-    return { ok: true, features };
-  });
+      if (existing && existing.sha256 !== img.sha256) await releaseObject(existing.sha256);
+      return { ok: true, features };
+    },
+  );
 
 /**
  * Delete this phone's library photos: one medicine's, or all of them when
