@@ -11,6 +11,14 @@ test("application tests still run after script failures, while npm test fails ov
     mkdirSync(join(root, "scripts"));
     mkdirSync(join(root, "src/lib"), { recursive: true });
     copyFileSync(new URL("./test.mjs", import.meta.url), join(root, "scripts/test.mjs"));
+    // test.mjs loads these with --import for the app tests.
+    mkdirSync(join(root, "scripts/test-support"));
+    for (const file of ["register.mjs", "hooks.mjs"]) {
+      copyFileSync(
+        new URL(`./test-support/${file}`, import.meta.url),
+        join(root, "scripts/test-support", file),
+      );
+    }
     writeFileSync(
       join(root, "scripts/failure.test.mjs"),
       'import { test } from "node:test"; test("failure", () => { throw Error("expected failure"); });',

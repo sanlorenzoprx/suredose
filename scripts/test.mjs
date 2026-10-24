@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 // so new safety regressions cannot silently be omitted from npm test.
 const groups = [
   ["--test", "scripts/**/*.test.mjs"],
-  ["--experimental-strip-types", "--test", "src/lib/**/*.test.ts"],
+  ["--experimental-strip-types", "--import", "./scripts/test-support/register.mjs", "--test", "src/lib/**/*.test.ts"],
 ];
 let failed = false;
 for (const args of groups) {
