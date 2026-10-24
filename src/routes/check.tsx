@@ -24,7 +24,7 @@ export const Route = createFileRoute("/check")({
     // Reached from the "Practice taking this pill" button on Home, for a
     // dose that isn't due yet. Nothing gets saved, synced, or texted when
     // this is set — see confirmTaken() below.
-    practice: Boolean(s.practice),
+    practice: s.practice === true || s.practice === "true",
   }),
   component: CheckDose,
 });
