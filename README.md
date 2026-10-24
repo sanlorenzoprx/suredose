@@ -128,6 +128,19 @@ check in the Cloudflare dashboard → Workers → your app → Triggers after th
 first deploy, just to confirm it shows up — see "What I could not verify"
 below.)
 
+Schedule times are wall-clock times on the patient's phone, but the cron runs
+on Cloudflare's UTC clock. So the patient's phone reports its timezone when it
+creates a family code and on every medicine sync (`households.timezone`,
+migration `0002`), and the cron judges each household on its own clock. A
+household that has not reported a timezone yet is skipped until its phone
+next syncs, instead of being guessed at.
+
+Family invites are links (`/?join=CODE`) that open the caregiver join screen
+with the code filled in. Push notifications vibrate (Android; iPhones ignore
+it, and a missed dose buzzes longer); the ring is the phone's own notification
+sound. While a caregiver has the app open, new activity also plays the chime
+and vibrates, following the Alerts toggles under Family.
+
 ### Why Cloudflare over Vercel here
 
 Both work, but Cloudflare's free plan allows Cron Triggers as often as every

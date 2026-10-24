@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Bell, Heart, ShieldAlert, Trash2, Volume2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
@@ -7,8 +7,8 @@ import { Input, Label } from "@/components/ui/input";
 import { requestNotifyPermission } from "@/lib/alerts";
 import { createHousehold, deleteHousehold } from "@/lib/care";
 import { disableCaregiverAlerts } from "@/lib/push-client";
-import { buildDaySlots, formatClock, formatTimeLabel } from "@/lib/schedule";
-import { buildTakenMessage, copyText, digitsOnly, formatPhoneDisplay, smsHref } from "@/lib/sms";
+import { buildDaySlots, formatClock, formatTimeLabel, localTimeZone } from "@/lib/schedule";
+import { buildInviteMessage, buildTakenMessage, copyText, digitsOnly, formatPhoneDisplay, smsHref } from "@/lib/sms";
 import { useAppStore } from "@/lib/store";
 import { useHydrated, useNow } from "@/lib/use-hydrated";
 import { cn } from "@/lib/utils";
@@ -286,7 +286,16 @@ function ConnectFamilySection() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const inviteMessage = `Hi ${settings.caregiverName || "there"}, it's ${settings.patientName || "me"}. Open SureDose and enter this family code to get updates when I take my medicine: ${settings.householdCode}`;
+  // The link needs this site's address, known only in the browser; until then
+  // (server render) the text falls back to the plain code.
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
+  const inviteMessage = buildInviteMessage({
+    patientName: settings.patientName,
+    caregiverName: settings.caregiverName,
+    code: settings.householdCode,
+    origin,
+  });
 
   return (
     <section className="rounded-xl bg-paper p-5 shadow-card">
@@ -308,7 +317,7 @@ function ConnectFamilySection() {
               href={smsHref(settings.caregiverPhone, inviteMessage)}
               className="mt-4 inline-flex min-h-20 w-full items-center justify-center rounded-lg bg-primary px-6 text-2xl font-bold text-primary-fg shadow-card"
             >
-              Text this code to {settings.caregiverName || "family"}
+              Text the invite to {settings.caregiverName || "family"}
             </a>
           ) : (
             <p className="mt-4 text-lg text-muted">
@@ -378,6 +387,7 @@ function ConnectFamilySection() {
                     patientName: settings.patientName,
                     caregiverName: settings.caregiverName,
                     caregiverPhone: settings.caregiverPhone,
+                    timezone: localTimeZone(),
                   },
                 });
                 if (!res.ok) {
@@ -395,6 +405,7 @@ function ConnectFamilySection() {
                       strength: m.strength,
                       times: m.times,
                     })),
+                    timezone: localTimeZone(),
                   },
                 }).catch(() => undefined);
               } catch {

@@ -13,6 +13,60 @@ export function parseTimeOnDate(dateISO: string, time: string): Date {
   return new Date(y, m - 1, d, h, min, 0, 0);
 }
 
+/** This device's IANA timezone, e.g. "America/New_York" (undefined if the browser hides it). */
+export function localTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function isValidTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function zonedParts(instant: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(instant);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  return { y: get("year"), m: get("month"), d: get("day"), h: get("hour"), min: get("minute"), s: get("second") };
+}
+
+/** Today's date ("YYYY-MM-DD") on the wall clock in `timeZone` — for server code that runs in UTC. */
+export function zonedDateISO(instant: Date, timeZone: string): string {
+  const { y, m, d } = zonedParts(instant, timeZone);
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/** The instant at which the wall clock in `timeZone` reads `time` ("HH:MM") on `dateISO`. */
+export function zonedSlotInstant(dateISO: string, time: string, timeZone: string): Date {
+  const [y, m, d] = dateISO.split("-").map(Number);
+  const [h, min] = time.split(":").map(Number);
+  const wall = Date.UTC(y, m - 1, d, h, min);
+  // Start from "the wall time read as UTC" and correct by how far the zone's
+  // clock is from it; a second pass settles the daylight-saving edge cases.
+  let guess = wall;
+  for (let pass = 0; pass < 2; pass += 1) {
+    const p = zonedParts(new Date(guess), timeZone);
+    guess += wall - Date.UTC(p.y, p.m - 1, p.d, p.h, p.min, p.s);
+  }
+  return new Date(guess);
+}
+
 export function formatClock(date = new Date()): string {
   return date.toLocaleTimeString(undefined, {
     hour: "numeric",

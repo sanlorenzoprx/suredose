@@ -1,16 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Bell, Check, Clock, Heart, Pill, Plus, RefreshCw, Volume2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import {
+  playDoseChime,
   requestNotifyPermission,
   showDoseNotification,
   startDoseAlarm,
   stopDoseAlarm,
+  vibrateAlert,
 } from "@/lib/alerts";
 import { getHousehold } from "@/lib/care";
+import { parseJoinCode } from "@/lib/sms";
 import { enableCaregiverAlerts } from "@/lib/push-client";
 import {
   buildDaySlots,
@@ -20,15 +23,25 @@ import {
   formatTimeLabel,
   nextUpcoming,
   periodOfDay,
+  todayISO,
 } from "@/lib/schedule";
 import { useAppStore } from "@/lib/store";
 import { useCareActivity } from "@/lib/use-care-activity";
 import { useNow } from "@/lib/use-hydrated";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/")({ component: Home });
+export const Route = createFileRoute("/")({
+  // `/?join=CODE` is the link in the family invite text: it opens the
+  // caregiver join screen with the code already filled in.
+  validateSearch: (search: Record<string, unknown>): { join?: string } => {
+    const join = parseJoinCode(search.join);
+    return join ? { join } : {};
+  },
+  component: Home,
+});
 
 function Home() {
+  const { join } = Route.useSearch();
   const now = useNow();
   const navigate = useNavigate();
   const settings = useAppStore((s) => s.settings);
@@ -75,7 +88,7 @@ function Home() {
   if (!settings.onboardingDone) {
     return (
       <AppShell title="Welcome" hideNav>
-        <Onboarding />
+        <Onboarding joinCode={join} />
       </AppShell>
     );
   }
@@ -290,8 +303,8 @@ function EmptyMedicines({ onSample }: { onSample: () => void }) {
   );
 }
 
-function Onboarding() {
-  const [step, setStep] = useState<"choose" | "patient" | "caregiver">("choose");
+function Onboarding({ joinCode }: { joinCode?: string }) {
+  const [step, setStep] = useState<"choose" | "patient" | "caregiver">(joinCode ? "caregiver" : "choose");
 
   if (step === "choose") {
     return (
@@ -316,7 +329,7 @@ function Onboarding() {
   }
 
   if (step === "caregiver") {
-    return <CaregiverJoin onBack={() => setStep("choose")} />;
+    return <CaregiverJoin initialCode={joinCode} onBack={() => setStep("choose")} />;
   }
 
   return <PatientOnboarding onBack={() => setStep("choose")} />;
@@ -406,10 +419,10 @@ function PatientOnboarding({ onBack }: { onBack: () => void }) {
   );
 }
 
-function CaregiverJoin({ onBack }: { onBack: () => void }) {
+function CaregiverJoin({ initialCode, onBack }: { initialCode?: string; onBack: () => void }) {
   const setSettings = useAppStore((s) => s.setSettings);
   const settings = useAppStore((s) => s.settings);
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(initialCode ?? "");
   const [status, setStatus] = useState<"idle" | "checking" | "error">("idle");
   const [error, setError] = useState("");
 
@@ -486,7 +499,25 @@ function CaregiverHome() {
   const [alertError, setAlertError] = useState("");
 
   const todaySlots = (data?.medicines ?? []).flatMap((m) => m.times.map((t) => `${m.id}|${t}`));
-  const today = new Date().toISOString().slice(0, 10);
+  // The patient's doses are dated on their phone's clock, so compare with this
+  // phone's local date, not the UTC date (which flips hours early in the evening).
+  const today = todayISO();
+
+  // While the app is open, chime and vibrate (per the Alerts toggles under
+  // Family) when new activity arrives — a dose taken or missed. The first load
+  // only records what is already there, so opening the app never rings for old news.
+  const seenActivity = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!data) return;
+    const current = new Set(data.activity.map((a) => `${a.id}|${a.status}`));
+    const previous = seenActivity.current;
+    seenActivity.current = current;
+    if (previous === null) return;
+    if (![...current].some((key) => !previous.has(key))) return;
+    if (settings.soundOn) playDoseChime();
+    if (settings.vibrateOn) vibrateAlert();
+  }, [data, settings.soundOn, settings.vibrateOn]);
+
   const takenToday = (data?.activity ?? []).filter((a) => a.date === today && a.status === "taken").length;
 
   return (

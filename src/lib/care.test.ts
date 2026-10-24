@@ -165,3 +165,30 @@ test("creating a household surfaces a missing database instead of reporting a co
     /binding `DB` is missing/,
   );
 });
+
+const household = (code: string) =>
+  q<{ timezone: string | null }>("select timezone from households where id = ?", [code]);
+
+test("the patient's timezone is stored with the household, and bad ones are not", async () => {
+  const withZone = await createHousehold({
+    data: { patientName: "A", caregiverName: "", caregiverPhone: "", timezone: "America/New_York" },
+  });
+  const bad = await createHousehold({
+    data: { patientName: "B", caregiverName: "", caregiverPhone: "", timezone: "Mars/Olympus" },
+  });
+  const none = await createHousehold({ data: { patientName: "C", caregiverName: "", caregiverPhone: "" } });
+  assert.deepEqual(await household((withZone as { code: string }).code), [{ timezone: "America/New_York" }]);
+  assert.deepEqual(await household((bad as { code: string }).code), [{ timezone: null }]);
+  assert.deepEqual(await household((none as { code: string }).code), [{ timezone: null }]);
+});
+
+test("syncing medicines fills in a missing timezone and never erases a known one", async () => {
+  const code = await newHousehold(); // created without a timezone, like a pre-migration household
+  assert.deepEqual(await household(code), [{ timezone: null }]);
+  await syncMedicines({ data: { code, medicines: [], timezone: "America/Chicago" } });
+  assert.deepEqual(await household(code), [{ timezone: "America/Chicago" }]);
+  await syncMedicines({ data: { code, medicines: [] } });
+  assert.deepEqual(await household(code), [{ timezone: "America/Chicago" }]);
+  await syncMedicines({ data: { code, medicines: [], timezone: "Not/AZone" } });
+  assert.deepEqual(await household(code), [{ timezone: "America/Chicago" }]);
+});

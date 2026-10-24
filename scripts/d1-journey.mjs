@@ -9,7 +9,7 @@ import { checkedUrl } from "./browser-guard.mjs";
 // Database journey against the local Worker (`npm run cf:dev`, which runs the
 // built app on a local D1 database): a patient creates a family code and
 // syncs a medicine, confirms a dose, a caregiver sees it, and the missed-dose
-// cron flags a late dose. Only the AI photo comparison is faked (no provider
+// cron flags a late dose, judged on the patient phone's own clock. Only the AI photo comparison is faked (no provider
 // credentials needed); every other server function hits the real local D1.
 //
 //   node scripts/d1-journey.mjs [http://127.0.0.1:8787/] [screenshot-dir]
@@ -30,7 +30,10 @@ function d1(sql) {
 
 const referencePhoto = `data:image/jpeg;base64,${readFileSync("public/samples/white-tablet.jpg").toString("base64")}`;
 const now = new Date();
-const today = now.toLocaleDateString("en-CA"); // YYYY-MM-DD
+// Both simulated phones sit in New York, hours away from the server's UTC clock,
+// so the journey proves the missed-dose check reads times on the phone's clock.
+const PHONE_ZONE = "America/New_York";
+const today = now.toLocaleDateString("en-CA", { timeZone: PHONE_ZONE }); // YYYY-MM-DD
 const patientState = (householdCode, role) => ({
   version: 0,
   state: {
@@ -77,7 +80,8 @@ const hydrated = (page) =>
 
 try {
   // 1. Patient creates a family code; the medicine list is mirrored to D1.
-  const patient = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const phoneOptions = { viewport: { width: 390, height: 844 }, timezoneId: PHONE_ZONE };
+  const patient = await (await browser.newContext(phoneOptions)).newPage();
   patient.setDefaultTimeout(20000);
   patient.on("pageerror", (e) => errors.push(e.message));
   await patient.goto(base);
@@ -96,7 +100,11 @@ try {
   }
   const meds = d1(`select id, name, times from care_medicines where household_id = '${code}'`);
   assert.deepEqual(meds, [{ id: "journey-med", name: "Journey Aspirin", times: '["09:30"]' }]);
-  console.log("ok  pairing + medicine mirror", code);
+  // The phone reports its timezone; the cron needs it to read "09:30" correctly.
+  const phoneZone = await patient.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
+  assert.equal(phoneZone, PHONE_ZONE);
+  assert.deepEqual(d1(`select timezone from households where id = '${code}'`), [{ timezone: PHONE_ZONE }]);
+  console.log("ok  pairing + medicine mirror + timezone", code, phoneZone);
 
   // 2. Patient confirms a dose (AI comparison faked, recordDoseEvent real).
   await patient.route("**/*", async (route) => {
@@ -151,27 +159,32 @@ try {
   assert.match(dose.taken_at, /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/);
   console.log("ok  dose recorded", dose.taken_at);
 
-  // 3. A second device (caregiver) sees it in the activity feed.
-  const caregiver = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  // 3. A second device (caregiver) opens the invite link: the code is already
+  // filled in, so they only add their name. Then they see the dose.
+  const caregiver = await (await browser.newContext(phoneOptions)).newPage();
   caregiver.setDefaultTimeout(20000);
   caregiver.on("pageerror", (e) => errors.push(e.message));
-  await caregiver.goto(base);
-  await caregiver.evaluate((s) => localStorage.setItem("suredose-v1", JSON.stringify(s)), {
-    ...patientState(code, "caregiver"),
-    state: { ...patientState(code, "caregiver").state, medicines: [] },
-  });
-  await caregiver.goto(base);
+  await caregiver.goto(new URL(`/?join=${code}`, base).href);
+  await caregiver.locator("#code").waitFor();
+  assert.equal(await caregiver.locator("#code").inputValue(), code, "invite link pre-fills the code");
+  await hydrated(caregiver);
+  await caregiver.locator("#your-name").fill("Journey Caregiver");
+  await caregiver.getByRole("button", { name: "Connect", exact: true }).click();
   await caregiver.getByText("Journey Aspirin").first().waitFor();
   await caregiver.getByText("1 of 1 taken", { exact: false }).waitFor();
   await caregiver.screenshot({ path: join(screenshots, "d1-caregiver-feed.png"), fullPage: true });
-  console.log("ok  caregiver feed shows the dose");
+  console.log("ok  caregiver joined from the invite link and sees the dose");
 
   // 4. The missed-dose cron flags a late dose for a second medicine.
-  const lateHour = now.getUTCHours() - 3;
+  const hourOnPhone = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: phoneZone, hour: "2-digit", hourCycle: "h23" }).format(now),
+  );
+  const lateHour = hourOnPhone - 3; // 3h ago on the phone's clock: past the 2h grace
+  const recentHour = hourOnPhone - 1; // 1h ago: still inside the grace period
   if (lateHour >= 0) {
-    const lateTime = `${String(lateHour).padStart(2, "0")}:00`;
+    const hhmm = (h) => `${String(h).padStart(2, "0")}:00`;
     d1(
-      `insert into care_medicines (id, household_id, name, strength, times) values ('late-med', '${code}', 'Late Pill', '5 mg', '["${lateTime}"]')`,
+      `insert into care_medicines (id, household_id, name, strength, times) values ('late-med', '${code}', 'Late Pill', '5 mg', '["${hhmm(lateHour)}"]'), ('recent-med', '${code}', 'Recent Pill', '5 mg', '["${hhmm(recentHour)}"]')`,
     );
     // Nitro maps the cron expression to its tasks (vite.config.ts scheduledTasks).
     const cron = new URL("/cdn-cgi/local/scheduled?cron=*/15+*+*+*+*", base);
@@ -181,19 +194,19 @@ try {
     for (let i = 0; i < 20 && missed.length === 0; i += 1) {
       await new Promise((r) => setTimeout(r, 500));
       missed = d1(
-        `select status, notified, verified from dose_events where household_id = '${code}' and medicine_id = 'late-med'`,
+        `select medicine_id, status, notified, verified from dose_events where household_id = '${code}' and status = 'missed'`,
       );
     }
-    assert.deepEqual(missed, [{ status: "missed", notified: 1, verified: 0 }]);
+    assert.deepEqual(missed, [{ medicine_id: "late-med", status: "missed", notified: 1, verified: 0 }]);
     await fetch(cron); // second run must not duplicate
     await new Promise((r) => setTimeout(r, 1500));
     assert.equal(
-      d1(`select count(*) as n from dose_events where household_id = '${code}' and medicine_id = 'late-med'`)[0].n,
+      d1(`select count(*) as n from dose_events where household_id = '${code}' and status = 'missed'`)[0].n,
       1,
     );
-    console.log("ok  missed-dose cron flagged", lateTime, "once");
+    console.log("ok  missed-dose cron flagged", hhmm(lateHour), "once and left", hhmm(recentHour), "alone");
   } else {
-    console.log("skip missed-dose cron (before 03:00 UTC: no slot is 2h15m late yet today)");
+    console.log("skip missed-dose cron (before 03:00 on the phone's clock: no slot is 2h late yet today)");
   }
 
   // 5. No page error along the way. (Cascade delete is covered by the unit tests.)

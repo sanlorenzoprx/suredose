@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { batch, fromBool, parseJson, q, run, stmt, stringArraySchema, toIso } from "./db";
 import { sendPushToHousehold } from "./push.server";
-import { formatTimeLabel } from "./schedule";
+import { formatTimeLabel, isValidTimeZone } from "./schedule";
 import type { CareActivityItem, CareMedicineSummary } from "./types";
 import { uid } from "./utils";
 
@@ -25,20 +25,37 @@ const codeSchema = z
   .min(4)
   .max(12);
 
+/**
+ * The patient phone's IANA timezone. An unknown or malformed value is stored
+ * as "not reported" (null) rather than rejected, so an odd browser never
+ * blocks pairing; the missed-dose check simply waits for a valid one.
+ */
+function cleanTimeZone(value: unknown): string | null {
+  return typeof value === "string" && value.length <= 64 && isValidTimeZone(value) ? value : null;
+}
+
 export const createHousehold = createServerFn({ method: "POST" })
-  .validator((input: { patientName: string; caregiverName: string; caregiverPhone: string }) => ({
-    patientName: z.string().max(60).parse(input.patientName ?? ""),
-    caregiverName: z.string().max(60).parse(input.caregiverName ?? ""),
-    caregiverPhone: z.string().max(40).parse(input.caregiverPhone ?? ""),
-  }))
+  .validator(
+    (input: {
+      patientName: string;
+      caregiverName: string;
+      caregiverPhone: string;
+      timezone?: string;
+    }) => ({
+      patientName: z.string().max(60).parse(input.patientName ?? ""),
+      caregiverName: z.string().max(60).parse(input.caregiverName ?? ""),
+      caregiverPhone: z.string().max(40).parse(input.caregiverPhone ?? ""),
+      timezone: cleanTimeZone(input.timezone),
+    }),
+  )
   .handler(async ({ data }): Promise<{ ok: true; code: string } | { ok: false; error: string }> => {
     for (let attempt = 0; attempt < 6; attempt += 1) {
       const code = randomCode();
       try {
         await run(
-          `insert into households (id, patient_name, caregiver_name, caregiver_phone, created_at)
-           values (?, ?, ?, ?, ?)`,
-          [code, data.patientName, data.caregiverName, data.caregiverPhone, toIso()],
+          `insert into households (id, patient_name, caregiver_name, caregiver_phone, timezone, created_at)
+           values (?, ?, ?, ?, ?, ?)`,
+          [code, data.patientName, data.caregiverName, data.caregiverPhone, data.timezone, toIso()],
         );
         return { ok: true, code };
       } catch (err) {
@@ -75,10 +92,13 @@ const medicineSyncSchema = z
   .max(30);
 
 export const syncMedicines = createServerFn({ method: "POST" })
-  .validator((input: { code: string; medicines: z.infer<typeof medicineSyncSchema> }) => ({
-    code: codeSchema.parse(input.code),
-    medicines: medicineSyncSchema.parse(input.medicines ?? []),
-  }))
+  .validator(
+    (input: { code: string; medicines: z.infer<typeof medicineSyncSchema>; timezone?: string }) => ({
+      code: codeSchema.parse(input.code),
+      medicines: medicineSyncSchema.parse(input.medicines ?? []),
+      timezone: cleanTimeZone(input.timezone),
+    }),
+  )
   .handler(async ({ data }): Promise<{ ok: boolean }> => {
     const household = await q("select 1 from households where id = ?", [data.code]);
     if (household.length === 0) return { ok: false };
@@ -87,6 +107,9 @@ export const syncMedicines = createServerFn({ method: "POST" })
     // and the missed-dose check. One batch, so a failed insert never leaves
     // the caregiver with an emptied list.
     await batch([
+      // The patient's phone is also the source of truth for its timezone; keep
+      // what we have when this sync did not report one.
+      stmt("update households set timezone = coalesce(?, timezone) where id = ?", [data.timezone, data.code]),
       stmt("delete from care_medicines where household_id = ?", [data.code]),
       ...data.medicines.map((medicine) =>
         stmt(
@@ -152,6 +175,7 @@ export const recordDoseEvent = createServerFn({ method: "POST" })
         title: "Medicine taken",
         body: `${med} taken at ${formatTimeLabel(data.time)}. Open the app to see the photo.`,
         tag: `dose-${id}`,
+        url: "/",
       }).catch(() => {
         /* push is best-effort — never block the confirmation flow */
       });

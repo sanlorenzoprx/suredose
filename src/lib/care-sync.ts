@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { syncMedicines } from "./care";
+import { localTimeZone } from "./schedule";
 import { useAppStore } from "./store";
 
 /**
@@ -22,7 +23,9 @@ export function useCareSync(): void {
       strength: m.strength,
       times: m.times,
     }));
-    void syncMedicines({ data: { code: householdCode, medicines: payload } }).catch(() => {
+    void syncMedicines({
+      data: { code: householdCode, medicines: payload, timezone: localTimeZone() },
+    }).catch(() => {
       /* best effort — local reminders keep working even if this fails */
     });
     // Re-run whenever the medicine list itself changes (add/edit/remove),

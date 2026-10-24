@@ -69,40 +69,68 @@ test("forgetPillReferences deletes one medicine's photo, or all of a phone's", a
   assert.deepEqual((await q<{ id: string }>("select id from pill_images")).map((r) => r.id), ["c"]);
 });
 
-async function seedDay() {
-  await run("insert into households (id) values ('H1')");
+async function seedDay(timezone: string | null = "America/New_York", times = ["15:29", "17:00", "20:00"]) {
+  await run("insert into households (id, timezone) values ('H1', ?)", [timezone]);
   await run("insert into care_medicines (id, household_id, name, strength, times) values (?, 'H1', ?, ?, ?)", [
     "m1",
     "Aspirin",
     "81 mg",
-    JSON.stringify(["08:00", "11:00", "20:00"]),
+    JSON.stringify(times),
   ]);
 }
 
-test("missed-dose cron flags late slots once, in one batch, and leaves the rest alone", async () => {
-  await seedDay();
-  mock.timers.enable({ apis: ["Date"], now: new Date(2026, 9, 24, 12, 0, 0) }); // local noon
-  // 08:00 is 4h late (missed); 11:00 is inside the grace period; 20:00 is later today.
-  const first = await missedDoses.run({} as never);
-  assert.deepEqual(first, { result: { checked: 3, flagged: 1 } });
-  const rows = await q<{ time: string; status: string; notified: number; verified: number }>(
-    "select time, status, notified, verified from dose_events",
+const at = (iso: string) => mock.timers.enable({ apis: ["Date"], now: new Date(iso) });
+const doseRows = () =>
+  q<{ date: string; time: string; status: string; notified: number; verified: number }>(
+    "select date, time, status, notified, verified from dose_events order by date, time",
   );
-  assert.deepEqual(rows, [{ time: "08:00", status: "missed", notified: 1, verified: 0 }]);
-  const second = await missedDoses.run({} as never);
-  assert.deepEqual(second, { result: { checked: 3, flagged: 0 } });
+
+test("missed-dose cron judges a dose on the patient's clock, not the server's UTC clock", async () => {
+  await seedDay();
+  // 19:45 UTC is 15:45 in New York: the 15:29 dose is only 16 minutes late.
+  at("2026-10-24T19:45:59Z");
+  assert.deepEqual(await missedDoses.run({} as never), { result: { checked: 3, flagged: 0, skipped: 0 } });
+  assert.deepEqual(await doseRows(), []);
+});
+
+test("missed-dose cron flags a late slot once, in one batch, and leaves the rest alone", async () => {
+  await seedDay();
+  // 22:00 UTC is 18:00 in New York: 15:29 is 2h31 late, 17:00 is inside the grace period.
+  at("2026-10-24T22:00:00Z");
+  assert.deepEqual(await missedDoses.run({} as never), { result: { checked: 3, flagged: 1, skipped: 0 } });
+  assert.deepEqual(await doseRows(), [
+    { date: "2026-10-24", time: "15:29", status: "missed", notified: 1, verified: 0 },
+  ]);
+  assert.deepEqual(await missedDoses.run({} as never), { result: { checked: 3, flagged: 0, skipped: 0 } });
+});
+
+test("missed-dose cron uses the household's own date when it differs from UTC's", async () => {
+  await seedDay("Asia/Tokyo", ["01:00"]);
+  // 19:45 UTC on the 24th is 04:45 on the 25th in Tokyo.
+  at("2026-10-24T19:45:00Z");
+  assert.deepEqual(await missedDoses.run({} as never), { result: { checked: 1, flagged: 1, skipped: 0 } });
+  assert.deepEqual(await doseRows(), [
+    { date: "2026-10-25", time: "01:00", status: "missed", notified: 1, verified: 0 },
+  ]);
+});
+
+test("missed-dose cron skips a household that has not reported a timezone", async () => {
+  await seedDay(null);
+  at("2026-10-24T22:00:00Z");
+  assert.deepEqual(await missedDoses.run({} as never), { result: { checked: 0, flagged: 0, skipped: 1 } });
+  assert.deepEqual(await doseRows(), []);
 });
 
 test("missed-dose cron skips a dose that was taken", async () => {
   await seedDay();
   await run(
-    "insert into dose_events (id, household_id, medicine_id, medicine_name, date, time, status) values ('e', 'H1', 'm1', 'Aspirin', '2026-10-24', '08:00', 'taken')",
+    "insert into dose_events (id, household_id, medicine_id, medicine_name, date, time, status) values ('e', 'H1', 'm1', 'Aspirin', '2026-10-24', '15:29', 'taken')",
   );
-  mock.timers.enable({ apis: ["Date"], now: new Date(2026, 9, 24, 12, 0, 0) });
-  assert.deepEqual(await missedDoses.run({} as never), { result: { checked: 3, flagged: 0 } });
+  at("2026-10-24T22:00:00Z");
+  assert.deepEqual(await missedDoses.run({} as never), { result: { checked: 3, flagged: 0, skipped: 0 } });
   assert.equal((await q<{ status: string }>("select status from dose_events"))[0].status, "taken");
 });
 
 test("missed-dose cron does nothing with no medicines", async () => {
-  assert.deepEqual(await missedDoses.run({} as never), { result: { checked: 0, flagged: 0 } });
+  assert.deepEqual(await missedDoses.run({} as never), { result: { checked: 0, flagged: 0, skipped: 0 } });
 });

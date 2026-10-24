@@ -29,7 +29,11 @@ function vapidKeys(): { subject: string; publicKey: string; privateKey: string }
   return { subject, publicKey, privateKey };
 }
 
-export type PushPayload = { title: string; body: string; tag?: string };
+/**
+ * `url` is where tapping the notification goes (same origin, default "/").
+ * `urgent` makes the caregiver's phone vibrate longer (a missed dose).
+ */
+export type PushPayload = { title: string; body: string; tag?: string; url?: string; urgent?: boolean };
 
 /** Best-effort: send a push notification to every device paired to this household. */
 export async function sendPushToHousehold(householdCode: string, payload: PushPayload): Promise<void> {
