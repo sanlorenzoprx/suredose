@@ -26,7 +26,15 @@ export const verifyMedicine = createServerFn({ method: "POST" })
     let note: string | undefined;
     try {
       if (data.ndc) {
-        const row = await lookupByNdc(data.ndc);
+        let row: Awaited<ReturnType<typeof lookupByNdc>> = null;
+        try {
+          row = await lookupByNdc(data.ndc, { name: data.name, strength: data.strength });
+        } catch (err) {
+          // openFDA/DailyMed down: don't give up — RxNorm may still answer
+          // by name and strength. A real bug still goes to the log.
+          if (!(err instanceof LookupUnavailable)) throw err;
+          note = "We couldn't reach the FDA product list just now, so we checked by name and strength instead.";
+        }
         if (row) {
           const nameOk = !data.name || namesMatch(data.name, [row.name, row.generic_name, row.brand_name]);
           const strengthOk = strengthMatches(data.strength, row.strength) !== false;

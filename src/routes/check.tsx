@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Check, Loader2, ShieldAlert, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Check, Loader2, ShieldAlert, ShieldCheck, TriangleAlert, X } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { PhotoCapture } from "@/components/photo-capture";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/check")({
     // Reached from the "Practice taking this pill" button on Home, for a
     // dose that isn't due yet. Nothing gets saved, synced, or texted when
     // this is set — see confirmTaken() below.
-    practice: Boolean(s.practice),
+    practice: s.practice === true || s.practice === "true",
   }),
   component: CheckDose,
 });
@@ -51,7 +51,15 @@ function CheckDose() {
     );
   }
 
-  return <CheckReady medicine={medicine} date={date} time={time} practice={practice} />;
+  return (
+    <CheckReady
+      key={`${medicineId}|${date}|${time}|${practice}`}
+      medicine={medicine}
+      date={date}
+      time={time}
+      practice={practice}
+    />
+  );
 }
 
 function GoHome() {
@@ -80,12 +88,13 @@ function CheckReady({
   const markTaken = useAppStore((s) => s.markTaken);
   const markNotified = useAppStore((s) => s.markNotified);
   const [candidate, setCandidate] = useState<string | null>(null);
+  const [takingBack, setTakingBack] = useState(false);
+  const [candidateBack, setCandidateBack] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<PillMatch | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [smsNote, setSmsNote] = useState<string | null>(null);
   const [doneAt, setDoneAt] = useState(false);
-  const [overrideAlreadyTaken, setOverrideAlreadyTaken] = useState(false);
 
   const existingEvent = events.find(
     (e) => e.medicineId === medicine.id && e.date === date && e.time === time,
@@ -104,25 +113,21 @@ function CheckReady({
   );
 
   async function runCheck(photo: string) {
-    setCandidate(photo);
+    const front = takingBack && candidate ? candidate : photo;
+    const back = takingBack ? photo : undefined;
+    setCandidate(front);
+    setCandidateBack(back ?? null);
     setChecking(true);
     setError(null);
     setResult(null);
     stopDoseAlarm();
     try {
       const reference = await toDataUrl(medicine.pillImage);
-      if (reference === photo) {
-        setResult({
-          match: true,
-          confidence: 1,
-          reason: "This is the same photo we saved for this pill.",
-        });
-        return;
-      }
       const res = await comparePills({
         data: {
           reference,
-          candidate: photo,
+          candidate: front,
+          candidateBack: back,
           name: `${medicine.name} ${medicine.strength}`,
           appearance: medicine.appearance,
           officialReference: medicine.pillImageSource === "official",
@@ -131,13 +136,22 @@ function CheckReady({
       if (res.ok) setResult(res.result);
       else setError(res.error);
     } catch {
-      setError("Could not check this photo. Look at both pictures carefully.");
+      setError("We could not check this photo. Try again, or ask your pharmacist.");
     } finally {
       setChecking(false);
     }
   }
 
-  async function confirmTaken(verified: boolean) {
+  async function confirmTaken() {
+    // Only a green photo check can be confirmed here, so every dose saved
+    // from this screen was checked with a photo.
+    if (
+      !candidate ||
+      result?.observation !== "similar" ||
+      (!practice && existingEvent?.status === "taken")
+    )
+      return;
+    const verified = true;
     // Practice runs the full photo-check experience but never actually
     // records anything — no local event, no server sync, no text to family.
     // Without this, the Home screen's "Practice" button (for a dose that
@@ -180,9 +194,6 @@ function CheckReady({
     setDoneAt(true);
   }
 
-  const matchOk = Boolean(result?.match && result.confidence >= 0.55);
-  const matchBad = Boolean(result && (!result.match || result.confidence < 0.45));
-
   // Checked first, ahead of everything else: once this session's own
   // confirmTaken() has run, always show the confirmation screen, even
   // though the dose now also shows up as "already taken" in `events`.
@@ -196,9 +207,7 @@ function CheckReady({
                 <Check className="size-6" />
                 Practice
               </p>
-              <h3 className="mt-3 text-3xl font-bold leading-tight">
-                That's how it works.
-              </h3>
+              <h3 className="mt-3 text-3xl font-bold leading-tight">That's how it works.</h3>
               <p className="mt-3 text-xl text-muted">
                 This was just practice. Nothing was saved, and your family was not texted. When it
                 is really time for {medicine.name}, do this same thing.
@@ -213,7 +222,7 @@ function CheckReady({
                 <Check className="size-6" />
                 Done
               </p>
-              <h3 className="mt-3 text-3xl font-bold leading-tight">You took it. Well done.</h3>
+              <h3 className="mt-3 text-3xl font-bold leading-tight">You marked this dose taken.</h3>
               {smsNote ? <p className="mt-3 text-lg">{smsNote}</p> : null}
               <div className="mt-5 flex flex-col gap-3">
                 {digitsOnly(settings.caregiverPhone) ? (
@@ -240,7 +249,7 @@ function CheckReady({
   // session, or a reminder notification tapped a second time) needs a
   // deliberate second tap before it can be logged again, so a forgotten
   // "did I take this?" moment can't accidentally turn into a double dose.
-  if (existingEvent?.status === "taken" && !overrideAlreadyTaken) {
+  if (!practice && existingEvent?.status === "taken") {
     return (
       <AppShell title="Already taken">
         <div className="flex flex-col gap-6">
@@ -262,9 +271,6 @@ function CheckReady({
           <Button size="xl" onClick={() => navigate({ to: "/" })}>
             Go back home
           </Button>
-          <Button size="lg" variant="ghost" onClick={() => setOverrideAlreadyTaken(true)}>
-            I really do need to log it again
-          </Button>
         </div>
       </AppShell>
     );
@@ -283,7 +289,7 @@ function CheckReady({
           <p className="text-lg font-bold text-muted">
             {periodOfDay(time)} · {formatTimeLabel(time)}
           </p>
-          <p className="mt-2 text-lg font-bold">Check your bottle says:</p>
+          <p className="mt-2 text-lg font-bold">Your bottle should say:</p>
           <h2 className="mt-1 text-4xl font-bold leading-tight">{medicine.name}</h2>
           <p className="text-2xl font-bold">
             {[medicine.strength, medicine.form].filter(Boolean).join(" · ")}
@@ -322,56 +328,83 @@ function CheckReady({
           <div className="flex flex-col items-center gap-4 py-8 text-center">
             <Loader2 className="size-12 animate-spin text-primary" />
             <p className="text-2xl font-bold">Checking your pill…</p>
-            <p className="text-xl text-muted">Hold still. This takes a few seconds.</p>
+            <p className="text-xl text-muted">Reading the letters and numbers.</p>
             {candidate ? (
-              <img src={candidate} alt="Pill you photographed" className="h-40 rounded-lg object-cover" />
+              <img
+                src={candidate}
+                alt="Pill you photographed"
+                className="h-40 rounded-lg object-cover"
+              />
             ) : null}
           </div>
-        ) : matchOk && result ? (
-          <section className="rounded-xl bg-success p-5 text-success-fg shadow-card">
-            <p className="flex items-center gap-2 text-lg font-bold uppercase tracking-wide">
-              <Check className="size-6" />
-              Right pill
-            </p>
-            <h3 className="mt-3 text-3xl font-bold leading-tight">This is the right pill. You can take it.</h3>
-            <p className="mt-3 text-xl opacity-90">{result.reason}</p>
-            <Button size="xl" variant="secondary" className="mt-5" onClick={() => void confirmTaken(true)}>
-              I took this pill
-            </Button>
-            {!practice ? (
-              <p className="mt-3 text-lg opacity-80">
-                Next we will help you text {settings.caregiverName || "your family"}.
-              </p>
-            ) : null}
-          </section>
-        ) : matchBad && result ? (
-          <section className="rounded-xl bg-danger p-5 text-danger-fg shadow-card">
-            <p className="flex items-center gap-2 text-lg font-bold uppercase tracking-wide">
-              <ShieldAlert className="size-6" />
-              Stop
-            </p>
-            <h3 className="mt-3 text-3xl font-bold leading-tight">This is not the right pill. Put it back.</h3>
+        ) : result ? (
+          <section aria-live="polite" className="rounded-xl bg-paper p-5 shadow-card">
+            <h3
+              className={`flex items-center gap-3 text-3xl font-bold leading-tight ${result.observation === "similar" ? "text-success" : result.observation === "different" ? "text-danger" : "text-ink"}`}
+            >
+              {result.observation === "similar" ? (
+                <Check className="size-10 shrink-0" />
+              ) : result.observation === "different" ? (
+                <X className="size-10 shrink-0" />
+              ) : (
+                <TriangleAlert className="size-10 shrink-0" />
+              )}
+              {result.observation === "similar"
+                ? "Right pill."
+                : result.observation === "different"
+                  ? "Wrong pill. Do not take it."
+                  : result.nextAction === "other_side"
+                    ? "Turn the pill over."
+                    : "We can’t check this pill."}
+            </h3>
             <p className="mt-3 text-xl">{result.reason}</p>
             <div className="mt-4 grid grid-cols-2 gap-3">
               <figure>
-                <img src={medicine.pillImage} alt="Saved pill" className="aspect-square w-full rounded-md object-cover" />
-                <figcaption className="mt-2 text-center text-lg">Saved</figcaption>
+                <img
+                  src={medicine.pillImage}
+                  alt="Your saved pill"
+                  className="aspect-square w-full rounded-md object-cover"
+                />
+                <figcaption className="mt-2 text-center text-lg">Your saved pill</figcaption>
               </figure>
               <figure>
-                <img src={candidate ?? ""} alt="This pill" className="aspect-square w-full rounded-md object-cover" />
-                <figcaption className="mt-2 text-center text-lg">This one</figcaption>
+                <img
+                  src={candidate ?? ""}
+                  alt="The pill you have now"
+                  className="aspect-square w-full rounded-md object-cover"
+                />
+                <figcaption className="mt-2 text-center text-lg">Pill you have now</figcaption>
               </figure>
             </div>
+            {result.observation === "similar" ? (
+              <>
+                <p className="mt-4 text-2xl font-bold">
+                  {practice
+                    ? "This is only practice. Do not take a pill now."
+                    : "You can take your dose now. Take the amount your bottle says."}
+                </p>
+                <Button size="xl" className="mt-4" onClick={() => void confirmTaken()}>
+                  {practice ? "Finish practice" : "I took it"}
+                </Button>
+              </>
+            ) : (
+              <p className="mt-4 text-xl font-bold">We did not mark this dose as taken.</p>
+            )}
             <Button
               size="xl"
               variant="secondary"
-              className="mt-5"
+              className="mt-4"
               onClick={() => {
+                setTakingBack(result.nextAction === "other_side");
+                if (result.nextAction !== "other_side") setCandidate(null);
+                setCandidateBack(null);
+                setError(null);
                 setResult(null);
-                setCandidate(null);
               }}
             >
-              Try a different pill
+              {result.nextAction === "other_side"
+                ? "Take a picture of the other side"
+                : "Try again"}
             </Button>
           </section>
         ) : (
@@ -382,60 +415,18 @@ function CheckReady({
                 {error}
               </p>
             ) : null}
-            <PhotoCapture
-              title="Picture of the pill in your hand"
-              hint="Hold one pill so we can see the color and shape."
-              preview={candidate}
-              onCapture={(img) => void runCheck(img)}
-              extraAction={
-                <Button
-                  size="xl"
-                  variant="secondary"
-                  onClick={() => void toDataUrl(medicine.pillImage).then((d) => runCheck(d))}
-                >
-                  Use the saved photo instead
-                </Button>
-              }
-            />
-            {result && !matchOk && !matchBad ? (
-              <section className="rounded-lg bg-paper p-4 shadow-card">
-                <p className="text-xl font-bold">We are not sure.</p>
-                <p className="mt-2 text-xl text-muted">{result.reason}</p>
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <figure>
-                    <img
-                      src={medicine.pillImage}
-                      alt="Saved pill"
-                      className="aspect-square w-full rounded-md object-cover"
-                    />
-                    <figcaption className="mt-2 text-center text-lg">Saved</figcaption>
-                  </figure>
-                  <figure>
-                    <img
-                      src={candidate ?? ""}
-                      alt="This pill"
-                      className="aspect-square w-full rounded-md object-cover"
-                    />
-                    <figcaption className="mt-2 text-center text-lg">This one</figcaption>
-                  </figure>
-                </div>
-                <p className="mt-3 text-xl">Look at both photos. Only take it if they match.</p>
-                <Button size="xl" className="mt-4" onClick={() => void confirmTaken(false)}>
-                  They match. I took this pill
-                </Button>
-                <Button
-                  size="xl"
-                  variant="secondary"
-                  className="mt-3"
-                  onClick={() => {
-                    setResult(null);
-                    setCandidate(null);
-                  }}
-                >
-                  They do not match
-                </Button>
-              </section>
+            {takingBack ? (
+              <p className="text-xl font-bold">
+                Good. Now turn the same pill over and take one more picture.
+              </p>
             ) : null}
+            <PhotoCapture
+              pillDetail
+              title={takingBack ? "Turn the pill over" : "Take a picture of your pill"}
+              hint="Put one pill on a plain table in bright light. Show the letters and numbers. Hold your phone still."
+              preview={takingBack ? candidateBack : candidate}
+              onCapture={(img) => void runCheck(img)}
+            />
           </>
         )}
       </div>

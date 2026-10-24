@@ -1,0 +1,74 @@
+name: Verify
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify (${{ matrix.check }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [test, typecheck, build]
+    env:
+      # A verification build must never apply migrations to the live database.
+      DATABASE_URL: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run ${{ matrix.check }}
+
+  browser:
+    name: Verify (browser)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Prepare screenshot directory
+        run: |
+          sudo mkdir -p /workspace/screenshots
+          sudo chown "$(id -u):$(id -g)" /workspace/screenshots
+      - run: npm run build
+      - name: Start development preview
+        run: |
+          npm run dev > /tmp/suredose-dev.log 2>&1 &
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:8080/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/suredose-dev.log
+          exit 1
+      - name: Check desktop and mobile rendering
+        run: node scripts/browser-smoke.mjs http://127.0.0.1:8080/ /workspace/screenshots/suredose-dev.png
+      - name: Check schedule and saved-photo regression
+        run: node scripts/suredose-ui-smoke.mjs http://127.0.0.1:8080/
+      - name: Start Cloudflare build preview
+        run: npm run preview:restart
+      - name: Check Cloudflare build rendering
+        run: node scripts/browser-smoke.mjs http://127.0.0.1:8081/ /workspace/screenshots/suredose-built.png --baseline /workspace/screenshots/suredose-dev.json
+      - name: Check Cloudflare schedule and saved-photo regression
+        run: node scripts/suredose-ui-smoke.mjs http://127.0.0.1:8081/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: suredose-browser-evidence
+          path: /workspace/screenshots/
+          if-no-files-found: warn
