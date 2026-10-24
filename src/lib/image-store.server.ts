@@ -13,8 +13,8 @@ import { createHash } from "node:crypto";
  * server functions.
  *
  * Local `npm run dev` (plain Node, no Worker env): there is no R2, so
- * callers keep the image inline in Postgres instead — same idea as
- * src/lib/db.ts falling back to PGLite.
+ * callers keep the image inline in the database row instead. (The database
+ * itself needs the Worker env too — see src/lib/db.ts.)
  */
 
 /** The small slice of the R2 bucket API this app uses. */
