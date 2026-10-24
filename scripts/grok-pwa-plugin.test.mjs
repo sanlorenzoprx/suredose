@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import test from "node:test";
+import test, { after } from "node:test";
 import {
   appNameFromHost,
-  createHeadInjector,
+  createHeadInjector as realCreateHeadInjector,
   grokXCreatorHeadTags,
-  injectGrokPwaHead,
+  injectGrokPwaHead as realInjectGrokPwaHead,
   isDocumentPath,
   isInstallQuery,
   publicAppHost,
@@ -20,6 +20,14 @@ import {
 import { renderInstallPage } from "./grok-pwa-plugin.mjs";
 
 const TEMPLATE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+// Each generic test starts in a workspace without this product's site.json or
+// public/og.jpg. Explicit cwd fixtures still exercise real filesystem behavior.
+const EMPTY_ROOT = mkdtempSync(join(tmpdir(), "grok-pwa-contract-"));
+after(() => rmSync(EMPTY_ROOT, { recursive: true, force: true }));
+const injectGrokPwaHead = (html, ctx = {}) => realInjectGrokPwaHead(html, { cwd: EMPTY_ROOT, ...ctx });
+const createHeadInjector = (ctx = {}) => realCreateHeadInjector({ cwd: EMPTY_ROOT, ...ctx });
+
 
 test("injects before </head>", () => {
   const out = injectGrokPwaHead("<html><head><title>x</title></head><body></body></html>");
@@ -504,3 +512,10 @@ test("vite plugin bakes og identity as a virtual module", () => {
   assert.match(plugin, /snapshotOgIdentity/);
 });
 
+
+test("the product workspace keeps its own branding with isolated generic tests", () => {
+  const { site } = snapshotOgIdentity(TEMPLATE_ROOT);
+  const html = realInjectGrokPwaHead("<html><head></head></html>", { cwd: TEMPLATE_ROOT });
+  assert.equal(site.title, "SureDose");
+  assert.match(html, /property="og:title" content="SureDose"/);
+});

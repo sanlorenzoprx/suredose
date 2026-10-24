@@ -7,6 +7,31 @@ a pre-written text message to a family member once it's confirmed — and now
 a family member's own phone can pair to see that same confirmation with the
 photo, and gets alerted automatically if a dose is missed.
 
+## Photo and schedule boundaries
+
+Bottle reading transcribes visible text only. Missing name/strength/directions stay
+blank; frequency alone never generates clock times. During setup, the person
+checks name and strength, explicitly chooses reminder times, and confirms those
+times and directions against their prescription or pharmacist's guidance.
+
+Pill photos produce a visual observation: similar, different, or uncertain. They
+cannot establish medication identity or authorize a dose. Unreadable imprints
+cannot produce a similar result. Model-generated confidence and advice are not
+shown. Similarity requires a separate label-review acknowledgement before the
+person can record their own dose confirmation; that event has verified=false.
+Different, uncertain, failed, and replayed-image comparisons cannot confirm a dose.
+Practice still creates no dose event or caregiver message.
+
+The saved-photo shortcut has been removed, and the server rejects the same image
+bytes even if the data-URL MIME type/whitespace differs. This does not establish
+camera liveness: a re-encoded or rephotographed older image may evade that check.
+Real-world model accuracy, Android behavior, and delivery still require testing.
+
+`npm test` runs all script and application test groups even when one group fails.
+Generic PWA test fixtures do not read the product workspace's branding. GitHub
+Actions checks tests, typechecking, and the Cloudflare production build separately;
+verification builds have no live DATABASE_URL and do not deploy.
+
 ## What this actually is
 
 This is a **web app (PWA)**, not a native Android Studio project. On an
@@ -95,8 +120,7 @@ fit for this specific feature, not just a cheaper one.
 - **Reminders**: loud chime, spoken reminder ("It is time to take your
   Lisinopril"), and vibration, repeating until acted on.
 - **Take a pill**: photograph the pill in hand, AI compares it to the saved
-  photo, and gives a plain-language "this is right" / "put it back" / "not
-  sure — compare these two photos yourself" result, with both photos shown
+  photo, and gives a bounded "similar" / "different" / "uncertain" observation, with both photos shown
   side by side whenever the person needs to double-check by eye.
 - **Family text**: after a confirmed dose, opens a pre-written text message
   to the saved family phone number — the person just taps Send (see note

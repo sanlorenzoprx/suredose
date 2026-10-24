@@ -89,7 +89,7 @@ export type DoseSlot = {
 export type BottleRead = {
   name: string;
   strength: string;
-  timesPerDay: number;
+  timesPerDay: number | null;
   times: string[];
   instructions: string;
   /** NDC printed on the label, as printed ("" when not visible). */
@@ -120,8 +120,8 @@ export type MedicineCheck =
   | { status: "unavailable"; message: string };
 
 export type PillMatch = {
-  match: boolean;
-  confidence: number;
+  /** Visual observation only; never proof of identity or permission to dose. */
+  observation: "similar" | "different" | "uncertain";
   reason: string;
 };
 

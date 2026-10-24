@@ -12,28 +12,28 @@ function HelpPage() {
 
         <Section title="How reminders work">
           <p>
-            When it's time for a dose, the phone plays a chime, speaks the medicine name out
-            loud, and vibrates, until you open the reminder. You can turn any of these on or off
-            from the Family tab.
+            When it's time for a dose, the phone plays a chime, speaks the medicine name out loud,
+            and vibrates, until you open the reminder. You can turn any of these on or off from the
+            Family tab.
           </p>
         </Section>
 
-        <Section title="The photo doesn't match — what do I do?">
+        <Section title="What does the photo comparison mean?">
           <p>
-            Stop. Do not take the pill. Put it back, and check with your pharmacist or the person
-            who fills your medicine before taking anything that doesn't look right. The app will
-            show you both photos side by side so you can compare them yourself — trust what you
-            see over what the app guesses if they disagree.
+            Photos can look similar without showing the same medicine. SureDose cannot confirm a
+            medicine's identity or tell you whether to take it. Follow your prescription label and
+            ask your pharmacist if you are unsure. A different or unclear photo does not mark a dose
+            taken. When you record a dose, it is your own confirmation, not verified medication
+            identity.
           </p>
         </Section>
 
         <Section title="Connecting a family member">
           <p>
             From the Family tab, tap "Create a family code" and share the code with one family
-            member — by text, or just read it out loud. On their own phone, they choose "I'm
-            helping a family member" and type in the code. After that, their phone shows when you
-            take your medicine, with a photo, and gets an alert if a dose is missed by more than
-            two hours.
+            member — by text, or just read it out loud. On their own phone, they choose "I'm helping
+            a family member" and type in the code. After that, their phone shows when you take your
+            medicine, with a photo, and gets an alert if a dose is missed by more than two hours.
           </p>
         </Section>
 
@@ -52,9 +52,9 @@ function HelpPage() {
         <Section title="The camera or a notification isn't working">
           <p>
             Camera problems are usually a phone permission — check your phone's Settings app for
-            SureDose's camera permission. Missing chimes or notifications are usually a
-            notification permission — the Family tab has an "Allow phone alerts" button that asks
-            again if you said no by mistake.
+            SureDose's camera permission. Missing chimes or notifications are usually a notification
+            permission — the Family tab has an "Allow phone alerts" button that asks again if you
+            said no by mistake.
           </p>
         </Section>
 
