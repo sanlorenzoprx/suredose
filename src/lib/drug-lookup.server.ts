@@ -1,4 +1,5 @@
-import { getSql } from "./db";
+import { z } from "zod";
+import { parseJson, q, run, toIso } from "./db";
 import {
   SPECIFIC_DRUG_TTYS,
   canonicalProductNdc,
@@ -148,7 +149,6 @@ async function fetchJpeg(url: string): Promise<Uint8Array | null> {
 export async function ingestProducts(setId: string, products: FdaProduct[]): Promise<ProductRow[]> {
   const xml = setId ? await fetchSplXml(setId).catch(() => null) : null;
   const looks = xml ? parseSplAppearance(xml) : [];
-  const sql = await getSql();
   const rows: ProductRow[] = [];
 
   for (const p of products) {
@@ -176,16 +176,16 @@ export async function ingestProducts(setId: string, products: FdaProduct[]): Pro
       ? describeAppearance({ colors: look.colors, shape: look.shape, imprint: look.imprint, form: p.form })
       : "";
 
-    const [row] = await sql<ProductRow>`
-      insert into drug_products (
+    const [row] = await q<ProductRow>(
+      `insert into drug_products (
         product_ndc, label_ndc, name, generic_name, brand_name, strength, form,
         labeler, rxcui, spl_set_id, colors, shape, size_mm, imprint, appearance,
         image_storage, image_sha, inline_image, fetched_at
       ) values (
-        ${canon}, ${p.productNdc}, ${p.name}, ${p.genericName}, ${p.brandName}, ${p.strength}, ${p.form},
-        ${p.labeler}, ${p.rxcui}, ${setId}, ${look?.colors.join(",") ?? ""}, ${look?.shape ?? ""},
-        ${look?.sizeMm ?? null}, ${look?.imprint ?? ""}, ${appearance},
-        ${storage}, ${sha}, ${inline}, now()
+        ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
+        ?, ?, ?,
+        ?, ?, ?, ?
       )
       on conflict (product_ndc) do update set
         label_ndc = excluded.label_ndc, name = excluded.name,
@@ -198,9 +198,15 @@ export async function ingestProducts(setId: string, products: FdaProduct[]): Pro
         image_storage = case when excluded.image_storage = 'none' then drug_products.image_storage else excluded.image_storage end,
         image_sha = case when excluded.image_storage = 'none' then drug_products.image_sha else excluded.image_sha end,
         inline_image = case when excluded.image_storage = 'none' then drug_products.inline_image else excluded.inline_image end,
-        fetched_at = now()
-      returning *
-    `;
+        fetched_at = excluded.fetched_at
+      returning *`,
+      [
+        canon, p.productNdc, p.name, p.genericName, p.brandName, p.strength, p.form,
+        p.labeler, p.rxcui, setId, look?.colors.join(",") ?? "", look?.shape ?? "",
+        look?.sizeMm ?? null, look?.imprint ?? "", appearance,
+        storage, sha, inline, toIso(),
+      ],
+    );
     rows.push(row);
   }
   return rows;
@@ -225,10 +231,11 @@ export async function lookupByNdc(
   const agrees = (r: ProductRow) =>
     productAgreesWithLabel({ names: [r.name, r.generic_name, r.brand_name], strength: r.strength }, hint);
 
-  const sql = await getSql();
-  const cached = await sql<ProductRow>`
-    select * from drug_products where product_ndc = any(${candidates.map(canonicalProductNdc)})
-  `;
+  const wanted = candidates.map(canonicalProductNdc);
+  const cached = await q<ProductRow>(
+    `select * from drug_products where product_ndc in (${wanted.map(() => "?").join(", ")})`,
+    wanted,
+  );
   const fresh = cached.filter((r) => isFresh(r.fetched_at, PRODUCT_TTL_DAYS));
   const freshMatch = fresh.find(agrees);
   if (freshMatch) return freshMatch;
@@ -290,9 +297,22 @@ export async function productToVerified(row: ProductRow): Promise<VerifiedMedici
 /* Name + strength via RxNorm                                          */
 /* ------------------------------------------------------------------ */
 
-export type NameLookup =
-  | { found: true; rxcui: string; name: string; strength: string; form: string }
-  | { found: false; reason: "no_drug" | "strength" | "need_strength"; drugName?: string };
+const nameLookupSchema = z.union([
+  z.object({
+    found: z.literal(true),
+    rxcui: z.string(),
+    name: z.string(),
+    strength: z.string(),
+    form: z.string(),
+  }),
+  z.object({
+    found: z.literal(false),
+    reason: z.enum(["no_drug", "strength", "need_strength"]),
+    drugName: z.string().optional(),
+  }),
+]);
+
+export type NameLookup = z.infer<typeof nameLookupSchema>;
 
 async function rxProperties(rxcui: string): Promise<RxConcept | null> {
   const json = await fetchJson(`${RXNAV}/rxcui/${encodeURIComponent(rxcui)}/properties.json`);
@@ -343,23 +363,28 @@ async function lookupByNameUncached(name: string, strength: string): Promise<Nam
 
 export async function lookupByName(name: string, strength: string): Promise<NameLookup> {
   const key = `${normName(name)}|${normStrength(strength)}`;
-  const sql = await getSql();
-  const cached = await sql<{ result: NameLookup; fetched_at: string }>`
-    select result, fetched_at from drug_name_lookups where query_key = ${key}
-  `;
-  if (cached[0] && isFresh(cached[0].fetched_at, NAME_TTL_DAYS)) return cached[0].result;
+  const rows = await q<{ result: string; fetched_at: string }>(
+    "select result, fetched_at from drug_name_lookups where query_key = ?",
+    [key],
+  );
+  // A cached answer that no longer parses is treated as a cache miss.
+  const cachedResult = rows[0] ? parseJson(rows[0].result, nameLookupSchema, null) : null;
+  const cached = rows[0] && cachedResult ? { result: cachedResult, fetched_at: rows[0].fetched_at } : null;
+  if (cached && isFresh(cached.fetched_at, NAME_TTL_DAYS)) return cached.result;
 
   let result: NameLookup;
   try {
     result = await lookupByNameUncached(name, strength);
   } catch (err) {
-    if (cached[0]) return cached[0].result;
+    if (cached) return cached.result;
     throw err;
   }
-  await sql`
-    insert into drug_name_lookups (query_key, result, fetched_at)
-    values (${key}, ${JSON.stringify(result)}::jsonb, now())
-    on conflict (query_key) do update set result = excluded.result, fetched_at = now()
-  `;
+  const fetchedAt = toIso();
+  await run(
+    `insert into drug_name_lookups (query_key, result, fetched_at)
+     values (?, ?, ?)
+     on conflict (query_key) do update set result = excluded.result, fetched_at = excluded.fetched_at`,
+    [key, JSON.stringify(result), fetchedAt],
+  );
   return result;
 }

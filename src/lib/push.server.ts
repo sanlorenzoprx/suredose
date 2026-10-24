@@ -1,5 +1,5 @@
 import { buildPushPayload, type PushSubscription as WebPushSubscription } from "@block65/webcrypto-web-push";
-import { getSql } from "./db";
+import { q, run } from "./db";
 
 /**
  * Web Push needs a VAPID key pair (identifies this server to the push
@@ -36,10 +36,10 @@ export async function sendPushToHousehold(householdCode: string, payload: PushPa
   const vapid = vapidKeys();
   if (!vapid) return;
 
-  const sql = await getSql();
-  const subs = await sql<{ id: string; endpoint: string; p256dh: string; auth: string }>`
-    select id, endpoint, p256dh, auth from push_subscriptions where household_id = ${householdCode}
-  `;
+  const subs = await q<{ id: string; endpoint: string; p256dh: string; auth: string }>(
+    "select id, endpoint, p256dh, auth from push_subscriptions where household_id = ?",
+    [householdCode],
+  );
   if (subs.length === 0) return;
 
   await Promise.all(
@@ -58,7 +58,7 @@ export async function sendPushToHousehold(householdCode: string, payload: PushPa
         const res = await fetch(sub.endpoint, { method: method.toUpperCase(), headers, body });
         if (res.status === 404 || res.status === 410) {
           // The browser unsubscribed or the subscription expired — clean it up.
-          await sql`delete from push_subscriptions where id = ${sub.id}`;
+          await run("delete from push_subscriptions where id = ?", [sub.id]);
         } else if (!res.ok) {
           console.error("[push] send failed:", res.status, await res.text().catch(() => ""));
         }

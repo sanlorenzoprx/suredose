@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { extractJson } from "./ai";
-import { getSql } from "./db";
+import { q, run, toIso } from "./db";
 import { normName, normStrength } from "./drug-data";
 import { decodeJpegDataUrl, deleteImage, putImage, r2Available } from "./image-store.server";
 import type { PillFeatures } from "./types";
@@ -126,10 +126,10 @@ Rules:
 
 /** Delete the stored object for `sha` once no row references it any more. */
 async function releaseObject(sha: string): Promise<void> {
-  const sql = await getSql();
-  const refs = await sql<{
-    n: number;
-  }>`select count(*)::int as n from pill_images where sha256 = ${sha}`;
+  const refs = await q<{ n: number }>(
+    "select count(*) as n from pill_images where sha256 = ?",
+    [sha],
+  );
   if ((refs[0]?.n ?? 0) === 0) await deleteImage("pills", sha);
 }
 
@@ -168,14 +168,14 @@ export const cachePillReference = createServerFn({ method: "POST" })
       const img = decodeJpegDataUrl(data.image);
       if (!img) return { ok: false, error: "This photo could not be saved." };
 
-      const sql = await getSql();
-      const [{ n: rowsForDevice } = { n: 0 }] = await sql<{ n: number }>`
-      select count(*)::int as n from pill_images where device_id = ${data.deviceId}
-    `;
-      const [existing] = await sql<{ sha256: string }>`
-      select sha256 from pill_images
-      where device_id = ${data.deviceId} and medicine_id = ${data.medicineId}
-    `;
+      const [{ n: rowsForDevice } = { n: 0 }] = await q<{ n: number }>(
+        "select count(*) as n from pill_images where device_id = ?",
+        [data.deviceId],
+      );
+      const [existing] = await q<{ sha256: string }>(
+        "select sha256 from pill_images where device_id = ? and medicine_id = ?",
+        [data.deviceId, data.medicineId],
+      );
       if (!existing && rowsForDevice >= MAX_ROWS_PER_DEVICE) {
         return { ok: false, error: "This phone has added the most pill photos we allow." };
       }
@@ -200,19 +200,17 @@ export const cachePillReference = createServerFn({ method: "POST" })
       const id = uid("pill");
       // Row first, object second: a concurrent release of the same photo then
       // either sees this row (and keeps the object) or deletes before our put.
-      await sql`
-      insert into pill_images (
+      await run(
+        `insert into pill_images (
         id, device_id, medicine_id, sha256,
         name, name_norm, strength, strength_norm, ndc, verified_by,
         imprint, imprint_norm, color, shape, form,
-        storage, inline_image, bytes
+        storage, inline_image, bytes, created_at
       ) values (
-        ${id}, ${data.deviceId}, ${data.medicineId}, ${img.sha256},
-        ${data.name}, ${normName(data.name)}, ${data.strength}, ${normStrength(data.strength)},
-        ${data.ndc}, ${data.verifiedBy},
-        ${features.imprint}, ${normImprint(features.imprint)},
-        ${features.color}, ${features.shape}, ${features.form},
-        ${useR2 ? "r2" : "inline"}, ${useR2 ? null : data.image}, ${img.bytes.length}
+        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?
       )
       on conflict (device_id, medicine_id) do update set
         sha256 = excluded.sha256,
@@ -222,14 +220,23 @@ export const cachePillReference = createServerFn({ method: "POST" })
         imprint = excluded.imprint, imprint_norm = excluded.imprint_norm,
         color = excluded.color, shape = excluded.shape, form = excluded.form,
         storage = excluded.storage, inline_image = excluded.inline_image,
-        bytes = excluded.bytes, created_at = now()
-    `;
+        bytes = excluded.bytes, created_at = excluded.created_at`,
+        [
+          id, data.deviceId, data.medicineId, img.sha256,
+          data.name, normName(data.name), data.strength, normStrength(data.strength), data.ndc, data.verifiedBy,
+          features.imprint, normImprint(features.imprint), features.color, features.shape, features.form,
+          useR2 ? "r2" : "inline", useR2 ? null : data.image, img.bytes.length, toIso(),
+        ],
+      );
       if (useR2) {
         try {
           await putImage("pills", img.bytes);
         } catch (err) {
           console.error("pill library put failed:", err instanceof Error ? err.message : err);
-          await sql`delete from pill_images where device_id = ${data.deviceId} and medicine_id = ${data.medicineId}`;
+          await run("delete from pill_images where device_id = ? and medicine_id = ?", [
+            data.deviceId,
+            data.medicineId,
+          ]);
           return { ok: false, error: "This photo could not be saved." };
         }
       }
@@ -250,15 +257,14 @@ export const forgetPillReferences = createServerFn({ method: "POST" })
     medicineId: input.medicineId ? z.string().max(80).parse(input.medicineId) : undefined,
   }))
   .handler(async ({ data }): Promise<{ ok: true; deleted: number }> => {
-    const sql = await getSql();
     const removed = data.medicineId
-      ? await sql<{ sha256: string }>`
-          delete from pill_images where device_id = ${data.deviceId} and medicine_id = ${data.medicineId}
-          returning sha256
-        `
-      : await sql<{ sha256: string }>`
-          delete from pill_images where device_id = ${data.deviceId} returning sha256
-        `;
+      ? await q<{ sha256: string }>(
+          "delete from pill_images where device_id = ? and medicine_id = ? returning sha256",
+          [data.deviceId, data.medicineId],
+        )
+      : await q<{ sha256: string }>("delete from pill_images where device_id = ? returning sha256", [
+          data.deviceId,
+        ]);
     for (const sha of new Set(removed.map((r) => r.sha256))) await releaseObject(sha);
     return { ok: true, deleted: removed.length };
   });

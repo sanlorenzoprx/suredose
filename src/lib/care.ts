@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
-import { getSql } from "./db";
+import { batch, fromBool, parseJson, q, run, stmt, stringArraySchema, toIso } from "./db";
 import { sendPushToHousehold } from "./push.server";
 import { formatTimeLabel } from "./schedule";
 import type { CareActivityItem, CareMedicineSummary } from "./types";
@@ -32,14 +32,14 @@ export const createHousehold = createServerFn({ method: "POST" })
     caregiverPhone: z.string().max(40).parse(input.caregiverPhone ?? ""),
   }))
   .handler(async ({ data }): Promise<{ ok: true; code: string } | { ok: false; error: string }> => {
-    const sql = await getSql();
     for (let attempt = 0; attempt < 6; attempt += 1) {
       const code = randomCode();
       try {
-        await sql`
-          insert into households (id, patient_name, caregiver_name, caregiver_phone)
-          values (${code}, ${data.patientName}, ${data.caregiverName}, ${data.caregiverPhone})
-        `;
+        await run(
+          `insert into households (id, patient_name, caregiver_name, caregiver_phone, created_at)
+           values (?, ?, ?, ?, ?)`,
+          [code, data.patientName, data.caregiverName, data.caregiverPhone, toIso()],
+        );
         return { ok: true, code };
       } catch {
         // Extremely unlikely code collision — try again with a fresh code.
@@ -51,10 +51,10 @@ export const createHousehold = createServerFn({ method: "POST" })
 export const getHousehold = createServerFn({ method: "POST" })
   .validator((input: { code: string }) => ({ code: codeSchema.parse(input.code) }))
   .handler(async ({ data }): Promise<{ ok: true; patientName: string } | { ok: false; error: string }> => {
-    const sql = await getSql();
-    const rows = await sql<{ patient_name: string }>`
-      select patient_name from households where id = ${data.code}
-    `;
+    const rows = await q<{ patient_name: string }>(
+      "select patient_name from households where id = ?",
+      [data.code],
+    );
     if (rows.length === 0) {
       return { ok: false, error: "We could not find that code. Check it and try again." };
     }
@@ -78,19 +78,22 @@ export const syncMedicines = createServerFn({ method: "POST" })
     medicines: medicineSyncSchema.parse(input.medicines ?? []),
   }))
   .handler(async ({ data }): Promise<{ ok: boolean }> => {
-    const sql = await getSql();
-    const household = await sql`select 1 from households where id = ${data.code}`;
+    const household = await q("select 1 from households where id = ?", [data.code]);
     if (household.length === 0) return { ok: false };
     // Small list, rewritten wholesale on every change — the patient's phone
     // is the source of truth, this is only a mirror for the caregiver view
-    // and the missed-dose check.
-    await sql`delete from care_medicines where household_id = ${data.code}`;
-    for (const medicine of data.medicines) {
-      await sql`
-        insert into care_medicines (id, household_id, name, strength, times)
-        values (${medicine.id}, ${data.code}, ${medicine.name}, ${medicine.strength}, ${JSON.stringify(medicine.times)}::jsonb)
-      `;
-    }
+    // and the missed-dose check. One batch, so a failed insert never leaves
+    // the caregiver with an emptied list.
+    await batch([
+      stmt("delete from care_medicines where household_id = ?", [data.code]),
+      ...data.medicines.map((medicine) =>
+        stmt(
+          `insert into care_medicines (id, household_id, name, strength, times)
+           values (?, ?, ?, ?, ?)`,
+          [medicine.id, data.code, medicine.name, medicine.strength, JSON.stringify(medicine.times)],
+        ),
+      ),
+    ]);
     return { ok: true };
   });
 
@@ -113,20 +116,33 @@ function doseEventId(code: string, medicineId: string, date: string, time: strin
 export const recordDoseEvent = createServerFn({ method: "POST" })
   .validator((input: z.infer<typeof doseEventSchema>) => doseEventSchema.parse(input))
   .handler(async ({ data }): Promise<{ ok: boolean }> => {
-    const sql = await getSql();
     const id = doseEventId(data.code, data.medicineId, data.date, data.time);
-    const takenAt = data.status === "taken" ? new Date() : null;
-    await sql`
-      insert into dose_events
-        (id, household_id, medicine_id, medicine_name, strength, date, time, status, taken_at, verified, check_image, notified)
-      values
-        (${id}, ${data.code}, ${data.medicineId}, ${data.medicineName}, ${data.strength}, ${data.date}, ${data.time}, ${data.status}, ${takenAt}, ${data.verified}, ${data.checkImage ?? null}, false)
-      on conflict (household_id, medicine_id, date, time) do update set
+    const takenAt = data.status === "taken" ? toIso() : null;
+    await run(
+      `insert into dose_events
+        (id, household_id, medicine_id, medicine_name, strength, date, time, status, taken_at, verified, check_image, notified, created_at)
+       values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+       on conflict (household_id, medicine_id, date, time) do update set
         status = excluded.status,
         taken_at = excluded.taken_at,
         verified = excluded.verified,
-        check_image = coalesce(excluded.check_image, dose_events.check_image)
-    `;
+        check_image = coalesce(excluded.check_image, dose_events.check_image)`,
+      [
+        id,
+        data.code,
+        data.medicineId,
+        data.medicineName,
+        data.strength,
+        data.date,
+        data.time,
+        data.status,
+        takenAt,
+        data.verified,
+        data.checkImage ?? null,
+        toIso(),
+      ],
+    );
 
     if (data.status === "taken") {
       const med = [data.medicineName, data.strength].filter(Boolean).join(" ");
@@ -158,15 +174,15 @@ export const fetchActivity = createServerFn({ method: "POST" })
         }
       | { ok: false; error: string }
     > => {
-      const sql = await getSql();
-      const household = await sql<{ patient_name: string }>`
-        select patient_name from households where id = ${data.code}
-      `;
+      const household = await q<{ patient_name: string }>(
+        "select patient_name from households where id = ?",
+        [data.code],
+      );
       if (household.length === 0) {
         return { ok: false, error: "This family code is no longer active." };
       }
 
-      const events = await sql<{
+      const events = await q<{
         id: string;
         medicine_name: string;
         strength: string;
@@ -174,26 +190,28 @@ export const fetchActivity = createServerFn({ method: "POST" })
         time: string;
         status: "taken" | "missed" | "skipped";
         taken_at: string | null;
-        verified: boolean;
+        verified: number;
         check_image: string | null;
-      }>`
-        select id, medicine_name, strength, date, time, status, taken_at, verified, check_image
-        from dose_events
-        where household_id = ${data.code}
-        order by coalesce(taken_at, created_at) desc
-        limit ${data.limit}
-      `;
+      }>(
+        `select id, medicine_name, strength, date, time, status, taken_at, verified, check_image
+         from dose_events
+         where household_id = ?
+         order by coalesce(taken_at, created_at) desc
+         limit ?`,
+        [data.code, data.limit],
+      );
 
-      const medicines = await sql<{
+      const medicines = await q<{
         id: string;
         name: string;
         strength: string;
-        times: string[];
-      }>`
-        select id, name, strength, times from care_medicines
-        where household_id = ${data.code}
-        order by name asc
-      `;
+        times: string;
+      }>(
+        `select id, name, strength, times from care_medicines
+         where household_id = ?
+         order by name asc`,
+        [data.code],
+      );
 
       return {
         ok: true,
@@ -206,14 +224,14 @@ export const fetchActivity = createServerFn({ method: "POST" })
           time: e.time,
           status: e.status,
           takenAt: e.taken_at ? new Date(e.taken_at).getTime() : null,
-          verified: e.verified,
+          verified: fromBool(e.verified),
           checkImage: e.check_image,
         })),
         medicines: medicines.map((m) => ({
           id: m.id,
           name: m.name,
           strength: m.strength,
-          times: Array.isArray(m.times) ? m.times : [],
+          times: parseJson(m.times, stringArraySchema, []),
         })),
       };
     },
@@ -233,27 +251,33 @@ export const subscribePush = createServerFn({ method: "POST" })
     subscription: pushSubscriptionSchema.parse(input.subscription),
   }))
   .handler(async ({ data }): Promise<{ ok: boolean; error?: string }> => {
-    const sql = await getSql();
-    const household = await sql`select 1 from households where id = ${data.code}`;
+    const household = await q("select 1 from households where id = ?", [data.code]);
     if (household.length === 0) {
       return { ok: false, error: "This family code is no longer active." };
     }
-    await sql`
-      insert into push_subscriptions (id, household_id, endpoint, p256dh, auth)
-      values (${uid("push")}, ${data.code}, ${data.subscription.endpoint}, ${data.subscription.keys.p256dh}, ${data.subscription.keys.auth})
-      on conflict (endpoint) do update set
+    await run(
+      `insert into push_subscriptions (id, household_id, endpoint, p256dh, auth, created_at)
+       values (?, ?, ?, ?, ?, ?)
+       on conflict (endpoint) do update set
         household_id = excluded.household_id,
         p256dh = excluded.p256dh,
-        auth = excluded.auth
-    `;
+        auth = excluded.auth`,
+      [
+        uid("push"),
+        data.code,
+        data.subscription.endpoint,
+        data.subscription.keys.p256dh,
+        data.subscription.keys.auth,
+        toIso(),
+      ],
+    );
     return { ok: true };
   });
 
 export const unsubscribePush = createServerFn({ method: "POST" })
   .validator((input: { endpoint: string }) => ({ endpoint: z.string().max(600).parse(input.endpoint) }))
   .handler(async ({ data }): Promise<{ ok: boolean }> => {
-    const sql = await getSql();
-    await sql`delete from push_subscriptions where endpoint = ${data.endpoint}`;
+    await run("delete from push_subscriptions where endpoint = ?", [data.endpoint]);
     return { ok: true };
   });
 
@@ -261,14 +285,13 @@ export const unsubscribePush = createServerFn({ method: "POST" })
  * Permanently deletes a family's shared data — the household row, its
  * medicine mirror, its dose activity (including confirmation photos), and
  * any push subscriptions, via the ON DELETE CASCADE foreign keys set up in
- * migrations/0002_care_circle.sql. This is the in-app data-deletion path:
+ * migrations/0001_init.sql. This is the in-app data-deletion path:
  * anyone holding the code can use it (same trust model as the code itself),
  * no account or login required. See src/routes/privacy.tsx.
  */
 export const deleteHousehold = createServerFn({ method: "POST" })
   .validator((input: { code: string }) => ({ code: codeSchema.parse(input.code) }))
   .handler(async ({ data }): Promise<{ ok: boolean }> => {
-    const sql = await getSql();
-    await sql`delete from households where id = ${data.code}`;
+    await run("delete from households where id = ?", [data.code]);
     return { ok: true };
   });

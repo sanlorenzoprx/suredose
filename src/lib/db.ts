@@ -1,238 +1,142 @@
-import { pendingMigrations } from "../../scripts/migration-plan.mjs";
-
-/** Which database backend is active. */
-export type DbSource = "neon" | "pglite";
-
-// An empty/whitespace DATABASE_URL (an easy misconfig in deploy UIs) must mean
-// "unset" — otherwise production would silently run on the PGLite fallback.
-const rawDatabaseUrl =
-  typeof process !== "undefined" ? process.env.DATABASE_URL : undefined;
-const databaseUrl =
-  rawDatabaseUrl && rawDatabaseUrl.trim() ? rawDatabaseUrl : undefined;
+import { z } from "zod";
 
 /**
- * Active backend: real **Neon** when `DATABASE_URL` is set (deployed / configured
- * sandbox), otherwise a local embedded **PGLite** (Postgres compiled to WASM) so
- * the app has a working database even with nothing configured — the live preview
- * included. Swap in Neon later by just setting `DATABASE_URL`; no code changes.
- */
-export const dbSource: DbSource = databaseUrl ? "neon" : "pglite";
-
-/**
- * Minimal shared SQL surface, satisfied by both Neon and PGLite. Both the
- * tagged-template and `.query()` forms resolve to an array of row objects:
+ * Cloudflare D1 adapter — **server-only**.
  *
- *   const sql = await getSql();
- *   const rows = await sql`select * from todos where id = ${id}`; // parameterized
- *   const rows2 = await sql.query("select * from todos where id = $1", [id]);
+ * The binding is `DB` (wrangler.jsonc). Nitro's Cloudflare runtime puts the
+ * Worker `env` on `globalThis.__env__` for every request and every cron run,
+ * the same way `src/lib/image-store.server.ts` finds the R2 bucket, so the
+ * database is looked up per call and never cached across requests.
+ *
+ *   const rows = await q<{ n: number }>("select count(*) as n from households");
+ *   await run("delete from households where id = ?", [code]);
+ *   await batch([
+ *     stmt("delete from care_medicines where household_id = ?", [code]),
+ *     stmt("insert into care_medicines (id, household_id, name) values (?, ?, ?)", [id, code, name]),
+ *   ]); // atomic: all statements apply, or none do
+ *
+ * Schema lives in `migrations/*.sql` and is applied with
+ * `wrangler d1 migrations apply` — never create tables from app code.
+ *
+ * Value conventions (see migrations/0001_init.sql):
+ *   - timestamps are ISO-8601 UTC text — pass a `Date` and it is stored as
+ *     `toISOString()`; read them back as strings;
+ *   - booleans are INTEGER 0/1 — pass `true`/`false` and they are stored as
+ *     1/0; convert on read with `fromBool`;
+ *   - JSON is TEXT — `JSON.stringify` on write, `parseJson` on read.
  */
-export interface Sql {
-  <T = Record<string, unknown>>(
-    strings: TemplateStringsArray,
-    ...values: unknown[]
-  ): Promise<T[]>;
-  query<T = Record<string, unknown>>(
-    text: string,
-    params?: unknown[],
-  ): Promise<T[]>;
+
+/** The slice of the D1 API this app uses (also what the test stand-in implements). */
+export interface D1PreparedStatementLike {
+  bind(...values: unknown[]): D1PreparedStatementLike;
+  all<T = Record<string, unknown>>(): Promise<{ results: T[] }>;
+  run(): Promise<{ meta?: { changes?: number } }>;
+}
+
+export interface D1DatabaseLike {
+  prepare(sql: string): D1PreparedStatementLike;
+  batch(statements: D1PreparedStatementLike[]): Promise<unknown[]>;
+}
+
+/** A statement waiting to be run, alone or inside `batch()`. */
+export interface Stmt {
+  sql: string;
+  params: unknown[];
+}
+
+export function stmt(sql: string, params: unknown[] = []): Stmt {
+  return { sql, params };
 }
 
 /**
- * Init state lives on globalThis as promises: dev HMR creates new instances of
- * this module, and two instances racing module-level state would open a second
- * pool or run two concurrent PGLite migration passes (whose duplicate
- * `_migrations` insert rejects — and would get memoized, poisoning every later
- * `getSql()`). A failed init clears its slot so the next call retries.
+ * The D1 database for this request. Throws a clear error when the binding is
+ * missing (for example under `vite dev`, which does not load the Cloudflare
+ * runtime — use `npm run cf:dev` for anything that touches the database).
  */
-const globalRef = globalThis as typeof globalThis & {
-  __pgSqlPromise__?: Promise<Sql>;
-  __pgliteInstance__?: Promise<import("@electric-sql/pglite").PGlite>;
-  __pgliteMigrateChain__?: Promise<void>;
-};
-
-/**
- * Result-type parity: Postgres sends every value as text plus a type OID — the
- * JS value is the DRIVER's parsing choice, and pg and PGLite disagree (pg:
- * int8 -> string, date -> local-midnight Date; PGLite: int8 -> BigInt, which
- * JSON.stringify rejects, date -> UTC Date). Normalize both so preview and
- * production return identical, JSON-safe shapes:
- *   int8/bigint (incl. count(*)) -> number (past 2^53 loses precision — cast
- *                                   `::text` if you ever need huge integers)
- *   date                         -> 'YYYY-MM-DD' string
- *   interval                     -> Postgres interval text
- * numeric already comes back as a string on both (arbitrary precision).
- */
-const OID_INT8 = 20;
-const OID_DATE = 1082;
-const OID_INTERVAL = 1186;
-const identity = (v: string) => v;
-
-type Run = <T>(text: string, params: unknown[]) => Promise<T[]>;
-
-/** Wrap a query runner in the tagged-template + `.query()` `Sql` surface. */
-function toSql(run: Run): Sql {
-  const sql = (async <T = Record<string, unknown>>(
-    strings: TemplateStringsArray,
-    ...values: unknown[]
-  ): Promise<T[]> => {
-    // Rebuild with $1, $2, … placeholders so values stay parameterized.
-    let text = strings[0];
-    for (let i = 0; i < values.length; i += 1) text += `$${i + 1}${strings[i + 1]}`;
-    return run<T>(text, values);
-  }) as unknown as Sql;
-  sql.query = <T = Record<string, unknown>>(text: string, params: unknown[] = []) =>
-    run<T>(text, params);
-  return sql;
-}
-
-function createNeonSql(): Promise<Sql> {
-  globalRef.__pgSqlPromise__ ??= (async () => {
-    // Regular Postgres driver: node-postgres (`pg`) — works directly with Neon's
-    // pooled endpoint. One pool per process; warm serverless instances reuse it.
-    const { Pool, types } = await import("pg");
-    types.setTypeParser(OID_INT8, Number);
-    types.setTypeParser(OID_DATE, identity);
-    types.setTypeParser(OID_INTERVAL, identity);
-    const pool = new Pool({ connectionString: databaseUrl });
-    return toSql(async <T>(text: string, params: unknown[]) => {
-      const res = await pool.query(text, params);
-      return res.rows as T[];
-    });
-  })().catch((err) => {
-    globalRef.__pgSqlPromise__ = undefined;
-    throw err;
-  });
-  return globalRef.__pgSqlPromise__;
-}
-
-async function createPgliteSql(): Promise<Sql> {
-  // Embedded Postgres, imported on demand so it never loads on the Neon path.
-  // One in-memory instance per process, shared across HMR module instances, so
-  // data survives source edits (it resets on dev-server restart).
-  globalRef.__pgliteInstance__ ??= (async () => {
-    const { PGlite } = await import("@electric-sql/pglite");
-    const pg = new PGlite({
-      parsers: {
-        [OID_INT8]: Number,
-        [OID_DATE]: identity,
-        [OID_INTERVAL]: identity,
-      },
-    });
-    await pg.waitReady;
-    await pg.exec(
-      "create table if not exists _migrations (name text primary key, applied_at timestamptz not null default now())",
-    );
-    return pg;
-  })().catch((err) => {
-    globalRef.__pgliteInstance__ = undefined;
-    throw err;
-  });
-  const pg = await globalRef.__pgliteInstance__;
-
-  // Apply migrations/ (the single schema source) so preview matches production.
-  // SQL is inlined by the bundler via import.meta.glob (no runtime fs); applied
-  // files are tracked in _migrations. The glob does not descend, so the opt-in
-  // auth schema under migrations/auth/ stays out. Runs once per module instance
-  // — so an HMR reload after adding a migration file applies it live — with
-  // passes serialized on a global chain so concurrent callers never
-  // double-apply.
-  const migrate = async (): Promise<void> => {
-    const migrations = import.meta.glob("/migrations/*.sql", {
-      query: "?raw",
-      import: "default",
-      eager: true,
-    }) as Record<string, string>;
-    const doneRows = await pg.query<{ name: string }>(
-      "select name from _migrations",
-    );
-    const done = doneRows.rows.map((r) => r.name);
-    for (const { name, path } of pendingMigrations(Object.keys(migrations), done)) {
-      // Apply + record atomically (parity with scripts/migrate.mjs) so a failed
-      // statement can't leave a file half-applied but untracked.
-      await pg.transaction(async (tx) => {
-        await tx.exec(migrations[path]);
-        await tx.query("insert into _migrations (name) values ($1)", [name]);
-      });
-    }
-  };
-  const pass = (globalRef.__pgliteMigrateChain__ ?? Promise.resolve())
-    .catch(() => undefined) // an earlier failed pass must not wedge the chain
-    .then(migrate);
-  globalRef.__pgliteMigrateChain__ = pass;
-  await pass;
-
-  return toSql(async <T>(text: string, params: unknown[]) => {
-    const result = await pg.query<T>(text, params);
-    return result.rows;
-  });
-}
-
-let sqlPromise: Promise<Sql> | null = null;
-
-async function createSql(): Promise<Sql> {
+export function getDb(
+  env: Record<string, unknown> | undefined = (globalThis as { __env__?: Record<string, unknown> })
+    .__env__,
+): D1DatabaseLike {
   if (typeof window !== "undefined") {
     throw new Error(
-      "@/lib/db is server-only — call getSql() from a createServerFn handler " +
-        "or a server route loader, never from client code.",
+      "@/lib/db is server-only — call it from a createServerFn handler or a server route, never from client code.",
     );
   }
-  return dbSource === "neon" ? createNeonSql() : createPgliteSql();
-}
-
-/**
- * Get the shared, **server-only** SQL client. Neon when `DATABASE_URL` is set,
- * otherwise the local PGLite fallback. Memoized — safe to call per request.
- *
- * Schema comes from `migrations/*.sql`, auto-applied before the first query on
- * both backends — define tables there, never inline in server functions.
- */
-export function getSql(): Promise<Sql> {
-  sqlPromise ??= createSql().catch((err) => {
-    sqlPromise = null; // don't memoize failures — let the next call retry
-    throw err;
-  });
-  return sqlPromise;
-}
-
-/**
- * The shared PGLite instance (preview only), with `migrations/*.sql` applied.
- * Lets Better Auth persist to the SAME embedded DB as app data in preview (via a
- * Kysely dialect). Throws when `DATABASE_URL` is set (that path uses Neon).
- */
-export async function getPglite(): Promise<import("@electric-sql/pglite").PGlite> {
-  if (dbSource !== "pglite") {
-    throw new Error("getPglite() is only available on the PGLite fallback (no DATABASE_URL)");
+  const db = env?.DB as D1DatabaseLike | undefined;
+  if (!db || typeof db.prepare !== "function") {
+    throw new Error(
+      "The D1 database binding `DB` is missing. Deployed, it comes from wrangler.jsonc (d1_databases); " +
+        "locally, run the app with `npm run cf:dev` — `vite dev` has no Cloudflare bindings.",
+    );
   }
-  await getSql();
-  const pg = await globalRef.__pgliteInstance__;
-  if (!pg) throw new Error("PGLite instance failed to initialize");
-  return pg;
+  return db;
+}
+
+/** Convert one JavaScript value to something D1 accepts as a bound parameter. */
+export function toParam(value: unknown): unknown {
+  if (value === undefined) return null;
+  if (typeof value === "boolean") return value ? 1 : 0;
+  if (value instanceof Date) return toIso(value);
+  return value;
+}
+
+function prepare(db: D1DatabaseLike, { sql, params }: Stmt): D1PreparedStatementLike {
+  return db.prepare(sql).bind(...params.map(toParam));
+}
+
+/** Run a query and return its rows. */
+export async function q<T = Record<string, unknown>>(
+  sql: string,
+  params: unknown[] = [],
+  db: D1DatabaseLike = getDb(),
+): Promise<T[]> {
+  const { results } = await prepare(db, { sql, params }).all<T>();
+  return results ?? [];
+}
+
+/** Run a write that returns no rows; resolves to how many rows it changed. */
+export async function run(
+  sql: string,
+  params: unknown[] = [],
+  db: D1DatabaseLike = getDb(),
+): Promise<number> {
+  const res = await prepare(db, { sql, params }).run();
+  return res.meta?.changes ?? 0;
+}
+
+/** Run several statements atomically (D1 has no interactive transactions). */
+export async function batch(statements: Stmt[], db: D1DatabaseLike = getDb()): Promise<void> {
+  if (statements.length === 0) return;
+  await db.batch(statements.map((s) => prepare(db, s)));
+}
+
+/** A JSON TEXT column holding a list of strings (care_medicines.times). */
+export const stringArraySchema = z.array(z.string());
+
+/** ISO-8601 UTC text, the stored form of every timestamp. */
+export function toIso(date: Date = new Date()): string {
+  return date.toISOString();
+}
+
+/** SQLite 0/1 (or null) to a real boolean. */
+export function fromBool(value: unknown): boolean {
+  return value === 1 || value === true || value === "1";
 }
 
 /**
- * Finish DB bootstrap before the server handles traffic.
- *
- * - **PGLite** (preview / no `DATABASE_URL`): open the in-memory DB and apply
- *   `migrations/*.sql`. Idempotent — concurrent callers share one promise.
- * - **Neon**: no-op (pool is created lazily on first query).
- *
- * Vite `configureServer` awaits this at dev startup; production imports of this
- * module kick it off immediately (see bottom of file).
+ * Parse a JSON TEXT column and validate it. Returns `fallback` when the text is
+ * missing, malformed or fails the schema, so one bad row cannot break a list.
  */
-export function ensureDbReady(): Promise<void> {
-  if (dbSource !== "pglite") return Promise.resolve();
-  return getSql().then(() => undefined);
-}
-
-// Server-only eager start: kick PGLite bootstrap as soon as this module loads in
-// Node. Client bundles never hit this path (`getSql` throws in the browser).
-const globalBoot = globalThis as typeof globalThis & {
-  __pgBootstrapPromise__?: Promise<void>;
-};
-if (typeof window === "undefined" && dbSource === "pglite") {
-  globalBoot.__pgBootstrapPromise__ ??= ensureDbReady().catch((err) => {
-    globalBoot.__pgBootstrapPromise__ = undefined;
-    console.error("[db] PGLite bootstrap failed:", err);
-    throw err;
-  });
+export function parseJson<S extends z.ZodTypeAny, F = z.infer<S>>(
+  text: unknown,
+  schema: S,
+  fallback: F,
+): z.infer<S> | F {
+  if (typeof text !== "string") return fallback;
+  try {
+    const parsed = schema.safeParse(JSON.parse(text));
+    return parsed.success ? parsed.data : fallback;
+  } catch {
+    return fallback;
+  }
 }
