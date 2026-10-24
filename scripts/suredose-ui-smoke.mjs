@@ -68,6 +68,11 @@ try {
     route.request().method() === "POST" ? route.abort() : route.continue(),
   );
   await page.goto(new URL("/add", base).href);
+  // SSR buttons are visible before React has attached their event handlers.
+  // Wait for that attachment so an early click cannot be silently ignored.
+  await page.waitForFunction(() =>
+    Object.keys(document.querySelector("button") ?? {}).some((key) => key.startsWith("__reactProps$")),
+  );
   await page.getByRole("button", { name: "Skip — I will type it" }).click();
   const check = page.getByRole("button", { name: "Check this medicine" });
   await page.locator("#name").fill("Synthetic example");
@@ -143,6 +148,10 @@ try {
       ],
     }),
   );
+} catch (error) {
+  console.error(JSON.stringify({ url: page.url(), body: await page.locator("body").innerText(), errors }));
+  await page.screenshot({ path: join(screenshots, "suredose-regression-failure.png"), fullPage: true });
+  throw error;
 } finally {
   await browser.close();
 }
