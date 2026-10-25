@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync, randomBytes } from "node:crypto";
 import { after, beforeEach, test } from "node:test";
-import { sendTestAlert, subscribePush } from "./care.ts";
+import { explainPushFailure, sendTestAlert, subscribePush } from "./care.ts";
 import { installTestDb } from "./test-d1.ts";
 import { createHousehold } from "./care.ts";
 import { sendPushToHousehold } from "./push.server.ts";
@@ -98,4 +98,16 @@ test("a key pasted with a label or quotes is cleaned, a broken one switches push
   assert.equal((await sendPushToHousehold(code, { title: "t", body: "b" })).sent, 1);
   process.env.VITE_VAPID_PUBLIC_KEY = "Public Key: not-a-key";
   assert.equal((await sendPushToHousehold(code, { title: "t", body: "b" })).configured, false);
+});
+
+test("a refused test alert says why, in words that point at the fix", async () => {
+  const { code, endpoint } = await pairedPhone();
+  status = 403;
+  const mismatch = await sendTestAlert({ data: { code, endpoint } });
+  assert.match((mismatch as { error: string }).error, /does not match the public key/);
+  status = 429;
+  const limited = await sendTestAlert({ data: { code, endpoint } });
+  assert.match((limited as { error: string }).error, /rate limiting/);
+  assert.match(explainPushFailure(undefined, "boom"), /boom/);
+  assert.match(explainPushFailure(), /could not be sent/);
 });

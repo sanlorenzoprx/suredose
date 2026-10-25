@@ -49,6 +49,10 @@ export type PushResult = {
   configured: boolean;
   sent: number;
   failed: number;
+  /** The last HTTP status a push service answered with when it refused an alert. */
+  status?: number;
+  /** The last network or encryption error, when no answer came back at all. */
+  error?: string;
 };
 
 /**
@@ -91,15 +95,18 @@ export async function sendPushToHousehold(
           // The browser unsubscribed or the subscription expired — clean it up.
           await run("delete from push_subscriptions where id = ?", [sub.id]);
           result.failed += 1;
+          result.status = res.status;
         } else if (!res.ok) {
           console.error("[push] send failed:", res.status, await res.text().catch(() => ""));
           result.failed += 1;
+          result.status = res.status;
         } else {
           result.sent += 1;
         }
       } catch (err) {
         console.error("[push] send failed:", err);
         result.failed += 1;
+        result.error = err instanceof Error ? err.message : String(err);
       }
     }),
   );

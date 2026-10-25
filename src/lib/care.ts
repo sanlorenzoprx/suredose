@@ -322,6 +322,21 @@ export const deleteHousehold = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Plain words for why a push service refused an alert, so a failed test says what to fix. */
+export function explainPushFailure(status?: number, error?: string): string {
+  if (status === 401 || status === 403) {
+    return `The phone's notification service refused the alert (${status}). The private push key on the server does not match the public key in this version of the app. Set both from the same key pair, redeploy, then turn alerts off and on again on this phone.`;
+  }
+  if (status === 404 || status === 410) {
+    return `The phone's notification service says this phone's alert registration has expired (${status}). Tap Turn on alerts again.`;
+  }
+  if (status === 413) return "The alert was too large for the notification service (413).";
+  if (status === 429) return "The notification service is rate limiting alerts (429). Wait a minute and try again.";
+  if (status) return `The phone's notification service refused the alert (status ${status}). Turn alerts off and on again.`;
+  if (error) return `The alert could not be sent: ${error}`;
+  return "The alert could not be sent. Turn alerts off and on again.";
+}
+
 /**
  * Sends one test notification to the caller's own phone (the endpoint it
  * registered), so a caregiver can check that alerts really arrive without
@@ -355,7 +370,7 @@ export const sendTestAlert = createServerFn({ method: "POST" })
       return { ok: false, error: "Alerts are not set up on the server yet (the push keys are missing)." };
     }
     if (res.sent === 0) {
-      return { ok: false, error: "The phone's notification service did not accept the alert. Turn alerts off and on again." };
+      return { ok: false, error: explainPushFailure(res.status, res.error) };
     }
     return { ok: true };
   });

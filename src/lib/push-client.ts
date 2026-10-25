@@ -100,6 +100,17 @@ export async function enableCaregiverAlerts(
       "The alert helper did not start. Close the app completely, open it again, and retry.",
     );
     let sub = await registration.pushManager.getSubscription();
+    // A registration made with a different key (the key pair was changed since)
+    // looks fine on the phone but every alert for it is refused, so replace it.
+    const existingKey = sub?.options?.applicationServerKey;
+    if (sub && existingKey) {
+      const have = new Uint8Array(existingKey);
+      const want = decodeBase64Url(vapidKey);
+      if (have.length !== want.length || have.some((byte, i) => byte !== want[i])) {
+        await sub.unsubscribe();
+        sub = null;
+      }
+    }
     if (!sub) {
       sub = await withTimeout(
         registration.pushManager.subscribe({
