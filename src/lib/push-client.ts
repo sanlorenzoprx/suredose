@@ -1,13 +1,5 @@
 import { subscribePush, unsubscribePush } from "./care";
-
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(base64);
-  const output = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i += 1) output[i] = raw.charCodeAt(i);
-  return output;
-}
+import { cleanVapidPublicKey, decodeBase64Url } from "./vapid";
 
 export function pushSupported(): boolean {
   return typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
@@ -76,9 +68,17 @@ export async function enableCaregiverAlerts(
 ): Promise<{ ok: boolean; error?: string; endpoint?: string }> {
   const blocker = alertBlocker();
   if (blocker) return { ok: false, error: blocker };
-  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
-  if (!vapidKey) {
+  const rawKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+  if (!rawKey) {
     return { ok: false, error: "Alerts are not set up yet for this app (the public push key is missing from this version)." };
+  }
+  const vapidKey = cleanVapidPublicKey(rawKey);
+  if (!vapidKey) {
+    return {
+      ok: false,
+      error:
+        "The push key built into this version of SureDose is not valid. It must be exactly the 87-character Public Key from the key generator, with no label, quotes or spaces. Rebuild with the corrected key and deploy again.",
+    };
   }
   try {
     const permission = await withTimeout(
@@ -104,7 +104,7 @@ export async function enableCaregiverAlerts(
       sub = await withTimeout(
         registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey) as unknown as BufferSource,
+          applicationServerKey: decodeBase64Url(vapidKey) as unknown as BufferSource,
         }),
         20_000,
         "This phone's notification service did not answer. Check your connection and retry.",

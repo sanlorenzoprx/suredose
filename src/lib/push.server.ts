@@ -1,5 +1,6 @@
 import { buildPushPayload, type PushSubscription as WebPushSubscription } from "@block65/webcrypto-web-push";
 import { q, run } from "./db";
+import { cleanVapidPublicKey } from "./vapid";
 
 /**
  * Web Push needs a VAPID key pair (identifies this server to the push
@@ -30,7 +31,7 @@ function vapidKeys(): { subject: string; publicKey: string; privateKey: string }
     typeof import.meta.env === "undefined"
       ? undefined
       : (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined);
-  const publicKey = process.env.VITE_VAPID_PUBLIC_KEY || buildKey;
+  const publicKey = cleanVapidPublicKey(process.env.VITE_VAPID_PUBLIC_KEY || buildKey);
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT;
   if (!publicKey || !privateKey || !subject) return null;
