@@ -175,6 +175,12 @@ try {
   await caregiver.screenshot({ path: join(screenshots, "d1-caregiver-feed.png"), fullPage: true });
   console.log("ok  caregiver joined from the invite link and sees the dose");
 
+  // Turning on alerts must always answer on screen: this local build has no
+  // public push key, so the caregiver should be told exactly that, not left guessing.
+  await caregiver.getByRole("button", { name: "Turn on alerts", exact: true }).click();
+  await caregiver.getByText(/public push key is missing|Alerts are on|Notifications|alert helper/).first().waitFor();
+  console.log("ok  turning on alerts shows a result on screen");
+
   // 4. The missed-dose cron flags a late dose for a second medicine.
   const hourOnPhone = Number(
     new Intl.DateTimeFormat("en-GB", { timeZone: phoneZone, hour: "2-digit", hourCycle: "h23" }).format(now),

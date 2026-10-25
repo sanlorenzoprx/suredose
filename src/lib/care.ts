@@ -321,3 +321,41 @@ export const deleteHousehold = createServerFn({ method: "POST" })
     await run("delete from households where id = ?", [data.code]);
     return { ok: true };
   });
+
+/**
+ * Sends one test notification to the caller's own phone (the endpoint it
+ * registered), so a caregiver can check that alerts really arrive without
+ * waiting for a dose. It can only reach a subscription already registered
+ * under this family code, and only that one.
+ */
+export const sendTestAlert = createServerFn({ method: "POST" })
+  .validator((input: { code: string; endpoint: string }) => ({
+    code: codeSchema.parse(input.code),
+    endpoint: z.string().url().max(600).parse(input.endpoint),
+  }))
+  .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
+    const known = await q("select 1 from push_subscriptions where household_id = ? and endpoint = ?", [
+      data.code,
+      data.endpoint,
+    ]);
+    if (known.length === 0) {
+      return { ok: false, error: "This phone is not registered for alerts yet. Tap Turn on alerts first." };
+    }
+    const res = await sendPushToHousehold(
+      data.code,
+      {
+        title: "SureDose test alert",
+        body: "If you can see this, alerts work on this phone.",
+        tag: "suredose-test",
+        url: "/",
+      },
+      { endpoint: data.endpoint },
+    );
+    if (!res.configured) {
+      return { ok: false, error: "Alerts are not set up on the server yet (the push keys are missing)." };
+    }
+    if (res.sent === 0) {
+      return { ok: false, error: "The phone's notification service did not accept the alert. Turn alerts off and on again." };
+    }
+    return { ok: true };
+  });

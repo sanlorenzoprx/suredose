@@ -25,7 +25,12 @@ function vapidKeys(): { subject: string; publicKey: string; privateKey: string }
   // The public key is not secret and the phones already get it in the client
   // build, so the build's copy is the fallback: exporting it once before
   // `npm run build` is enough, with no runtime variable to keep in sync.
-  const publicKey = process.env.VITE_VAPID_PUBLIC_KEY || (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined);
+  // (`import.meta.env` only exists in a Vite build, hence the guard.)
+  const buildKey =
+    typeof import.meta.env === "undefined"
+      ? undefined
+      : (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined);
+  const publicKey = process.env.VITE_VAPID_PUBLIC_KEY || buildKey;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT;
   if (!publicKey || !privateKey || !subject) return null;
@@ -38,16 +43,34 @@ function vapidKeys(): { subject: string; publicKey: string; privateKey: string }
  */
 export type PushPayload = { title: string; body: string; tag?: string; url?: string; urgent?: boolean };
 
-/** Best-effort: send a push notification to every device paired to this household. */
-export async function sendPushToHousehold(householdCode: string, payload: PushPayload): Promise<void> {
+export type PushResult = {
+  /** False when the server has no VAPID keys, so nothing could be sent. */
+  configured: boolean;
+  sent: number;
+  failed: number;
+};
+
+/**
+ * Best-effort: send a push notification to every device paired to this
+ * household (or just the one `endpoint`, for a test alert). Never throws for a
+ * delivery problem; the counts say what happened.
+ */
+export async function sendPushToHousehold(
+  householdCode: string,
+  payload: PushPayload,
+  options: { endpoint?: string } = {},
+): Promise<PushResult> {
+  const result: PushResult = { configured: true, sent: 0, failed: 0 };
   const vapid = vapidKeys();
-  if (!vapid) return;
+  if (!vapid) return { ...result, configured: false };
 
   const subs = await q<{ id: string; endpoint: string; p256dh: string; auth: string }>(
-    "select id, endpoint, p256dh, auth from push_subscriptions where household_id = ?",
-    [householdCode],
+    options.endpoint
+      ? "select id, endpoint, p256dh, auth from push_subscriptions where household_id = ? and endpoint = ?"
+      : "select id, endpoint, p256dh, auth from push_subscriptions where household_id = ?",
+    options.endpoint ? [householdCode, options.endpoint] : [householdCode],
   );
-  if (subs.length === 0) return;
+  if (subs.length === 0) return result;
 
   await Promise.all(
     subs.map(async (sub) => {
@@ -66,12 +89,18 @@ export async function sendPushToHousehold(householdCode: string, payload: PushPa
         if (res.status === 404 || res.status === 410) {
           // The browser unsubscribed or the subscription expired — clean it up.
           await run("delete from push_subscriptions where id = ?", [sub.id]);
+          result.failed += 1;
         } else if (!res.ok) {
           console.error("[push] send failed:", res.status, await res.text().catch(() => ""));
+          result.failed += 1;
+        } else {
+          result.sent += 1;
         }
       } catch (err) {
         console.error("[push] send failed:", err);
+        result.failed += 1;
       }
     }),
   );
+  return result;
 }

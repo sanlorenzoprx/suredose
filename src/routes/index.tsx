@@ -12,9 +12,9 @@ import {
   stopDoseAlarm,
   vibrateAlert,
 } from "@/lib/alerts";
-import { getHousehold } from "@/lib/care";
+import { getHousehold, sendTestAlert } from "@/lib/care";
 import { parseJoinCode } from "@/lib/sms";
-import { enableCaregiverAlerts } from "@/lib/push-client";
+import { alertBlocker, currentAlertEndpoint, enableCaregiverAlerts } from "@/lib/push-client";
 import {
   buildDaySlots,
   currentDose,
@@ -497,6 +497,27 @@ function CaregiverHome() {
   const { data, error, loading, reload } = useCareActivity(20);
   const [alertStatus, setAlertStatus] = useState<"idle" | "working" | "on" | "error">("idle");
   const [alertError, setAlertError] = useState("");
+  const [alertBlock, setAlertBlock] = useState<string | null>(null);
+  const [alertEndpoint, setAlertEndpoint] = useState<string | null>(null);
+  const [testNote, setTestNote] = useState("");
+  const [testing, setTesting] = useState(false);
+
+  // Browser-only facts (an iPhone outside the Home Screen, blocked notifications)
+  // are read after the page loads so the server render and the phone agree. A
+  // phone that already turned alerts on is re-registered quietly, so the screen
+  // shows the true state after the app is reopened.
+  useEffect(() => {
+    setAlertBlock(alertBlocker());
+    void currentAlertEndpoint().then(async (endpoint) => {
+      if (!endpoint) return;
+      const res = await enableCaregiverAlerts(settings.householdCode);
+      if (res.ok) {
+        setAlertEndpoint(res.endpoint ?? endpoint);
+        setAlertStatus("on");
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.householdCode]);
 
   const todaySlots = (data?.medicines ?? []).flatMap((m) => m.times.map((t) => `${m.id}|${t}`));
   // The patient's doses are dated on their phone's clock, so compare with this
@@ -555,6 +576,12 @@ function CaregiverHome() {
             </p>
             {alertStatus === "error" ? (
               <p className="mt-2 text-lg font-bold text-danger">{alertError}</p>
+            ) : alertStatus === "on" ? (
+              <p className="mt-2 text-lg font-bold text-primary">Alerts are on for this phone.</p>
+            ) : alertStatus === "working" ? (
+              <p className="mt-2 text-lg font-bold">Turning on alerts… allow notifications if your phone asks.</p>
+            ) : alertBlock ? (
+              <p className="mt-2 text-lg font-bold">{alertBlock}</p>
             ) : null}
             <Button
               size="xl"
@@ -564,6 +591,7 @@ function CaregiverHome() {
                 setAlertStatus("working");
                 const res = await enableCaregiverAlerts(settings.householdCode);
                 if (res.ok) {
+                  setAlertEndpoint(res.endpoint ?? null);
                   setAlertStatus("on");
                 } else {
                   setAlertStatus("error");
@@ -571,8 +599,45 @@ function CaregiverHome() {
                 }
               }}
             >
-              {alertStatus === "on" ? "Alerts are on" : "Turn on alerts"}
+              {alertStatus === "on"
+                ? "Alerts are on"
+                : alertStatus === "working"
+                  ? "Turning on…"
+                  : alertStatus === "error"
+                    ? "Try again"
+                    : "Turn on alerts"}
             </Button>
+            {alertStatus === "on" && alertEndpoint ? (
+              <>
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  className="mt-3 w-full"
+                  disabled={testing}
+                  onClick={async () => {
+                    setTesting(true);
+                    setTestNote("");
+                    try {
+                      const res = await sendTestAlert({
+                        data: { code: settings.householdCode, endpoint: alertEndpoint },
+                      });
+                      setTestNote(
+                        res.ok
+                          ? "Sent. A notification should appear on this phone in a few seconds."
+                          : res.error,
+                      );
+                    } catch {
+                      setTestNote("Could not send the test. Check your connection.");
+                    } finally {
+                      setTesting(false);
+                    }
+                  }}
+                >
+                  {testing ? "Sending…" : "Send a test alert"}
+                </Button>
+                {testNote ? <p className="mt-2 text-lg font-bold">{testNote}</p> : null}
+              </>
+            ) : null}
           </section>
 
           <section>

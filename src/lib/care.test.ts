@@ -6,6 +6,7 @@ import {
   fetchActivity,
   getHousehold,
   recordDoseEvent,
+  sendTestAlert,
   subscribePush,
   syncMedicines,
   unsubscribePush,
@@ -191,4 +192,28 @@ test("syncing medicines fills in a missing timezone and never erases a known one
   assert.deepEqual(await household(code), [{ timezone: "America/Chicago" }]);
   await syncMedicines({ data: { code, medicines: [], timezone: "Not/AZone" } });
   assert.deepEqual(await household(code), [{ timezone: "America/Chicago" }]);
+});
+
+test("a test alert only goes to a phone registered under that family code", async () => {
+  const code = await newHousehold();
+  const endpoint = "https://push.example/phone-1";
+  const unknown = await sendTestAlert({ data: { code, endpoint } });
+  assert.equal(unknown.ok, false);
+  assert.match((unknown as { error: string }).error, /not registered/);
+
+  await subscribePush({ data: { code, subscription: { endpoint, keys: { p256dh: "k", auth: "a" } } } });
+  const other = await newHousehold();
+  const wrongHousehold = await sendTestAlert({ data: { code: other, endpoint } });
+  assert.equal(wrongHousehold.ok, false);
+});
+
+test("a test alert says so plainly when the server has no push keys", async () => {
+  const code = await newHousehold();
+  const endpoint = "https://push.example/phone-2";
+  await subscribePush({ data: { code, subscription: { endpoint, keys: { p256dh: "k", auth: "a" } } } });
+  delete process.env.VAPID_PRIVATE_KEY;
+  delete process.env.VAPID_SUBJECT;
+  const res = await sendTestAlert({ data: { code, endpoint } });
+  assert.equal(res.ok, false);
+  assert.match((res as { error: string }).error, /push keys are missing/);
 });
