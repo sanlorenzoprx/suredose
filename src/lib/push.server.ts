@@ -1,6 +1,6 @@
 import { buildPushPayload, type PushSubscription as WebPushSubscription } from "@block65/webcrypto-web-push";
 import { q, run } from "./db";
-import { cleanVapidPublicKey } from "./vapid";
+import { cleanVapidPublicKey, decodeBase64Url, encodeBase64Url } from "./vapid";
 
 /**
  * Web Push needs a VAPID key pair (identifies this server to the push
@@ -22,16 +22,20 @@ import { cleanVapidPublicKey } from "./vapid";
  * request using the standard WebCrypto API, so the exact same code runs on
  * Node (Vercel, etc.) and on Cloudflare Workers.
  */
+/**
+ * The public key is not secret and the phones already get it in the client
+ * build, so the build's copy is the fallback: exporting it once before
+ * `npm run build` is enough, with no runtime variable to keep in sync.
+ * (`import.meta.env` only exists in a Vite build, hence the guard.)
+ */
+function buildPublicKey(): string | undefined {
+  return typeof import.meta.env === "undefined"
+    ? undefined
+    : (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined);
+}
+
 function vapidKeys(): { subject: string; publicKey: string; privateKey: string } | null {
-  // The public key is not secret and the phones already get it in the client
-  // build, so the build's copy is the fallback: exporting it once before
-  // `npm run build` is enough, with no runtime variable to keep in sync.
-  // (`import.meta.env` only exists in a Vite build, hence the guard.)
-  const buildKey =
-    typeof import.meta.env === "undefined"
-      ? undefined
-      : (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined);
-  const publicKey = cleanVapidPublicKey(process.env.VITE_VAPID_PUBLIC_KEY || buildKey);
+  const publicKey = cleanVapidPublicKey(process.env.VITE_VAPID_PUBLIC_KEY || buildPublicKey());
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT;
   if (!publicKey || !privateKey || !subject) return null;
@@ -43,6 +47,49 @@ function vapidKeys(): { subject: string; publicKey: string; privateKey: string }
  * `urgent` makes the caregiver's phone vibrate longer (a missed dose).
  */
 export type PushPayload = { title: string; body: string; tag?: string; url?: string; urgent?: boolean };
+
+/**
+ * Checks the server's push setup without contacting any push service, and says
+ * in plain words what is wrong; null means it looks usable. The failure that
+ * cannot be seen from a phone is a private key that is not the pair of the
+ * public key in the build: Google's push service refuses every alert for it.
+ * The check signs a test message with the private key and verifies it with the
+ * public key, which only succeeds for a matching pair.
+ */
+export async function vapidProblem(): Promise<string | null> {
+  const privateKey = (process.env.VAPID_PRIVATE_KEY ?? "").trim();
+  const subject = (process.env.VAPID_SUBJECT ?? "").trim();
+  const rawPublic = process.env.VITE_VAPID_PUBLIC_KEY || buildPublicKey();
+  if (!privateKey || !subject) {
+    return "Alerts are not set up on the server yet (the push keys are missing).";
+  }
+  if (!/^(mailto:[^@\s]+@[^@\s]+|https:\/\/\S+)$/.test(subject)) {
+    return "The server's VAPID_SUBJECT is not valid. It must start with mailto: followed by an email address (for example mailto:you@example.com), or be an https:// address.";
+  }
+  const publicKey = cleanVapidPublicKey(rawPublic);
+  if (!publicKey) {
+    return "The public push key in this version of the app is not valid. It must be exactly the 87-character Public Key, with no label, quotes or spaces. Rebuild with the corrected key and deploy again.";
+  }
+  if (!/^[A-Za-z0-9_-]{43}$/.test(privateKey)) {
+    return "The server's VAPID_PRIVATE_KEY is not valid. It must be exactly the 43-character Private Key from the same key generator run, with no label, quotes or spaces.";
+  }
+  try {
+    const point = decodeBase64Url(publicKey);
+    const x = encodeBase64Url(point.slice(1, 33));
+    const y = encodeBase64Url(point.slice(33, 65));
+    const algorithm = { name: "ECDSA", namedCurve: "P-256" } as const;
+    const signing = await crypto.subtle.importKey("jwk", { kty: "EC", crv: "P-256", x, y, d: privateKey }, algorithm, false, ["sign"]);
+    const verifying = await crypto.subtle.importKey("jwk", { kty: "EC", crv: "P-256", x, y }, algorithm, false, ["verify"]);
+    const message = new TextEncoder().encode("suredose-vapid-check");
+    const signature = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, signing, message);
+    if (!(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, verifying, signature, message))) {
+      throw new Error("pair mismatch");
+    }
+  } catch {
+    return "The private key on the server does not match the public key in this version of the app. Generate one new key pair, build with its Public Key, set its Private Key as the VAPID_PRIVATE_KEY secret, deploy, then turn alerts off and on again on the phone.";
+  }
+  return null;
+}
 
 export type PushResult = {
   /** False when the server has no VAPID keys, so nothing could be sent. */

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { batch, fromBool, parseJson, q, run, stmt, stringArraySchema, toIso } from "./db";
-import { sendPushToHousehold } from "./push.server";
+import { sendPushToHousehold, vapidProblem } from "./push.server";
 import { formatTimeLabel, isValidTimeZone } from "./schedule";
 import type { CareActivityItem, CareMedicineSummary } from "./types";
 import { uid } from "./utils";
@@ -356,6 +356,9 @@ export const sendTestAlert = createServerFn({ method: "POST" })
     if (known.length === 0) {
       return { ok: false, error: "This phone is not registered for alerts yet. Tap Turn on alerts first." };
     }
+    // Say what is wrong with the server's push setup before trying to send.
+    const problem = await vapidProblem();
+    if (problem) return { ok: false, error: problem };
     const res = await sendPushToHousehold(
       data.code,
       {

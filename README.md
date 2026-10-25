@@ -135,6 +135,12 @@ migration `0002`), and the cron judges each household on its own clock. A
 household that has not reported a timezone yet is skipped until its phone
 next syncs, instead of being guessed at.
 
+On Windows, `.\scripts\deploy-test.ps1 -PublicKey "<87-character Public Key>"` builds with the
+key, deploys the test Worker and checks that the two push secrets are set.
+The **Send a test alert** button on the caregiver's Home screen checks the
+push setup on the server first and names the exact problem (key pair that does
+not match, malformed `VAPID_SUBJECT`, missing secret) before it sends anything.
+
 Family invites are links (`/?join=CODE`) that open the caregiver join screen
 with the code filled in. Push notifications vibrate (Android; iPhones ignore
 it, and a missed dose buzzes longer); the ring is the phone's own notification

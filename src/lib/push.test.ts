@@ -4,7 +4,7 @@ import { after, beforeEach, test } from "node:test";
 import { explainPushFailure, sendTestAlert, subscribePush } from "./care.ts";
 import { installTestDb } from "./test-d1.ts";
 import { createHousehold } from "./care.ts";
-import { sendPushToHousehold } from "./push.server.ts";
+import { sendPushToHousehold, vapidProblem } from "./push.server.ts";
 
 // A stand-in for a phone's push service (Google's or Apple's): `fetch` to the
 // fake host is recorded instead of sent. The keys are real P-256 keys, so the
@@ -110,4 +110,41 @@ test("a refused test alert says why, in words that point at the fix", async () =
   assert.match((limited as { error: string }).error, /rate limiting/);
   assert.match(explainPushFailure(undefined, "boom"), /boom/);
   assert.match(explainPushFailure(), /could not be sent/);
+});
+
+test("the setup check passes for a matching key pair", async () => {
+  assert.equal(await vapidProblem(), null);
+});
+
+test("the setup check names the exact problem before any alert is sent", async () => {
+  const good = { pub: process.env.VITE_VAPID_PUBLIC_KEY!, priv: process.env.VAPID_PRIVATE_KEY! };
+
+  // A private key from a different generator run: the classic cause of a silent failure.
+  process.env.VAPID_PRIVATE_KEY = vapidPair().privateKey;
+  assert.match((await vapidProblem()) ?? "", /does not match the public key/);
+  process.env.VAPID_PRIVATE_KEY = good.priv;
+
+  process.env.VAPID_SUBJECT = "you@example.com"; // forgot "mailto:"
+  assert.match((await vapidProblem()) ?? "", /VAPID_SUBJECT is not valid/);
+  process.env.VAPID_SUBJECT = "mailto:test@example.com";
+
+  process.env.VAPID_PRIVATE_KEY = "Private Key: " + good.priv;
+  assert.match((await vapidProblem()) ?? "", /VAPID_PRIVATE_KEY is not valid/);
+  process.env.VAPID_PRIVATE_KEY = good.priv;
+
+  process.env.VITE_VAPID_PUBLIC_KEY = "oops";
+  assert.match((await vapidProblem()) ?? "", /public push key .* not valid/);
+  process.env.VITE_VAPID_PUBLIC_KEY = good.pub;
+
+  delete process.env.VAPID_PRIVATE_KEY;
+  assert.match((await vapidProblem()) ?? "", /push keys are missing/);
+});
+
+test("a test alert reports a mismatched key pair instead of failing silently", async () => {
+  const { code, endpoint } = await pairedPhone();
+  process.env.VAPID_PRIVATE_KEY = vapidPair().privateKey;
+  const res = await sendTestAlert({ data: { code, endpoint } });
+  assert.equal(res.ok, false);
+  assert.match((res as { error: string }).error, /does not match the public key/);
+  assert.equal(received.length, 0, "nothing was sent to the push service");
 });
