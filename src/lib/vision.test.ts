@@ -18,6 +18,24 @@ function mockFetch(handler: (url: string, init: RequestInit) => Response) {
 const okReply = (text: string) =>
   new Response(JSON.stringify({ choices: [{ message: { content: text } }] }), { status: 200 });
 
+const googleReply = (text: string, status = 200) =>
+  new Response(
+    JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }),
+    { status },
+  );
+
+const readableLabel = '{"name":"Metformin","strength":"500 mg"}';
+
+async function withQuietErrors<T>(run: () => Promise<T>): Promise<T> {
+  const original = console.error;
+  console.error = () => {};
+  try {
+    return await run();
+  } finally {
+    console.error = original;
+  }
+}
+
 test("google stays the default; meta only when explicitly selected", () => {
   assert.equal(visionProvider({}), "google");
   assert.equal(visionProvider({ VISION_PROVIDER: "google" }), "google");
@@ -113,21 +131,171 @@ test("meta errors become plain messages and never throw", async () => {
   }
 });
 
-test("vision() routes to google by default, and to meta when selected", async () => {
-  const m = mockFetch(() => okReply('{"ok":true}'));
+test("Google default never calls Meta", async () => {
+  const m = mockFetch((url) => {
+    assert.match(url, /aiplatform\.googleapis\.com/);
+    return googleReply(readableLabel);
+  });
   try {
-    // Google with no credentials fails closed without any network call.
-    const google = await vision({ prompt: "p", images: [image], maxTokens: 1 }, {});
-    assert.equal(google.ok, false);
-    assert.equal(m.calls.length, 0);
-
-    const meta = await vision(
+    const result = await vision(
       { prompt: "p", images: [image], maxTokens: 1 },
-      { VISION_PROVIDER: "meta", META_API_KEY: "k" },
+      { GOOGLE_VERTEX_API_KEY: "test-google-key", META_API_KEY: "test-meta-key" },
     );
-    assert.deepEqual(meta, { ok: true, text: '{"ok":true}' });
+    assert.deepEqual(result, { ok: true, text: readableLabel });
     assert.equal(m.calls.length, 1);
+  } finally {
+    m.restore();
+  }
+});
+
+test("Meta success never calls Google", async () => {
+  const m = mockFetch((url) => {
+    assert.match(url, /api\.meta\.ai/);
+    return okReply(readableLabel);
+  });
+  try {
+    const result = await vision(
+      { prompt: "p", images: [image], maxTokens: 1 },
+      { VISION_PROVIDER: "meta", META_API_KEY: "test-meta-key" },
+    );
+    assert.deepEqual(result, { ok: true, text: readableLabel });
+    assert.equal(m.calls.length, 1);
+  } finally {
+    m.restore();
+  }
+});
+
+test("Meta throws and Google fallback succeeds", async () => {
+  const m = mockFetch((url) => {
+    if (url.includes("api.meta.ai")) throw new Error("mock Meta network failure");
+    return googleReply(readableLabel);
+  });
+  try {
+    const result = await withQuietErrors(() =>
+      vision(
+        { prompt: "p", images: [image], maxTokens: 1 },
+        {
+          VISION_PROVIDER: "meta",
+          META_API_KEY: "test-meta-key",
+          GOOGLE_VERTEX_API_KEY: "test-google-key",
+        },
+      ),
+    );
+    assert.deepEqual(result, { ok: true, text: readableLabel });
+    assert.equal(m.calls.length, 2);
     assert.match(m.calls[0].url, /api\.meta\.ai/);
+    assert.match(m.calls[1].url, /aiplatform\.googleapis\.com/);
+  } finally {
+    m.restore();
+  }
+});
+
+test("low-confidence Meta response falls back to Google", async () => {
+  const unclear = '{"name":"","strength":"","timesPerDay":null,"times":[]}';
+  const m = mockFetch((url) =>
+    url.includes("api.meta.ai") ? okReply(unclear) : googleReply(readableLabel),
+  );
+  try {
+    const result = await vision(
+      { prompt: "p", images: [image], maxTokens: 1 },
+      {
+        VISION_PROVIDER: "meta",
+        META_API_KEY: "test-meta-key",
+        GOOGLE_VERTEX_API_KEY: "test-google-key",
+      },
+    );
+    assert.deepEqual(result, { ok: true, text: readableLabel });
+    assert.equal(m.calls.length, 2);
+  } finally {
+    m.restore();
+  }
+});
+
+test("unreadable responses from both providers return the manual-check error", async () => {
+  const unclear = '{"name":"","strength":"","timesPerDay":null,"times":[]}';
+  const m = mockFetch((url) =>
+    url.includes("api.meta.ai") ? okReply(unclear) : googleReply(unclear),
+  );
+  try {
+    const result = await vision(
+      { prompt: "p", images: [image], maxTokens: 1 },
+      {
+        VISION_PROVIDER: "meta",
+        META_API_KEY: "test-meta-key",
+        GOOGLE_VERTEX_API_KEY: "test-google-key",
+      },
+    );
+    assert.deepEqual(result, {
+      ok: false,
+      error:
+        "We could not check this clearly. Please check the details manually or ask your pharmacist.",
+    });
+    assert.equal(m.calls.length, 2);
+  } finally {
+    m.restore();
+  }
+});
+
+test("unrecognised provider calls Google only", async () => {
+  const m = mockFetch((url) => {
+    assert.match(url, /aiplatform\.googleapis\.com/);
+    return googleReply(readableLabel);
+  });
+  try {
+    const result = await vision(
+      { prompt: "p", images: [image], maxTokens: 1 },
+      {
+        VISION_PROVIDER: "not-a-provider",
+        GOOGLE_VERTEX_API_KEY: "test-google-key",
+        META_API_KEY: "test-meta-key",
+      },
+    );
+    assert.deepEqual(result, { ok: true, text: readableLabel });
+    assert.equal(m.calls.length, 1);
+  } finally {
+    m.restore();
+  }
+});
+
+test("Meta HTTP and malformed responses fall back to Google", async () => {
+  const m = mockFetch((url) =>
+    url.includes("api.meta.ai")
+      ? new Response("unavailable", { status: 503 })
+      : googleReply(readableLabel),
+  );
+  try {
+    const result = await withQuietErrors(() =>
+      vision(
+        { prompt: "p", images: [image], maxTokens: 1 },
+        {
+          VISION_PROVIDER: "meta",
+          META_API_KEY: "test-meta-key",
+          GOOGLE_VERTEX_API_KEY: "test-google-key",
+        },
+      ),
+    );
+    assert.deepEqual(result, { ok: true, text: readableLabel });
+    assert.equal(m.calls.length, 2);
+  } finally {
+    m.restore();
+  }
+});
+
+test("Meta unparseable model text falls back to Google", async () => {
+  const m = mockFetch((url) =>
+    url.includes("api.meta.ai") ? okReply("not JSON") : googleReply(readableLabel),
+  );
+  try {
+    const result = await vision(
+      { prompt: "p", images: [image], maxTokens: 1 },
+      {
+        VISION_PROVIDER: "meta",
+        META_API_KEY: "test-meta-key",
+        GOOGLE_VERTEX_API_KEY: "test-google-key",
+      },
+    );
+    assert.deepEqual(result, { ok: true, text: readableLabel });
+    assert.equal(m.calls.length, 2);
   } finally {
     m.restore();
   }
