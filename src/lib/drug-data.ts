@@ -92,6 +92,21 @@ export function normStrength(s: string): string {
   return s.toLowerCase().replace(/\s+/g, "");
 }
 
+export function normalizeStrength(s: string): string {
+  return s
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .replace(
+      /(\d+)\.(\d+)(?=\s|MG|MCG|ML|G|IU|%|\/|$)/g,
+      (_, whole: string, fraction: string) => {
+        const trimmedFraction = fraction.replace(/0+$/, "");
+        return trimmedFraction ? `${whole}.${trimmedFraction}` : whole;
+      },
+    )
+    .replace(/(\d+(?:\.\d+)?)\s+(MG|MCG|ML|G|IU|%)/g, "$1$2");
+}
+
 // Words that appear in many drug names and prove nothing on their own.
 const GENERIC_WORDS = new Set([
   "tablet", "tablets", "capsule", "capsules", "oral", "extended", "release",
@@ -164,9 +179,11 @@ function toComparable(v: StrengthValue): string {
  * ("5/325" vs "325 MG / 5 MG"). Returns null when the bottle gave none.
  */
 export function strengthMatches(bottle: string, official: string): boolean | null {
-  const a = parseStrengthValues(bottle);
+  const normalizedBottle = normalizeStrength(bottle);
+  const normalizedOfficial = normalizeStrength(official);
+  const a = parseStrengthValues(normalizedBottle);
   if (a.length === 0) return null;
-  const b = parseStrengthValues(official);
+  const b = parseStrengthValues(normalizedOfficial);
   if (b.length === 0) return false;
   const unitless = a.every((v) => v.unit === "");
   const key = (vs: StrengthValue[]) =>

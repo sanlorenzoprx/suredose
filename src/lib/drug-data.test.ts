@@ -5,6 +5,7 @@ import {
   cleanFdaStrength,
   describeAppearance,
   namesMatch,
+  normalizeStrength,
   parseApproximateTerm,
   parseClinicalDrugName,
   parseFdaNdcResponse,
@@ -41,6 +42,19 @@ test("canonical product NDC pads to 5-4", () => {
 });
 
 test("strength matching", () => {
+  assert.equal(normalizeStrength(" 20  MG "), "20MG");
+  assert.equal(normalizeStrength("20.0MG"), "20MG");
+  assert.equal(normalizeStrength("20 mcg"), "20MCG");
+  assert.equal(normalizeStrength("0.050 ml"), "0.05ML");
+  assert.equal(normalizeStrength("10.00 g"), "10G");
+  assert.equal(normalizeStrength("2 IU"), "2IU");
+  assert.equal(normalizeStrength("20 %"), "20%");
+  assert.equal(strengthMatches("20MG", "20 MG"), true);
+  assert.equal(strengthMatches("20 mg", "20 MG"), true);
+  assert.equal(strengthMatches(" 20  MG ", "20 MG"), true);
+  assert.equal(strengthMatches("20.0MG", "20 MG"), true);
+  assert.equal(strengthMatches("40MG", "20 MG"), false);
+  assert.equal(strengthMatches("20MCG", "20MG"), false);
   assert.equal(strengthMatches("10mg", "10 mg/1"), true);
   assert.equal(strengthMatches("10 MG", "20 mg/1"), false);
   assert.equal(strengthMatches("50 mcg", "0.05 MG"), true);
