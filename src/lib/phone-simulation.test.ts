@@ -137,7 +137,7 @@ test("Phone simulation 3: covered label follows manual check with no invented dr
   assert.ok(result.error);
   assert.equal(labelFields, null);
   assert.equal(manualCheckRequired, true);
-  assert.match(addRoute, /else setEditing\(true\)/);
+  assert.match(addRoute, /else \{\s*setEditing\(true\);\s*\}/);
   assert.equal(calls.openFDA.length, 0);
 });
 

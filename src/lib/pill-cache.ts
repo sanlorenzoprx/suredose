@@ -7,6 +7,8 @@ import { decodeJpegDataUrl, deleteImage, putImage, r2Available } from "./image-s
 import type { PillFeatures } from "./types";
 import { uid } from "./utils";
 import { vision as askVision } from "./vision";
+import { VISION_RATE_LIMIT_MESSAGE, withVisionRateLimit } from "./vision-rate-limit";
+import { getRequest } from "@tanstack/react-start/server";
 
 /*
  * Pill library: pill photos people chose to share, for future pill search.
@@ -164,43 +166,46 @@ export const cachePillReference = createServerFn({ method: "POST" })
   .handler(
     async ({
       data,
-    }): Promise<{ ok: true; features: PillFeatures } | { ok: false; error: string }> => {
-      const img = decodeJpegDataUrl(data.image);
-      if (!img) return { ok: false, error: "This photo could not be saved." };
+    }): Promise<{ ok: true; features: PillFeatures } | { ok: false; error: string }> =>
+      withVisionRateLimit(
+        getRequest()?.headers ?? new Headers(),
+        async () => {
+          const img = decodeJpegDataUrl(data.image);
+          if (!img) return { ok: false, error: "This photo could not be saved." };
 
-      const sql = await getSql();
-      const [{ n: rowsForDevice } = { n: 0 }] = await sql<{ n: number }>`
+          const sql = await getSql();
+          const [{ n: rowsForDevice } = { n: 0 }] = await sql<{ n: number }>`
       select count(*)::int as n from pill_images where device_id = ${data.deviceId}
     `;
-      const [existing] = await sql<{ sha256: string }>`
+          const [existing] = await sql<{ sha256: string }>`
       select sha256 from pill_images
       where device_id = ${data.deviceId} and medicine_id = ${data.medicineId}
     `;
-      if (!existing && rowsForDevice >= MAX_ROWS_PER_DEVICE) {
-        return { ok: false, error: "This phone has added the most pill photos we allow." };
-      }
+          if (!existing && rowsForDevice >= MAX_ROWS_PER_DEVICE) {
+            return { ok: false, error: "This phone has added the most pill photos we allow." };
+          }
 
-      // Fail closed: no confirmed "this is a pill" → nothing is saved.
-      const described = await describePill(data.image);
-      if (!described)
-        return {
-          ok: false,
-          error: "We could not check this photo right now, so it was not added.",
-        };
-      if (!described.isPill)
-        return { ok: false, error: "This does not look like a photo of one pill." };
-      const features: PillFeatures = {
-        imprint: described.imprint,
-        color: described.color,
-        shape: described.shape,
-        form: described.form,
-      };
+          // Fail closed: no confirmed "this is a pill" → nothing is saved.
+          const described = await describePill(data.image);
+          if (!described)
+            return {
+              ok: false,
+              error: "We could not check this photo right now, so it was not added.",
+            };
+          if (!described.isPill)
+            return { ok: false, error: "This does not look like a photo of one pill." };
+          const features: PillFeatures = {
+            imprint: described.imprint,
+            color: described.color,
+            shape: described.shape,
+            form: described.form,
+          };
 
-      const useR2 = r2Available();
-      const id = uid("pill");
-      // Row first, object second: a concurrent release of the same photo then
-      // either sees this row (and keeps the object) or deletes before our put.
-      await sql`
+          const useR2 = r2Available();
+          const id = uid("pill");
+          // Row first, object second: a concurrent release of the same photo then
+          // either sees this row (and keeps the object) or deletes before our put.
+          await sql`
       insert into pill_images (
         id, device_id, medicine_id, sha256,
         name, name_norm, strength, strength_norm, ndc, verified_by,
@@ -224,19 +229,21 @@ export const cachePillReference = createServerFn({ method: "POST" })
         storage = excluded.storage, inline_image = excluded.inline_image,
         bytes = excluded.bytes, created_at = now()
     `;
-      if (useR2) {
-        try {
-          await putImage("pills", img.bytes);
-        } catch (err) {
-          console.error("pill library put failed:", err instanceof Error ? err.message : err);
-          await sql`delete from pill_images where device_id = ${data.deviceId} and medicine_id = ${data.medicineId}`;
-          return { ok: false, error: "This photo could not be saved." };
-        }
-      }
+          if (useR2) {
+            try {
+              await putImage("pills", img.bytes);
+            } catch (err) {
+              console.error("pill library put failed:", err instanceof Error ? err.message : err);
+              await sql`delete from pill_images where device_id = ${data.deviceId} and medicine_id = ${data.medicineId}`;
+              return { ok: false, error: "This photo could not be saved." };
+            }
+          }
 
-      if (existing && existing.sha256 !== img.sha256) await releaseObject(existing.sha256);
-      return { ok: true, features };
-    },
+          if (existing && existing.sha256 !== img.sha256) await releaseObject(existing.sha256);
+          return { ok: true, features };
+        },
+        { ok: false, error: VISION_RATE_LIMIT_MESSAGE },
+      ),
   );
 
 /**

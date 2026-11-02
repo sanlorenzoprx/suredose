@@ -76,21 +76,18 @@ async function loadVerifyMedicine() {
 for (const strength of ["20MG", "20 mg", " 20  MG ", "20.0MG"]) {
   test(`strength ${JSON.stringify(strength)} verifies against listed 20 MG`, async () => {
     const { verifyMedicine } = await loadVerifyMedicine();
-    const read = await readLabelPhoto(
-      "data:image/jpeg;base64,bGFiZWw=",
-      async () => ({
-        ok: true,
-        text: JSON.stringify({
-          name: "Furosemide",
-          strength,
-          timesPerDay: null,
-          times: [],
-          instructions: "",
-          ndc: "",
-          pillDescription: "",
-        }),
+    const read = await readLabelPhoto("data:image/jpeg;base64,bGFiZWw=", async () => ({
+      ok: true,
+      text: JSON.stringify({
+        name: "Furosemide",
+        strength,
+        timesPerDay: null,
+        times: [],
+        instructions: "",
+        ndc: "",
+        pillDescription: "",
       }),
-    );
+    }));
     assert.equal(read.ok, true);
     if (!read.ok) return;
     const result = await verifyMedicine({
@@ -120,27 +117,24 @@ test("different strength and unit remain unverified", async () => {
 
 test("blank strength stays on manual check without inventing a value", async () => {
   const { verifyMedicine } = await loadVerifyMedicine();
-  const read = await readLabelPhoto(
-    "data:image/jpeg;base64,bGFiZWw=",
-    async () => ({
-      ok: true,
-      text: JSON.stringify({
-        name: "Furosemide",
-        strength: "",
-        timesPerDay: null,
-        times: [],
-        instructions: "",
-        ndc: "",
-        pillDescription: "",
-      }),
+  const read = await readLabelPhoto("data:image/jpeg;base64,bGFiZWw=", async () => ({
+    ok: true,
+    text: JSON.stringify({
+      name: "Furosemide",
+      strength: "",
+      timesPerDay: null,
+      times: [],
+      instructions: "",
+      ndc: "",
+      pillDescription: "",
     }),
-  );
+  }));
 
   assert.equal(read.ok, true);
   if (!read.ok) return;
   assert.equal(read.bottle.name, "Furosemide");
   assert.equal(read.bottle.strength, "");
-  assert.match(addRoute, /if \(n && s\) await runCheck\(n, s, code\);\s*else setEditing\(true\);/);
+  assert.match(addRoute, /if \(n && s && photoCheck\) \{/);
 
   const result = await verifyMedicine({
     data: { name: read.bottle.name, strength: read.bottle.strength },

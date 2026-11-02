@@ -145,12 +145,14 @@ function AddMedicine() {
     let n = "";
     let s = "";
     let code = "";
+    let photoCheck: MedicineCheck | null = null;
     try {
       const result = await readBottleLabel({ data: { image: dataUrl } });
       if (result.ok) {
         n = result.bottle.name;
         s = result.bottle.strength;
         code = result.bottle.ndc;
+        photoCheck = result.check ?? null;
         setName(n);
         setStrength(s);
         setNdc(code);
@@ -167,8 +169,18 @@ function AddMedicine() {
       setReading(false);
     }
     setStep(2);
-    if (n && s) await runCheck(n, s, code);
-    else setEditing(true);
+    if (n && s && photoCheck) {
+      setCheck(photoCheck);
+      if (photoCheck.status === "verified") {
+        setName(photoCheck.medicine.name);
+        setStrength(photoCheck.medicine.strength);
+        setEditing(false);
+      } else {
+        setEditing(true);
+      }
+    } else {
+      setEditing(true);
+    }
   }
 
   function acceptMedicine(med: VerifiedMedicine | null) {
