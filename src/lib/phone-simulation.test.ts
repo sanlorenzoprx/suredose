@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { test } from "node:test";
+import { afterEach, beforeEach, test } from "node:test";
 import { createServer, type Plugin } from "vite";
 import { comparePillPhotos, readLabelPhoto } from "./vision-checks.ts";
 import { GRACE_MS, todayISO } from "./schedule.ts";
@@ -37,6 +37,30 @@ const doseEvents = new Map<string, "taken" | "missed">();
 let connected = false;
 let labelFields: { name: string; strength: string } | null = null;
 let manualCheckRequired = false;
+let originalVisionProvider: string | undefined;
+
+beforeEach(() => {
+  originalVisionProvider = process.env.VISION_PROVIDER;
+  process.env.VISION_PROVIDER = "google";
+
+  calls.googleVertex = 0;
+  calls.metaVision = 0;
+  calls.openFDA.length = 0;
+  calls.push.length = 0;
+  familyCodes.clear();
+  doseEvents.clear();
+  connected = false;
+  labelFields = null;
+  manualCheckRequired = false;
+});
+
+afterEach(() => {
+  if (originalVisionProvider === undefined) {
+    delete process.env.VISION_PROVIDER;
+  } else {
+    process.env.VISION_PROVIDER = originalVisionProvider;
+  }
+});
 
 const mockGoogleVertex = async ({ images }: { images: string[] }) => {
   calls.googleVertex += 1;
@@ -64,16 +88,20 @@ const mockGoogleVertex = async ({ images }: { images: string[] }) => {
   return { ok: false as const, error: "Covered label is unreadable." };
 };
 
+const joinFamilyForSimulation = () => {
+  const code = "FAM42X";
+  familyCodes.set(code, { patientName: "Phone 1 patient" });
+  const joined = familyCodes.get(code);
+  connected = joined !== undefined;
+  return joined;
+};
+
 test("Phone simulation 1: Phone 1 creates a family code and Phone 2 joins", () => {
   assert.match(careSource, /export const createHousehold/);
   assert.match(careSource, /export const getHousehold/);
   assert.match(careSource, /insert into households/);
   assert.match(careSource, /select patient_name from households where id = \$\{data\.code\}/);
-
-  const code = "FAM42X";
-  familyCodes.set(code, { patientName: "Phone 1 patient" });
-  const joined = familyCodes.get(code);
-  connected = joined !== undefined;
+  const joined = joinFamilyForSimulation();
   assert.equal(connected, true);
   assert.equal(joined?.patientName, "Phone 1 patient");
 });
@@ -82,6 +110,7 @@ test("Phone simulation 2: readable bottle fills name and strength and calls mock
   assert.equal(process.env.VISION_PROVIDER, "google");
   assert.match(addRoute, /readBottleLabel/);
   assert.match(addRoute, /verifyMedicine\(\{ data: \{ name: n, strength: s, ndc: code \} \}\)/);
+  joinFamilyForSimulation();
   assert.equal(connected, true);
 
   const result = await readLabelPhoto(readablePhoto, mockGoogleVertex);
@@ -109,10 +138,11 @@ test("Phone simulation 3: covered label follows manual check with no invented dr
   assert.equal(labelFields, null);
   assert.equal(manualCheckRequired, true);
   assert.match(addRoute, /else setEditing\(true\)/);
-  assert.equal(calls.openFDA.length, 1);
+  assert.equal(calls.openFDA.length, 0);
 });
 
 test("Phone simulation 4: correct pill imprint produces the green-check result", async () => {
+  joinFamilyForSimulation();
   assert.equal(connected, true);
   const result = await comparePillPhotos(
     { reference: referencePhoto, candidate: correctPhoto, name: "Metformin 500 mg" },

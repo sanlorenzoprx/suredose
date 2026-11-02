@@ -2,9 +2,10 @@
 
 ## Run configuration
 
-- `VISION_PROVIDER=google`
-- Automated gates: `npm run typecheck` — **PASS**
-- Automated gates: `npm test` — **PASS** (301 tests; 301 passed, 0 failed)
+- `VISION_PROVIDER` was unset in the shell; the simulation test sets it to `google` before each test and restores its original value afterward.
+- Focused run: `env -u VISION_PROVIDER node --experimental-strip-types --test src/lib/phone-simulation.test.ts` — **PASS** (7 tests; 7 passed, 0 failed).
+- Full run: `env -u VISION_PROVIDER npm test` — **PASS** (301 tests; 301 passed, 0 failed).
+- `npm run typecheck` — **PASS**.
 - No deployment, real API keys, real external API calls, or real push notifications.
 
 ## Simulation results
@@ -22,7 +23,7 @@
 ## Mocking and scope
 
 - Google Vertex responses use local fixtures; Meta vision was not called. Bottle and pill parsing/matching use the production vision-check functions.
-- The OpenFDA lookup and family pairing use in-memory mocks, with source-contract assertions against the app's wiring.
+- The OpenFDA lookup and family pairing use in-memory mocks, reset before each test, with source-contract assertions against the app's wiring.
 - The repeat-dose flow uses an in-memory dose record and checks the existing-taken guard in the app route.
 - The actual missed-dose task ran twice with a fixed clock, mocked SQL, and a captured `push-mock.invalid` endpoint. It flagged the dose once and made one captured push attempt.
 - No phones or devices were connected; this is a deterministic code simulation, not physical-device QA.
