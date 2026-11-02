@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { verifyMedicineData } from "./drug-verify";
 import type { MedicineCheck } from "./types";
 import { comparePillPhotos, readLabelPhoto } from "./vision-checks";
 
@@ -21,6 +20,7 @@ export const readBottleLabel = createServerFn({ method: "POST" })
         const result = await readLabelPhoto(data.image, vision);
         if (!result.ok) return result;
         if (!result.bottle.name || !result.bottle.strength) return { ...result, check: null };
+        const { verifyMedicineData } = await import("./drug-verify.server");
         const check: MedicineCheck = await verifyMedicineData({
           name: result.bottle.name,
           strength: result.bottle.strength,

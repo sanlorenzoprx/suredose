@@ -12,9 +12,15 @@ const plugin: Plugin = {
   name: "drug-verify-test-mocks",
   enforce: "pre",
   resolveId(source, importer) {
-    if (!importer?.endsWith("/src/lib/drug-verify.ts")) return;
-    if (source === "@tanstack/react-start") return "\0drug-verify-server-fn";
-    if (source === "./drug-lookup.server") return "\0drug-verify-lookup";
+    if (importer?.endsWith("/src/lib/drug-verify.ts") && source === "@tanstack/react-start")
+      return "\0drug-verify-server-fn";
+    if (
+      importer?.endsWith("/src/lib/drug-verify.server.ts") &&
+      source === "./drug-lookup.server.ts"
+    )
+      return "\0drug-verify-lookup";
+    if (importer?.endsWith("/src/lib/drug-verify.server.ts") && source === "./drug-lookup.server")
+      return "\0drug-verify-lookup";
     return;
   },
   load(id) {
