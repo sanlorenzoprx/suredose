@@ -6,6 +6,7 @@ import { PhotoCapture } from "@/components/photo-capture";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { readBottleLabel } from "@/lib/ai";
+import { medicineSaveError } from "@/lib/add-medicine";
 import { canonicalProductNdc, normName, normStrength } from "@/lib/drug-data";
 import { verifyMedicine } from "@/lib/drug-verify";
 import { shrinkDataUrl, toDataUrl } from "@/lib/image";
@@ -75,6 +76,7 @@ function AddMedicine() {
   const [pillIsSample, setPillIsSample] = useState(false);
   const [officialRejected, setOfficialRejected] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const verified = check?.status === "verified" ? check.medicine : null;
 
@@ -216,8 +218,13 @@ function AddMedicine() {
     Boolean(pillImage) && !pillIsSample && !officialRejected && !confirmed?.officialImage;
 
   async function save(image: string, source: "official" | "own") {
-    if (!name.trim() || !strength.trim() || times.length === 0 || !scheduleConfirmed || saving)
+    const validationError = medicineSaveError({ name, strength, times, scheduleConfirmed });
+    if (validationError) {
+      setSaveError(validationError);
       return;
+    }
+    if (saving) return;
+    setSaveError(null);
     setSaving(true);
     try {
       const pill = source === "official" ? await shrinkDataUrl(image, 1600, 0.9) : image;
@@ -263,6 +270,8 @@ function AddMedicine() {
         void forgetPillReferences({ data: { deviceId, medicineId: existing.id } }).catch(() => {});
       }
       navigate({ to: "/" });
+    } catch {
+      setSaveError("Could not save this medicine. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -511,6 +520,11 @@ function AddMedicine() {
             I checked these reminder times and directions against my prescription or with my
             pharmacist.
           </label>
+          {medicineSaveError({ name, strength, times, scheduleConfirmed }) ? (
+            <p aria-live="polite" className="text-lg font-bold text-danger">
+              {medicineSaveError({ name, strength, times, scheduleConfirmed })}
+            </p>
+          ) : null}
           <Button
             size="xl"
             disabled={times.length === 0 || !scheduleConfirmed}
@@ -527,6 +541,11 @@ function AddMedicine() {
 
       {step === 4 ? (
         <div className="flex flex-col gap-5">
+          {saveError ? (
+            <p role="alert" className="text-xl font-bold text-danger">
+              {saveError}
+            </p>
+          ) : null}
           {officialImage ? (
             <>
               <h2 className="text-3xl font-bold leading-tight">Does your pill look like this?</h2>
@@ -563,6 +582,11 @@ function AddMedicine() {
             </>
           ) : (
             <>
+              {!officialRejected ? (
+                <p className="rounded-lg bg-bg-warm p-4 text-xl font-bold">
+                  No official photo found — we&apos;ll use your pill photo.
+                </p>
+              ) : null}
               {officialRejected ? (
                 <section className="rounded-xl bg-danger p-5 text-danger-fg shadow-card">
                   <p className="flex items-center gap-2 text-lg font-bold uppercase tracking-wide">
