@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
-import { getSql } from "./db";
+import { getSql, type Sql } from "./db";
 import { sendPushToHousehold } from "./push.server";
 import { formatTimeLabel } from "./schedule";
 import type { CareActivityItem, CareMedicineSummary } from "./types";
@@ -24,6 +24,65 @@ const codeSchema = z
   .toUpperCase()
   .min(4)
   .max(12);
+
+const pushSubscriptionSchema = z.object({
+  endpoint: z.string().url().max(600),
+  keys: z.object({
+    p256dh: z.string().max(400),
+    auth: z.string().max(200),
+  }),
+});
+
+type CaregiverMemberRow = {
+  id: string;
+  household_id: string;
+  device_id: string;
+  role: "caregiver";
+  name: string;
+  contact: string;
+  is_primary: boolean;
+  joined_at: string | Date;
+  last_seen_at: string | Date;
+};
+
+type CaregiverMember = {
+  role: "caregiver";
+  name: string;
+  contact: string;
+  isPrimary: boolean;
+  joinedAt: string;
+  lastSeenAt: string;
+};
+
+function timestampIso(value: string | Date): string {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+function caregiverMember(row: CaregiverMemberRow): CaregiverMember {
+  return {
+    role: row.role,
+    name: row.name,
+    contact: row.contact,
+    isPrimary: row.is_primary,
+    joinedAt: timestampIso(row.joined_at),
+    lastSeenAt: timestampIso(row.last_seen_at),
+  };
+}
+
+async function savePushSubscription(
+  sql: Sql,
+  code: string,
+  subscription: z.infer<typeof pushSubscriptionSchema>,
+): Promise<void> {
+  await sql`
+    insert into push_subscriptions (id, household_id, endpoint, p256dh, auth)
+    values (${uid("push")}, ${code}, ${subscription.endpoint}, ${subscription.keys.p256dh}, ${subscription.keys.auth})
+    on conflict (endpoint) do update set
+      household_id = excluded.household_id,
+      p256dh = excluded.p256dh,
+      auth = excluded.auth
+  `;
+}
 
 export const createHousehold = createServerFn({ method: "POST" })
   .validator((input: { patientName: string; caregiverName: string; caregiverPhone: string }) => ({
@@ -50,7 +109,10 @@ export const createHousehold = createServerFn({ method: "POST" })
 
 export const getHousehold = createServerFn({ method: "POST" })
   .validator((input: { code: string }) => ({ code: codeSchema.parse(input.code) }))
-  .handler(async ({ data }): Promise<{ ok: true; patientName: string } | { ok: false; error: string }> => {
+  .handler(async ({ data }): Promise<
+    | { ok: true; patientName: string; caregivers: CaregiverMember[] }
+    | { ok: false; error: string }
+  > => {
     const sql = await getSql();
     const rows = await sql<{ patient_name: string }>`
       select patient_name from households where id = ${data.code}
@@ -58,7 +120,73 @@ export const getHousehold = createServerFn({ method: "POST" })
     if (rows.length === 0) {
       return { ok: false, error: "We could not find that code. Check it and try again." };
     }
-    return { ok: true, patientName: rows[0].patient_name || "your family member" };
+    const members = await sql<CaregiverMemberRow>`
+      select id, household_id, device_id, role, name, contact, is_primary, joined_at, last_seen_at
+      from household_members
+      where household_id = ${data.code} and role = 'caregiver'
+      order by is_primary desc, joined_at asc, id asc
+    `;
+    return {
+      ok: true,
+      patientName: rows[0].patient_name || "your family member",
+      caregivers: members.map(caregiverMember),
+    };
+  });
+
+const caregiverJoinSchema = z.object({
+  familyCode: codeSchema,
+  caregiverName: z.string().trim().max(60).default(""),
+  caregiverContact: z.string().trim().max(254).optional().default(""),
+  deviceId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+  pushSubscription: pushSubscriptionSchema.optional(),
+});
+
+export const joinHousehold = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof caregiverJoinSchema>) => caregiverJoinSchema.parse(input))
+  .handler(async ({ data }): Promise<
+    { ok: true; member: CaregiverMember } | { ok: false; error: string }
+  > => {
+    const sql = await getSql();
+    const firstCaregiver = await sql<CaregiverMemberRow>`
+      insert into household_members (
+        id, household_id, device_id, role, name, contact, is_primary
+      )
+      select ${uid("member")}, h.id, ${data.deviceId}, 'caregiver',
+        ${data.caregiverName}, ${data.caregiverContact}, true
+      from households h
+      where h.id = ${data.familyCode}
+        and not exists (
+          select 1 from household_members where household_id = h.id
+        )
+      on conflict do nothing
+      returning id, household_id, device_id, role, name, contact, is_primary, joined_at, last_seen_at
+    `;
+    const rows = firstCaregiver.length > 0
+      ? firstCaregiver
+      : await sql<CaregiverMemberRow>`
+          insert into household_members (
+            id, household_id, device_id, role, name, contact, is_primary
+          )
+          select ${uid("member")}, h.id, ${data.deviceId}, 'caregiver',
+            ${data.caregiverName}, ${data.caregiverContact}, false
+          from households h
+          where h.id = ${data.familyCode}
+          on conflict (household_id, device_id) do update set
+            name = excluded.name,
+            contact = excluded.contact,
+            last_seen_at = now()
+          returning id, household_id, device_id, role, name, contact, is_primary, joined_at, last_seen_at
+        `;
+
+    if (rows.length === 0) {
+      return { ok: false, error: "We could not find that code. Check it and try again." };
+    }
+
+    if (data.pushSubscription) {
+      await savePushSubscription(sql, data.familyCode, data.pushSubscription);
+    }
+
+    return { ok: true, member: caregiverMember(rows[0]) };
   });
 
 const medicineSyncSchema = z
@@ -219,14 +347,6 @@ export const fetchActivity = createServerFn({ method: "POST" })
     },
   );
 
-const pushSubscriptionSchema = z.object({
-  endpoint: z.string().url().max(600),
-  keys: z.object({
-    p256dh: z.string().max(400),
-    auth: z.string().max(200),
-  }),
-});
-
 export const subscribePush = createServerFn({ method: "POST" })
   .validator((input: { code: string; subscription: z.infer<typeof pushSubscriptionSchema> }) => ({
     code: codeSchema.parse(input.code),
@@ -238,14 +358,7 @@ export const subscribePush = createServerFn({ method: "POST" })
     if (household.length === 0) {
       return { ok: false, error: "This family code is no longer active." };
     }
-    await sql`
-      insert into push_subscriptions (id, household_id, endpoint, p256dh, auth)
-      values (${uid("push")}, ${data.code}, ${data.subscription.endpoint}, ${data.subscription.keys.p256dh}, ${data.subscription.keys.auth})
-      on conflict (endpoint) do update set
-        household_id = excluded.household_id,
-        p256dh = excluded.p256dh,
-        auth = excluded.auth
-    `;
+    await savePushSubscription(sql, data.code, data.subscription);
     return { ok: true };
   });
 

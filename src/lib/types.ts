@@ -61,6 +61,8 @@ export type Settings = {
    * this phone added to the pill library. Created the first time it's needed.
    */
   deviceId?: string;
+  /** Stable browser id used to make caregiver household joins idempotent. */
+  caregiverDeviceId?: string;
   /**
    * The person ticked "Add this pill photo to the SureDose pill library".
    * Off unless they choose it: a pill photo plus its medicine name is

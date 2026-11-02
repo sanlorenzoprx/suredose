@@ -12,6 +12,7 @@ import {
   stopDoseAlarm,
 } from "@/lib/alerts";
 import { getCaregiverHouseholdLink, linkCaregiverHousehold } from "@/lib/caregiver-account";
+import { joinHousehold } from "@/lib/care";
 import { enableCaregiverAlerts } from "@/lib/push-client";
 import { UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -412,6 +413,7 @@ function PatientOnboarding({ onBack }: { onBack: () => void }) {
 function CaregiverJoin({ onBack }: { onBack: () => void }) {
   const setSettings = useAppStore((s) => s.setSettings);
   const settings = useAppStore((s) => s.settings);
+  const ensureCaregiverDeviceId = useAppStore((s) => s.ensureCaregiverDeviceId);
   const { user, isPending } = useCurrentUserState();
   const userId = user?.id;
   const [code, setCode] = useState("");
@@ -426,12 +428,27 @@ function CaregiverJoin({ onBack }: { onBack: () => void }) {
     setRestoring(true);
     setRestoreError("");
     void getCaregiverHouseholdLink()
-      .then((link) => {
+      .then(async (link) => {
         if (!active || !link) return;
+        const caregiverName = settings.caregiverName || user?.displayName || "";
+        const joined = await joinHousehold({
+          data: {
+            familyCode: link.code,
+            caregiverName,
+            caregiverContact: user?.primaryEmail ?? "",
+            deviceId: ensureCaregiverDeviceId(),
+          },
+        });
+        if (!active) return;
+        if (!joined.ok) {
+          setRestoreError(joined.error);
+          return;
+        }
         setSettings({
           role: "caregiver",
           householdCode: link.code,
           patientName: link.patientName,
+          caregiverName,
           onboardingDone: true,
         });
       })
@@ -450,7 +467,15 @@ function CaregiverJoin({ onBack }: { onBack: () => void }) {
     return () => {
       active = false;
     };
-  }, [isPending, userId, setSettings]);
+  }, [
+    isPending,
+    userId,
+    setSettings,
+    settings.caregiverName,
+    user?.displayName,
+    user?.primaryEmail,
+    ensureCaregiverDeviceId,
+  ]);
 
   if (isPending || (user && restoring)) {
     return <p className="text-xl text-muted">Checking your caregiver account…</p>;
@@ -490,11 +515,25 @@ function CaregiverJoin({ onBack }: { onBack: () => void }) {
             setError(res.error);
             return;
           }
+          const caregiverName = settings.caregiverName || user.displayName || "";
+          const joined = await joinHousehold({
+            data: {
+              familyCode: trimmed,
+              caregiverName,
+              caregiverContact: user.primaryEmail ?? "",
+              deviceId: ensureCaregiverDeviceId(),
+            },
+          });
+          if (!joined.ok) {
+            setStatus("error");
+            setError(joined.error);
+            return;
+          }
           setSettings({
             role: "caregiver",
             householdCode: trimmed.toUpperCase(),
             patientName: res.patientName,
-            caregiverName: settings.caregiverName || user.displayName || "",
+            caregiverName,
             onboardingDone: true,
           });
         } catch {
@@ -658,6 +697,7 @@ function CaregiverHome() {
 function CaregiverAccountPanel() {
   const settings = useAppStore((s) => s.settings);
   const setSettings = useAppStore((s) => s.setSettings);
+  const ensureCaregiverDeviceId = useAppStore((s) => s.ensureCaregiverDeviceId);
   const { user, isPending } = useCurrentUserState();
   const userId = user?.id;
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -672,27 +712,39 @@ function CaregiverAccountPanel() {
     void (async () => {
       const saved = await getCaregiverHouseholdLink();
       if (!active) return;
+      let code = settings.householdCode;
+      let patientName = settings.patientName;
       if (saved) {
-        setSettings({
-          role: "caregiver",
-          householdCode: saved.code,
-          patientName: saved.patientName,
-          onboardingDone: true,
-        });
-        setStatus("saved");
-        return;
+        code = saved.code;
+        patientName = saved.patientName;
+      } else {
+        const linked = await linkCaregiverHousehold({ data: { code } });
+        if (!active) return;
+        if (!linked.ok) {
+          setError(linked.error);
+          setStatus("error");
+          return;
+        }
+        patientName = linked.patientName;
       }
-
-      const linked = await linkCaregiverHousehold({ data: { code: settings.householdCode } });
+      const joined = await joinHousehold({
+        data: {
+          familyCode: code,
+          caregiverName: settings.caregiverName || user?.displayName || "",
+          caregiverContact: user?.primaryEmail ?? "",
+          deviceId: ensureCaregiverDeviceId(),
+        },
+      });
       if (!active) return;
-      if (!linked.ok) {
-        setError(linked.error);
+      if (!joined.ok) {
+        setError(joined.error);
         setStatus("error");
         return;
       }
       setSettings({
         role: "caregiver",
-        patientName: linked.patientName,
+        householdCode: code,
+        patientName,
         onboardingDone: true,
       });
       setStatus("saved");
@@ -709,7 +761,17 @@ function CaregiverAccountPanel() {
     return () => {
       active = false;
     };
-  }, [isPending, userId, settings.householdCode, setSettings]);
+  }, [
+    isPending,
+    userId,
+    settings.householdCode,
+    settings.patientName,
+    settings.caregiverName,
+    setSettings,
+    user?.displayName,
+    user?.primaryEmail,
+    ensureCaregiverDeviceId,
+  ]);
 
   if (isPending) {
     return (

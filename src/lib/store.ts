@@ -30,6 +30,8 @@ type AppState = {
   leaveHousehold: () => void;
   /** This phone's pill-library id, created the first time it's needed. */
   ensureDeviceId: () => string;
+  /** This browser's stable id for household caregiver membership. */
+  ensureCaregiverDeviceId: () => string;
   /** Delete every pill photo this phone added to the pill library. */
   forgetAllPillPhotos: () => Promise<number>;
 };
@@ -221,6 +223,13 @@ export const useAppStore = create<AppState>()(
         const deviceId = newDeviceId();
         set((s) => ({ settings: { ...s.settings, deviceId } }));
         return deviceId;
+      },
+      ensureCaregiverDeviceId: () => {
+        const existing = get().settings.caregiverDeviceId;
+        if (existing) return existing;
+        const caregiverDeviceId = newDeviceId();
+        set((s) => ({ settings: { ...s.settings, caregiverDeviceId } }));
+        return caregiverDeviceId;
       },
       forgetAllPillPhotos: async () => {
         const deviceId = get().settings.deviceId;

@@ -41,6 +41,10 @@ function PrivacyPage() {
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-6">
             <li>Your first name and your family member's first name and phone number</li>
+            <li>
+              The caregiver's first name and optional contact information, with a random device
+              identifier and connection timestamps
+            </li>
             <li>Each medicine's name, strength, and scheduled times (not its photo)</li>
             <li>
               Each time a dose is confirmed or missed: the time, whether it was photo-checked, and
