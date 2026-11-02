@@ -5,7 +5,9 @@ chime, spoken words, and vibration) when it's time for a pill, checks a
 photo of the pill against a saved reference photo before they take it, opens
 a pre-written text message to a family member once it's confirmed — and now
 a family member's own phone can pair to see that same confirmation with the
-photo, and gets alerted automatically if a dose is missed.
+photo, and gets alerted automatically if a dose is missed. Caregivers can
+register with email and restore their family connection on another phone;
+patients do not need an account.
 
 ## Photo and schedule boundaries
 
@@ -68,7 +70,8 @@ need any of this and work with nothing configured:
    on one machine, but a caregiver's phone and the patient's phone are two
    separate devices that both need to reach the *same* database, so this
    fallback cannot work once deployed. Get a free one at
-   [neon.tech](https://neon.tech) and set it as `DATABASE_URL`.
+   [neon.tech](https://neon.tech) and set it as `DATABASE_URL`. This also
+   stores caregiver email accounts and their saved family-code connection.
 2. **A VAPID key pair**, for sending push notifications to the caregiver's
    phone. Generate one with `npx web-push generate-vapid-keys` and set
    `VITE_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`

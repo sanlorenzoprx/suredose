@@ -14,9 +14,11 @@ import { Route as AddRouteImport } from './routes/add'
 import { Route as CheckRouteImport } from './routes/check'
 import { Route as FamilyRouteImport } from './routes/family'
 import { Route as HelpRouteImport } from './routes/help'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as MedicinesRouteImport } from './routes/medicines'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiDrugCacheWarmRouteImport } from './routes/api/drug-cache/warm'
 
 const IndexRoute = IndexRouteImport.update({
@@ -44,6 +46,11 @@ const HelpRoute = HelpRouteImport.update({
   path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MedicinesRoute = MedicinesRouteImport.update({
   id: '/medicines',
   path: '/medicines',
@@ -59,6 +66,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDrugCacheWarmRoute = ApiDrugCacheWarmRouteImport.update({
   id: '/api/drug-cache/warm',
   path: '/api/drug-cache/warm',
@@ -71,9 +83,11 @@ export interface FileRoutesByFullPath {
   '/check': typeof CheckRoute
   '/family': typeof FamilyRoute
   '/help': typeof HelpRoute
+  '/login': typeof LoginRoute
   '/medicines': typeof MedicinesRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/drug-cache/warm': typeof ApiDrugCacheWarmRoute
 }
 export interface FileRoutesByTo {
@@ -82,9 +96,11 @@ export interface FileRoutesByTo {
   '/check': typeof CheckRoute
   '/family': typeof FamilyRoute
   '/help': typeof HelpRoute
+  '/login': typeof LoginRoute
   '/medicines': typeof MedicinesRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/drug-cache/warm': typeof ApiDrugCacheWarmRoute
 }
 export interface FileRoutesById {
@@ -94,9 +110,11 @@ export interface FileRoutesById {
   '/check': typeof CheckRoute
   '/family': typeof FamilyRoute
   '/help': typeof HelpRoute
+  '/login': typeof LoginRoute
   '/medicines': typeof MedicinesRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/drug-cache/warm': typeof ApiDrugCacheWarmRoute
 }
 export interface FileRouteTypes {
@@ -107,9 +125,11 @@ export interface FileRouteTypes {
     | '/check'
     | '/family'
     | '/help'
+    | '/login'
     | '/medicines'
     | '/privacy'
     | '/terms'
+    | '/api/auth/$'
     | '/api/drug-cache/warm'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -118,9 +138,11 @@ export interface FileRouteTypes {
     | '/check'
     | '/family'
     | '/help'
+    | '/login'
     | '/medicines'
     | '/privacy'
     | '/terms'
+    | '/api/auth/$'
     | '/api/drug-cache/warm'
   id:
     | '__root__'
@@ -129,9 +151,11 @@ export interface FileRouteTypes {
     | '/check'
     | '/family'
     | '/help'
+    | '/login'
     | '/medicines'
     | '/privacy'
     | '/terms'
+    | '/api/auth/$'
     | '/api/drug-cache/warm'
   fileRoutesById: FileRoutesById
 }
@@ -141,9 +165,11 @@ export interface RootRouteChildren {
   CheckRoute: typeof CheckRoute
   FamilyRoute: typeof FamilyRoute
   HelpRoute: typeof HelpRoute
+  LoginRoute: typeof LoginRoute
   MedicinesRoute: typeof MedicinesRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDrugCacheWarmRoute: typeof ApiDrugCacheWarmRoute
 }
 
@@ -184,6 +210,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/medicines': {
       id: '/medicines'
       path: '/medicines'
@@ -205,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/drug-cache/warm': {
       id: '/api/drug-cache/warm'
       path: '/api/drug-cache/warm'
@@ -221,9 +261,11 @@ const rootRouteChildren: RootRouteChildren = {
   CheckRoute: CheckRoute,
   FamilyRoute: FamilyRoute,
   HelpRoute: HelpRoute,
+  LoginRoute: LoginRoute,
   MedicinesRoute: MedicinesRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDrugCacheWarmRoute: ApiDrugCacheWarmRoute,
 }
 export const routeTree = rootRouteImport

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Bell, Check, Clock, Heart, Pill, Plus, RefreshCw, Volume2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { EmailPasswordForm } from "@/components/email-password-form";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import {
@@ -10,8 +11,10 @@ import {
   startDoseAlarm,
   stopDoseAlarm,
 } from "@/lib/alerts";
-import { getHousehold } from "@/lib/care";
+import { getCaregiverHouseholdLink, linkCaregiverHousehold } from "@/lib/caregiver-account";
 import { enableCaregiverAlerts } from "@/lib/push-client";
+import { UserButton } from "@/lib/auth/gates";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import {
   buildDaySlots,
   currentDose,
@@ -409,9 +412,67 @@ function PatientOnboarding({ onBack }: { onBack: () => void }) {
 function CaregiverJoin({ onBack }: { onBack: () => void }) {
   const setSettings = useAppStore((s) => s.setSettings);
   const settings = useAppStore((s) => s.settings);
+  const { user, isPending } = useCurrentUserState();
+  const userId = user?.id;
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<"idle" | "checking" | "error">("idle");
   const [error, setError] = useState("");
+  const [restoring, setRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState("");
+
+  useEffect(() => {
+    if (isPending || !userId) return;
+    let active = true;
+    setRestoring(true);
+    setRestoreError("");
+    void getCaregiverHouseholdLink()
+      .then((link) => {
+        if (!active || !link) return;
+        setSettings({
+          role: "caregiver",
+          householdCode: link.code,
+          patientName: link.patientName,
+          onboardingDone: true,
+        });
+      })
+      .catch((err) => {
+        if (active) {
+          setRestoreError(
+            err instanceof Error
+              ? err.message
+              : "Could not check your saved family connection. Please try again.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setRestoring(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isPending, userId, setSettings]);
+
+  if (isPending || (user && restoring)) {
+    return <p className="text-xl text-muted">Checking your caregiver account…</p>;
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col gap-5">
+        <p className="text-xl leading-snug text-muted">
+          Caregivers use an email account to reconnect to this family on another phone. The person
+          taking medicine can keep using SureDose without an account.
+        </p>
+        <EmailPasswordForm
+          initialName={settings.caregiverName}
+          onBack={onBack}
+          onAuthenticated={(name) => {
+            if (name) setSettings({ caregiverName: name });
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <form
@@ -423,7 +484,7 @@ function CaregiverJoin({ onBack }: { onBack: () => void }) {
         setStatus("checking");
         setError("");
         try {
-          const res = await getHousehold({ data: { code: trimmed } });
+          const res = await linkCaregiverHousehold({ data: { code: trimmed } });
           if (!res.ok) {
             setStatus("error");
             setError(res.error);
@@ -433,6 +494,7 @@ function CaregiverJoin({ onBack }: { onBack: () => void }) {
             role: "caregiver",
             householdCode: trimmed.toUpperCase(),
             patientName: res.patientName,
+            caregiverName: settings.caregiverName || user.displayName || "",
             onboardingDone: true,
           });
         } catch {
@@ -441,9 +503,11 @@ function CaregiverJoin({ onBack }: { onBack: () => void }) {
         }
       }}
     >
+      {restoreError ? <p className="text-lg font-bold text-danger">{restoreError}</p> : null}
       <p className="text-2xl leading-snug text-muted">
         Enter the family code from your family member's phone. You will see when they take their
-        medicine, with a photo, and get an alert if a dose is missed.
+        medicine, with a photo, and get an alert if a dose is missed. This connection will be saved
+        to {user.primaryEmail ?? "your account"}.
       </p>
 
       <div className="flex flex-col gap-2">
@@ -495,6 +559,8 @@ function CaregiverHome() {
         <p className="text-lg font-bold text-muted">Alerts for</p>
         <h1 className="text-4xl font-bold leading-tight">{data?.patientName ?? settings.patientName}</h1>
       </div>
+
+      <CaregiverAccountPanel />
 
       {loading ? (
         <p className="text-xl text-muted">Loading…</p>
@@ -586,5 +652,105 @@ function CaregiverHome() {
         </>
       )}
     </div>
+  );
+}
+
+function CaregiverAccountPanel() {
+  const settings = useAppStore((s) => s.settings);
+  const setSettings = useAppStore((s) => s.setSettings);
+  const { user, isPending } = useCurrentUserState();
+  const userId = user?.id;
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (isPending || !userId || !settings.householdCode) return;
+    let active = true;
+    setStatus("saving");
+    setError("");
+
+    void (async () => {
+      const saved = await getCaregiverHouseholdLink();
+      if (!active) return;
+      if (saved) {
+        setSettings({
+          role: "caregiver",
+          householdCode: saved.code,
+          patientName: saved.patientName,
+          onboardingDone: true,
+        });
+        setStatus("saved");
+        return;
+      }
+
+      const linked = await linkCaregiverHousehold({ data: { code: settings.householdCode } });
+      if (!active) return;
+      if (!linked.ok) {
+        setError(linked.error);
+        setStatus("error");
+        return;
+      }
+      setSettings({
+        role: "caregiver",
+        patientName: linked.patientName,
+        onboardingDone: true,
+      });
+      setStatus("saved");
+    })().catch((err: unknown) => {
+      if (!active) return;
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not save your family connection. Please try again.",
+      );
+      setStatus("error");
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [isPending, userId, settings.householdCode, setSettings]);
+
+  if (isPending) {
+    return (
+      <section className="rounded-xl bg-paper p-5 shadow-card">
+        <p className="text-lg text-muted">Checking caregiver account…</p>
+      </section>
+    );
+  }
+
+  if (!user) {
+    return (
+      <section className="rounded-xl bg-paper p-5 shadow-card">
+        <h2 className="text-2xl font-bold">Save this family connection</h2>
+        <p className="mt-2 text-lg text-muted">
+          Register with email to restore this caregiver view on another phone.
+        </p>
+        <div className="mt-4">
+          <EmailPasswordForm initialName={settings.caregiverName} />
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-xl bg-paper p-5 shadow-card">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold">Caregiver account</h2>
+          <p className="text-lg text-muted">{user.primaryEmail}</p>
+        </div>
+        <UserButton />
+      </div>
+      {status === "saving" ? (
+        <p className="mt-3 text-lg text-muted">Saving your family connection…</p>
+      ) : status === "saved" ? (
+        <p className="mt-3 text-lg text-muted">Sign in on another phone to restore this connection.</p>
+      ) : status === "error" ? (
+        <p role="alert" className="mt-3 text-lg font-bold text-danger">
+          {error}
+        </p>
+      ) : null}
+    </section>
   );
 }
