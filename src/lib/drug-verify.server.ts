@@ -1,6 +1,7 @@
 import { namesMatch, strengthMatches } from "./drug-data.ts";
 import {
   LookupUnavailable,
+  lookupImageByRxcui,
   lookupByName,
   lookupByNdc,
   productToVerified,
@@ -50,6 +51,16 @@ export async function verifyMedicineData(input: {
 
     const found = await lookupByName(data.name, data.strength);
     if (found.found) {
+      let productImage: Awaited<ReturnType<typeof lookupImageByRxcui>> = null;
+      try {
+        productImage = await lookupImageByRxcui(found.rxcui, {
+          name: data.name,
+          strength: data.strength,
+        });
+      } catch {
+        console.error("Official pill image lookup failed; continuing without an image");
+      }
+
       return {
         status: "verified",
         note,
@@ -58,11 +69,13 @@ export async function verifyMedicineData(input: {
           name: found.name,
           strength: found.strength,
           form: found.form,
-          labeler: "",
+          labeler: productImage?.labeler ?? "",
           ndc: "",
           rxcui: found.rxcui,
-          appearance: "",
-          officialImage: null,
+          appearance: productImage?.appearance ?? "",
+          officialImage: productImage
+            ? await productToVerified(productImage).then((m) => m.officialImage)
+            : null,
         },
       };
     }

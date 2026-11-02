@@ -110,9 +110,9 @@ export type VerifiedMedicine = {
   labeler: string;
   ndc: string;
   rxcui: string;
-  /** From the FDA label (NDC checks only), "" otherwise. */
+  /** From the matched FDA product label when available. */
   appearance: string;
-  /** The maker's pill photo from the FDA label, as a JPEG data URL. */
+  /** The matched maker's pill photo from the FDA label, as a JPEG data URL. */
   officialImage: string | null;
 };
 

@@ -72,9 +72,9 @@ async function fetchJson(url: string): Promise<unknown | null> {
   return res ? res.json() : null;
 }
 
-function fdaUrl(search: string, limit: number): string {
+function fdaUrl(search: string, limit: number, skip = 0): string {
   const key = process.env.OPENFDA_API_KEY;
-  return `${OPENFDA}?search=${encodeURIComponent(search)}&limit=${limit}${key ? `&api_key=${encodeURIComponent(key)}` : ""}`;
+  return `${OPENFDA}?search=${encodeURIComponent(search)}&limit=${limit}${skip ? `&skip=${skip}` : ""}${key ? `&api_key=${encodeURIComponent(key)}` : ""}`;
 }
 
 function isFresh(fetchedAt: string | Date, days: number): boolean {
@@ -112,6 +112,32 @@ async function fdaByProductNdc(productNdc: string): Promise<FdaProduct | null> {
   return json ? (parseFdaNdcResponse(json)[0] ?? null) : null;
 }
 
+async function fdaByRxcui(
+  rxcui: string,
+): Promise<{ products: FdaProduct[]; complete: boolean }> {
+  const products: FdaProduct[] = [];
+  let skip = 0;
+  while (true) {
+    const json = await fetchJson(fdaUrl(`openfda.rxcui:"${rxcui}"`, 1000, skip));
+    if (!json) return { products, complete: skip === 0 };
+    const page = json as {
+      results?: unknown[];
+      meta?: { results?: { total?: number } };
+    };
+    const records = page.results ?? [];
+    products.push(...parseFdaNdcResponse(json, rxcui));
+    const total = page.meta?.results?.total;
+    if (typeof total === "number") {
+      if (skip + records.length >= total) return { products, complete: true };
+      if (records.length === 0) return { products, complete: false };
+    } else if (records.length < 1000) {
+      return { products, complete: true };
+    }
+    skip += records.length;
+    if (skip > 25000) return { products, complete: false };
+  }
+}
+
 async function fdaBySetId(setId: string): Promise<FdaProduct[]> {
   const json = await fetchJson(fdaUrl(`openfda.spl_set_id:"${setId}"`, 100));
   return json ? parseFdaNdcResponse(json) : [];
@@ -135,9 +161,14 @@ async function fetchJpeg(url: string): Promise<Uint8Array | null> {
     const res = await fetchOrNull(url, "image/jpeg");
     if (!res) return null;
     const bytes = new Uint8Array(await res.arrayBuffer());
-    return isJpeg(bytes) && bytes.length <= MAX_IMAGE_BYTES ? bytes : null;
+    if (!isJpeg(bytes) || bytes.length > MAX_IMAGE_BYTES) {
+      console.error("DailyMed pill image response was not usable");
+      return null;
+    }
+    return bytes;
   } catch {
-    return null; // a missing photo never blocks the check itself
+    console.error("DailyMed pill image fetch failed");
+    return null;
   }
 }
 
@@ -146,7 +177,14 @@ async function fetchJpeg(url: string): Promise<Uint8Array | null> {
  * the given products (all from that label) to the cache.
  */
 export async function ingestProducts(setId: string, products: FdaProduct[]): Promise<ProductRow[]> {
-  const xml = setId ? await fetchSplXml(setId).catch(() => null) : null;
+  let xml: string | null = null;
+  if (setId) {
+    try {
+      xml = await fetchSplXml(setId);
+    } catch {
+      console.error("DailyMed pill label lookup failed");
+    }
+  }
   const looks = xml ? parseSplAppearance(xml) : [];
   const sql = await getSql();
   const rows: ProductRow[] = [];
@@ -258,6 +296,75 @@ export async function lookupByNdc(
   }
 }
 
+/**
+ * Find a maker's photo for an RxNorm drug when the bottle NDC was unreadable.
+ * The RxCUI narrows FDA products to the verified drug concept; exact name and
+ * strength matching then keeps a different product from supplying its photo.
+ */
+export async function lookupImageByRxcui(
+  rxcui: string,
+  hint: { name: string; strength: string },
+): Promise<ProductRow | null> {
+  if (!/^\d+$/.test(rxcui)) return null;
+
+  const sql = await getSql();
+  const cached = await sql<ProductRow>`
+    select * from drug_products where rxcui = ${rxcui}
+  `;
+  const matches = (product: {
+    name: string;
+    generic_name: string;
+    brand_name: string;
+    strength: string;
+  }) =>
+    productAgreesWithLabel(
+      {
+        names: [product.name, product.generic_name, product.brand_name],
+        strength: product.strength,
+      },
+      hint,
+    ) && strengthMatches(hint.strength, product.strength) === true;
+  const result = await fdaByRxcui(rxcui);
+  if (!result.complete) return null;
+
+  const distinctProducts = new Map<string, FdaProduct>();
+  for (const product of result.products) {
+    const rawNdc = product.productNdc.trim();
+    if (!/^\d{4,5}-\d{3,4}$/.test(rawNdc)) continue;
+    if (
+      product.rxcui !== rxcui ||
+      !matches({
+        name: product.name,
+        generic_name: product.genericName,
+        brand_name: product.brandName,
+        strength: product.strength,
+      })
+    )
+      continue;
+    const normalizedNdc = canonicalProductNdc(rawNdc);
+    if (!distinctProducts.has(normalizedNdc)) distinctProducts.set(normalizedNdc, product);
+  }
+  if (distinctProducts.size !== 1) return null;
+
+  const [productNdc, product] = [...distinctProducts.entries()][0];
+  const cachedPhoto = cached.find(
+    (row) =>
+      row.product_ndc === productNdc &&
+      row.image_storage !== "none" &&
+      matches(row),
+  );
+  if (cachedPhoto) return cachedPhoto;
+
+  try {
+    const setId = product.splSetId || (await dailyMedSetIdForNdc(product.productNdc));
+    const [row] = await ingestProducts(setId, [product]);
+    if (row && row.image_storage !== "none") return row;
+  } catch {
+    console.error("DailyMed pill image lookup failed");
+  }
+  return null;
+}
+
 /** Warm the cache with every product on one DailyMed label (seeding). */
 export async function warmLabel(setId: string): Promise<{ products: number; withPhoto: number }> {
   const products = await fdaBySetId(setId);
@@ -267,12 +374,16 @@ export async function warmLabel(setId: string): Promise<{ products: number; with
 }
 
 export async function productToVerified(row: ProductRow): Promise<VerifiedMedicine> {
-  const officialImage =
-    row.image_storage === "inline"
-      ? row.inline_image
-      : row.image_storage === "r2" && row.image_sha
-        ? await getOfficialImage(row.image_sha).catch(() => null)
-        : null;
+  let officialImage: string | null = null;
+  if (row.image_storage === "inline") {
+    officialImage = row.inline_image;
+  } else if (row.image_storage === "r2" && row.image_sha) {
+    try {
+      officialImage = await getOfficialImage(row.image_sha);
+    } catch {
+      console.error("Cached official pill image could not be loaded");
+    }
+  }
   return {
     by: "ndc",
     name: row.name,

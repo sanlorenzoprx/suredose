@@ -263,7 +263,7 @@ type FdaNdcResult = {
   spl_set_id?: string;
 };
 
-export function parseFdaProduct(r: FdaNdcResult): FdaProduct | null {
+export function parseFdaProduct(r: FdaNdcResult, preferredRxcui?: string): FdaProduct | null {
   if (!r.product_ndc) return null;
   const generic = titleCase(r.generic_name ?? "");
   const brand = titleCase(r.brand_name ?? "");
@@ -282,14 +282,16 @@ export function parseFdaProduct(r: FdaNdcResult): FdaProduct | null {
       .join(" / "),
     form: plainForm(r.dosage_form ?? ""),
     labeler: r.labeler_name ?? "",
-    rxcui: r.openfda?.rxcui?.[0] ?? "",
+    rxcui: r.openfda?.rxcui?.find((id) => id === preferredRxcui) ?? r.openfda?.rxcui?.[0] ?? "",
     splSetId: r.openfda?.spl_set_id?.[0] ?? r.spl_set_id ?? "",
   };
 }
 
-export function parseFdaNdcResponse(json: unknown): FdaProduct[] {
+export function parseFdaNdcResponse(json: unknown, preferredRxcui?: string): FdaProduct[] {
   const results = (json as { results?: FdaNdcResult[] })?.results ?? [];
-  return results.map(parseFdaProduct).filter((p): p is FdaProduct => p !== null);
+  return results
+    .map((result) => parseFdaProduct(result, preferredRxcui))
+    .filter((p): p is FdaProduct => p !== null);
 }
 
 /* ------------------------------------------------------------------ */

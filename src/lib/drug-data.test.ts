@@ -101,6 +101,23 @@ test("openFDA NDC response", () => {
   assert.equal(brand.name, "Lipitor (Atorvastatin Calcium)");
 });
 
+test("openFDA response prefers the queried RxCUI when a product lists several", () => {
+  const [product] = parseFdaNdcResponse(
+    {
+      results: [
+        {
+          product_ndc: "0378-1805",
+          generic_name: "FUROSEMIDE",
+          active_ingredients: [{ strength: "20 mg/1" }],
+          openfda: { rxcui: ["other-concept", "310965"] },
+        },
+      ],
+    },
+    "310965",
+  );
+  assert.equal(product.rxcui, "310965");
+});
+
 const SPL = `<?xml version="1.0" encoding="UTF-8"?>
 <document xmlns="urn:hl7-org:v3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <component><structuredBody><component><section>
