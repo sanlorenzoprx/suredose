@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Camera, ImagePlus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,6 +8,7 @@ import {
   PILL_MAX_EDGE,
   PILL_QUALITY,
 } from "@/lib/image";
+import { readPhotoInput } from "@/lib/photo-input";
 
 type Props = {
   title: string;
@@ -27,12 +28,16 @@ export function PhotoCapture({
   pillDetail = false,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [busy, setBusy] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
+  const [cameraFallback, setCameraFallback] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function openFilePicker(inputId: "camera-photo-input" | "gallery-photo-input") {
+    document.getElementById(inputId)?.click();
+  }
 
   useEffect(() => {
     return () => {
@@ -59,6 +64,7 @@ export function PhotoCapture({
 
   async function startCamera() {
     setError(null);
+    setCameraFallback(false);
     setBusy(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -83,6 +89,7 @@ export function PhotoCapture({
       setCameraOn(true);
     } catch {
       setError("Camera is not available here. Choose a photo from your phone instead.");
+      setCameraFallback(true);
       stopCamera();
     } finally {
       setBusy(false);
@@ -107,17 +114,26 @@ export function PhotoCapture({
     }
   }
 
-  async function onFile(file: File | undefined) {
-    if (!file || busy) return;
+  async function onFileSelection(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    if (busy) {
+      input.value = "";
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      const data = pillDetail
-        ? await compressImage(file, PILL_MAX_EDGE, PILL_QUALITY)
-        : await compressImage(file);
-      onCapture(data);
-    } catch {
-      setError("Could not open that photo. Try another one.");
+      await readPhotoInput(
+        input,
+        (file) =>
+          pillDetail ? compressImage(file, PILL_MAX_EDGE, PILL_QUALITY) : compressImage(file),
+        (data) => {
+          setCameraFallback(false);
+          onCapture(data);
+        },
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not open that photo. Try another one.");
     } finally {
       setBusy(false);
     }
@@ -153,15 +169,19 @@ export function PhotoCapture({
       {error ? <p className="text-xl font-bold text-danger">{error}</p> : null}
 
       <input
-        ref={inputRef}
+        id="camera-photo-input"
         type="file"
         accept="image/*"
         capture="environment"
         className="sr-only"
-        onChange={(e) => {
-          void onFile(e.target.files?.[0]);
-          e.currentTarget.value = "";
-        }}
+        onChange={(event) => void onFileSelection(event)}
+      />
+      <input
+        id="gallery-photo-input"
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={(event) => void onFileSelection(event)}
       />
 
       {cameraOn ? (
@@ -184,13 +204,29 @@ export function PhotoCapture({
             size="xl"
             disabled={busy}
             variant="secondary"
-            onClick={() => inputRef.current?.click()}
+            onClick={() => openFilePicker("gallery-photo-input")}
           >
             <ImagePlus className="size-7" />
-            Choose a photo
+            Choose from gallery
           </Button>
+          {cameraFallback ? (
+            <Button
+              size="xl"
+              disabled={busy}
+              variant="secondary"
+              onClick={() => openFilePicker("camera-photo-input")}
+            >
+              <Camera className="size-7" />
+              Use phone camera
+            </Button>
+          ) : null}
           {preview ? (
-            <Button size="xl" variant="ghost" onClick={() => inputRef.current?.click()}>
+            <Button
+              size="xl"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => openFilePicker("gallery-photo-input")}
+            >
               <RefreshCw className="size-6" />
               Use a different photo
             </Button>
