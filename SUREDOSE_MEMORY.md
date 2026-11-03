@@ -7,8 +7,8 @@ Last updated: Nov 3, 2026
 - Paused at user request Nov 3, 2026. Do NOT resume live migration,
   deployment, commit, push, merge, tag, secret/provider changes, or
   phone testing without a new explicit user instruction.
-- Local HEAD is c5ca712 ("Add Cloudflare D1 runtime support").
-  Branch pre-hackathon-fixes is ahead of origin by 1 commit; NOT pushed.
+- D1 runtime commit c5ca712 and memory commit 9ae14cf are pushed.
+  At 9ae14cf, pre-hackathon-fixes matched origin/pre-hackathon-fixes.
 - Preserve all existing uncommitted/untracked work. Never stash or
   discard without approval.
 - Latest verified gates: typecheck PASS; npm test PASS (352 tests:
@@ -64,9 +64,9 @@ or change it without user confirmation.
 ## Prepared migration — NOT approved, NOT applied
 
 - File: migrations/d1-reviewed-upgrades/0003_current_app_support.sql
-- Now tracked in local commit c5ca712 but NOT pushed. Committing the
-  file did NOT apply it; it is NOT approved for live use and has
-  NOT been applied to the live database.
+- Tracked in commit c5ca712 and pushed with the branch. Committing
+  or pushing the file did NOT apply it; it is NOT approved for
+  live use and has NOT been applied to the live database.
 - Additive design: 7 missing tables, indexes, 4 columns, schedule
   start backfill/trigger. Locally rehearsed PASS on synthetic old
   schema, preserving rows and households.timezone.
