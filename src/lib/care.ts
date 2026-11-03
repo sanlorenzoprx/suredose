@@ -301,6 +301,26 @@ export const recordDoseEvent = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const ringFamilyVideo = createServerFn({ method: "POST" })
+  .validator((input: { code: string; callerName?: string }) => ({
+    code: codeSchema.parse(input.code),
+    callerName: z.string().trim().max(60).optional().default("").parse(input.callerName),
+  }))
+  .handler(async ({ data }): Promise<{ ok: boolean }> => {
+    const sql = await getSql();
+    const rows = await sql<{ id: string }>`select id from households where id = ${data.code}`;
+    if (rows.length === 0) return { ok: false };
+    const who = data.callerName || "Your family";
+    void sendPushToHousehold(data.code, {
+      title: "Video call",
+      body: `${who} is calling. Open SureDose and tap Video call to join.`,
+      tag: `video-${data.code}`,
+    }).catch(() => {
+      /* push is best-effort */
+    });
+    return { ok: true };
+  });
+
 export const fetchActivity = createServerFn({ method: "POST" })
   .validator((input: { code: string; limit?: number }) => ({
     code: codeSchema.parse(input.code),

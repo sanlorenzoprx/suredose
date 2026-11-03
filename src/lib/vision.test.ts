@@ -36,8 +36,11 @@ async function withQuietErrors<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-test("google stays the default; meta only when explicitly selected", () => {
+test("meta is first when a key exists; google otherwise or when forced", () => {
   assert.equal(visionProvider({}), "google");
+  assert.equal(visionProvider({ META_API_KEY: "k" }), "meta");
+  assert.equal(visionProvider({ VISION_PROVIDER: "auto", META_API_KEY: "k" }), "meta");
+  assert.equal(visionProvider({ VISION_PROVIDER: "google", META_API_KEY: "k" }), "google");
   assert.equal(visionProvider({ VISION_PROVIDER: "google" }), "google");
   assert.equal(visionProvider({ VISION_PROVIDER: " META " }), "meta");
   assert.equal(visionProvider({ VISION_PROVIDER: "something-else" }), "google");
@@ -131,7 +134,7 @@ test("meta errors become plain messages and never throw", async () => {
   }
 });
 
-test("Google default never calls Meta", async () => {
+test("Google-forced never calls Meta", async () => {
   const m = mockFetch((url) => {
     assert.match(url, /aiplatform\.googleapis\.com/);
     return googleReply(readableLabel);
@@ -139,7 +142,11 @@ test("Google default never calls Meta", async () => {
   try {
     const result = await vision(
       { prompt: "p", images: [image], maxTokens: 1 },
-      { GOOGLE_VERTEX_API_KEY: "test-google-key", META_API_KEY: "test-meta-key" },
+      {
+        VISION_PROVIDER: "google",
+        GOOGLE_VERTEX_API_KEY: "test-google-key",
+        META_API_KEY: "test-meta-key",
+      },
     );
     assert.deepEqual(result, { ok: true, text: readableLabel });
     assert.equal(m.calls.length, 1);
@@ -236,19 +243,15 @@ test("unreadable responses from both providers return the manual-check error", a
   }
 });
 
-test("unrecognised provider calls Google only", async () => {
+test("unrecognised provider behaves like auto: Meta first when keyed", async () => {
   const m = mockFetch((url) => {
-    assert.match(url, /aiplatform\.googleapis\.com/);
-    return googleReply(readableLabel);
+    assert.match(url, /api\.meta\.ai/);
+    return okReply(readableLabel);
   });
   try {
     const result = await vision(
       { prompt: "p", images: [image], maxTokens: 1 },
-      {
-        VISION_PROVIDER: "not-a-provider",
-        GOOGLE_VERTEX_API_KEY: "test-google-key",
-        META_API_KEY: "test-meta-key",
-      },
+      { VISION_PROVIDER: "not-a-provider", META_API_KEY: "test-meta-key" },
     );
     assert.deepEqual(result, { ok: true, text: readableLabel });
     assert.equal(m.calls.length, 1);

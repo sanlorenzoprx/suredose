@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Bell, Heart, ShieldAlert, Trash2, Volume2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
+import { VideoCallButton } from "@/components/video-call-button";
 import { Input, Label } from "@/components/ui/input";
 import { requestNotifyPermission } from "@/lib/alerts";
 import { createHousehold, deleteHousehold } from "@/lib/care";
@@ -50,6 +51,14 @@ function CaregiverFamilyPage() {
         <h2 className="mt-2 text-3xl font-bold leading-tight">{settings.patientName}</h2>
         <p className="mt-2 text-lg text-muted">Family code: {settings.householdCode}</p>
       </section>
+
+      {settings.householdCode ? (
+        <VideoCallButton
+          familyCode={settings.householdCode}
+          myName={settings.caregiverName}
+          otherName={settings.patientName}
+        />
+      ) : null}
 
       <section className="rounded-xl bg-paper p-5 shadow-card">
         <h2 className="flex items-center gap-2 text-2xl font-bold">
@@ -163,6 +172,14 @@ function PatientFamilyPage() {
       </section>
 
       <ConnectFamilySection />
+
+      {settings.householdCode ? (
+        <VideoCallButton
+          familyCode={settings.householdCode}
+          myName={settings.patientName}
+          otherName={settings.caregiverName}
+        />
+      ) : null}
 
       <section className="rounded-xl bg-paper p-5 shadow-card">
         <h2 className="flex items-center gap-2 text-2xl font-bold">

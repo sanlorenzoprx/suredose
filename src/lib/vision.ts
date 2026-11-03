@@ -1,8 +1,12 @@
 /*
  * The one place that chooses the AI model for photo reading and pill checks.
  *
- *   VISION_PROVIDER=google  (default) Google Vertex AI — src/lib/vertex.ts
- *   VISION_PROVIDER=meta              Meta Model API   — src/lib/vision-meta.ts
+ * Order: Meta Muse first when META_API_KEY is set, then Google Vertex AI
+ * (src/lib/vertex.ts) when Meta is missing, fails, or cannot read the photo.
+ *
+ *   VISION_PROVIDER unset / "auto"  Meta first if META_API_KEY exists, else Google
+ *   VISION_PROVIDER=meta            Meta first, Google fallback
+ *   VISION_PROVIDER=google          Google only (never calls Meta)
  *
  * Callers use `vision` and never name a provider. Both providers return the
  * same answer shape, so switching is a configuration change, not a code change.
@@ -16,7 +20,10 @@ type Env = Record<string, string | undefined>;
 export type VisionOptions = { prompt: string; images: string[]; maxTokens: number };
 
 export function visionProvider(env: Env): "google" | "meta" {
-  return env.VISION_PROVIDER?.trim().toLowerCase() === "meta" ? "meta" : "google";
+  const choice = env.VISION_PROVIDER?.trim().toLowerCase();
+  if (choice === "google") return "google";
+  if (choice === "meta") return "meta";
+  return env.META_API_KEY?.trim() ? "meta" : "google";
 }
 
 const MANUAL_CHECK_ERROR =
