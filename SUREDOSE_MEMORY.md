@@ -2,7 +2,7 @@
 
 Last updated: Nov 3, 2026
 
-## Current status: PAUSED
+## Current status: PAUSED for live migration/deploy (code work resumed Nov 3)
 
 - Paused at user request Nov 3, 2026. Do NOT resume live migration,
   deployment, commit, push, merge, tag, secret/provider changes, or
@@ -27,8 +27,11 @@ or change it without user confirmation.
 
 ## Hard rules
 
-1. Live vision stays Google. Never switch live to Meta or deploy a
-   guessed Meta model/URL.
+1. Vision order (user decision Nov 3, 2026): Meta Muse first when
+   META_API_KEY is set, Google Vertex as fallback (on Meta error or
+   unreadable photo). VISION_PROVIDER=google forces Google only. Never
+   deploy a guessed Meta model/URL: confirm META_VISION_MODEL and
+   META_API_BASE_URL against Meta's docs before relying on Meta live.
 2. Never hallucinate a drug name. Obscured label = needs_manual_check.
 3. Never mark a dose taken except through the pill-check flow.
 4. Never paste or print secrets anywhere (chat, code, commits, shots).
@@ -94,8 +97,9 @@ local D1, desktop/mobile renders PASS, screenshots/ verdicts) does
 NOT prove real Google recognition, Android camera behavior, real
 push delivery, or deployed config. Real-phone outcomes remain
 NOT RUN — see PHONE_TEST_RESULTS.md and PRE_LIVE_TEST_CHECKLIST.md
-(read only before phone testing/release). Jitsi/video check-in and
-caregiver reply flow are NOT implemented; do not treat as shipped.
+(read only before phone testing/release). Jitsi video call (commit b11c36c, Family page
+button + push nudge) is implemented but untested on real phones;
+caregiver reply flow is NOT implemented.
 
 ## Gates after any code change
 
