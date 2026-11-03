@@ -71,6 +71,7 @@ function AddMedicine() {
   /** What the person confirmed in step 2 (null = continued without a check). */
   const [confirmed, setConfirmed] = useState<VerifiedMedicine | null>(null);
 
+  const [pillImageBack, setPillImageBack] = useState<string | null>(null);
   const [pillImage, setPillImage] = useState<string | null>(null);
   // Practice photos from /samples are never added to the pill library.
   const [pillIsSample, setPillIsSample] = useState(false);
@@ -190,6 +191,7 @@ function AddMedicine() {
     setScheduleConfirmed(false);
     setOfficialRejected(false);
     setPillImage(null);
+    setPillImageBack(null);
     if (existing) {
       // Keep the schedule the person already set up for this medicine.
       setTimes(existing.times);
@@ -223,6 +225,14 @@ function AddMedicine() {
       setSaveError(validationError);
       return;
     }
+    if (source === "own" && !pillImageBack) {
+      setSaveError("Take a picture of the other side first.");
+      return;
+    }
+    if (source === "own" && image === pillImageBack) {
+      setSaveError("That is the same photo. Turn the pill over and take a new photo.");
+      return;
+    }
     if (saving) return;
     setSaveError(null);
     setSaving(true);
@@ -235,6 +245,7 @@ function AddMedicine() {
         // On a refill scanned without a new bottle photo, keep the old one.
         bottleImage: bottleImage ?? existing?.bottleImage ?? "",
         pillImage: pill,
+        pillImageBack: source === "own" ? (pillImageBack ?? undefined) : undefined,
         times,
         verifiedBy: confirmed?.by ?? ("none" as const),
         // Explicitly cleared (not just omitted) so a refill checked by name
@@ -607,26 +618,49 @@ function AddMedicine() {
                   <span className="font-bold">Your pill should look like:</span> {appearance}
                 </p>
               ) : null}
-              <PhotoCapture
-                pillDetail
-                title="Picture of the pill"
-                hint="Put one pill on a dark table. We save this so we can check it later."
-                preview={pillImage}
-                onCapture={(img) => {
-                  setPillImage(img);
-                  setPillIsSample(false);
-                }}
-                extraAction={
-                  <SamplePillPicker
-                    onPick={(src) =>
-                      void toDataUrl(src).then((img) => {
-                        setPillImage(img);
-                        setPillIsSample(true);
-                      })
-                    }
-                  />
-                }
-              />
+              {!pillImage ? (
+                <PhotoCapture
+                  pillDetail
+                  title="Picture of the pill"
+                  hint="Put one pill on a dark table. We save this so we can check it later."
+                  preview={pillImage}
+                  onCapture={(img) => {
+                    setPillImage(img);
+                    setPillImageBack(null);
+                    setPillIsSample(false);
+                  }}
+                  extraAction={
+                    <SamplePillPicker
+                      onPick={(src) =>
+                        void toDataUrl(src).then((img) => {
+                          setPillImage(img);
+                          setPillImageBack(null);
+                          setPillIsSample(true);
+                        })
+                      }
+                    />
+                  }
+                />
+              ) : (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setPillImage(null);
+                    setPillImageBack(null);
+                  }}
+                >
+                  Retake both sides
+                </Button>
+              )}
+              {pillImage ? (
+                <PhotoCapture
+                  pillDetail
+                  title="Turn the same pill over"
+                  hint="Take a clear picture of the other side, even if it is blank."
+                  preview={pillImageBack}
+                  onCapture={setPillImageBack}
+                />
+              ) : null}
               {canShareToLibrary ? (
                 <label className="flex min-h-20 cursor-pointer items-start gap-4 rounded-lg bg-paper p-4 shadow-card">
                   <input
@@ -647,7 +681,7 @@ function AddMedicine() {
                   </span>
                 </label>
               ) : null}
-              {pillImage ? (
+              {pillImage && pillImageBack ? (
                 <Button size="xl" disabled={saving} onClick={() => void save(pillImage, "own")}>
                   <Check className="size-7" />
                   {existing ? `Update ${existing.name}` : "Save this medicine"}

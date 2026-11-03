@@ -1,4 +1,14 @@
 # SUREDOSE MEMORY — READ THIS FIRST
+
+## Current corrective pass — Nov 2, 2026
+- User authorized fixing review issues 1–5 autonomously on GitHub. This connection has no Codespaces controls; changes are prepared in an isolated cloud checkout and published through GitHub.
+- Pill comparison now rejects punctuation-only imprints and requires two readable reference/candidate sides, including blank reverses. Own-photo setup stores both sides; old one-sided references need setup again.
+- Dose check validates today, a configured time, the due window and current taken state, including at confirmation. Practice remains non-recording.
+- Care sync sends the patient IANA timezone. Migration 0008 adds timezone/start metadata and notification leases; apply it through the existing deployment migration process before deploying this code. No live migration was run in this pass. Legacy timezone=NULL schedules resume alerts after the patient app syncs.
+- Missed-dose processing covers 48 hours across midnight, preserves taken/skipped rows, leases concurrent sends and retries failures. Push delivery is at-least-once with a stable notification tag, not proof that a person read the alert.
+- No main merge, tag, live deployment, provider switch or secret changes are part of this pass. GitHub CI and real-device evidence remain separate gates.
+- Prior sections below contain historical state; current GitHub refs/checks take precedence. Track remains to reconcile: user previously selected Startup, older notes below say Indie.
+
 Last updated: Nov 2, 2026. Owner updates this after EVERY task.
 
 ## 1. What this project is

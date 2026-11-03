@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { comparePillPhotos, readLabelPhoto, samePhoto } from "./vision-checks.ts";
+import { comparePillPhotos, decidePillMatch, readLabelPhoto, samePhoto } from "./vision-checks.ts";
 import type { vertexVision } from "./vertex.ts";
 
 const reference = `data:image/jpeg;base64,${btoa("reference image bytes")}`;
@@ -79,7 +79,10 @@ test("same saved-image bytes are rejected before any AI call, even with MIME/whi
 
 const clear = {
   quality: "clear",
-  sides: [{ marking: "AB 12", readable: true }],
+  sides: [
+    { marking: "AB 12", readable: true },
+    { marking: "", readable: true },
+  ],
   shape: "round",
   color: "white",
 };
@@ -136,7 +139,7 @@ test("unreadable reference needs setup; unreadable candidate needs retake", asyn
 });
 
 test("missing second-side evidence prompts flip; both sides must match", async () => {
-  const ref = { ...clear, sides: [...clear.sides, { marking: "10", readable: true }] };
+  const ref = { ...clear, sides: [clear.sides[0], { marking: "10", readable: true }] };
   const first = await comparePillPhotos(input, readings(ref, clear));
   assert.ok(first.ok);
   assert.equal(first.result.nextAction, "other_side");
@@ -149,7 +152,7 @@ test("missing second-side evidence prompts flip; both sides must match", async (
   assert.equal(incomplete.result.nextAction, "pharmacist");
   const wrong = await comparePillPhotos(
     withBack,
-    readings(ref, { ...ref, sides: [...clear.sides, { marking: "20", readable: true }] }),
+    readings(ref, { ...ref, sides: [clear.sides[0], { marking: "20", readable: true }] }),
   );
   assert.ok(wrong.ok);
   assert.equal(wrong.result.observation, "different");
@@ -218,10 +221,40 @@ test("provider errors and thrown failures never turn into a match or guessed lab
 });
 
 test("placeholder or ambiguous markings cannot match even when model says readable", async () => {
-  for (const marking of ["?", "AB?12", "unknown", "unreadable"]) {
+  for (const marking of ["?", "AB?12", "unknown", "unreadable", "-", "/", ".", " / - "]) {
     const reading = { ...clear, sides: [{ marking, readable: true }] };
     const response = await comparePillPhotos(input, readings(reading, reading));
     assert.ok(response.ok);
     assert.equal(response.result.observation, "uncertain");
   }
+});
+
+test("one-sided reference and missing blank reverse cannot pass", () => {
+  const both = { ...clear, quality: "clear" as const };
+  const one = { ...both, sides: [both.sides[0]] };
+  assert.equal(decidePillMatch(one, one, false).nextAction, "reference");
+  assert.equal(decidePillMatch(both, one, false).nextAction, "other_side");
+  assert.equal(decidePillMatch(both, one, true).nextAction, "pharmacist");
+  assert.equal(
+    decidePillMatch(both, { ...both, sides: [both.sides[0], both.sides[0]] }, true).observation,
+    "different",
+  );
+});
+
+test("reference back reaches only reference extraction; replay against either side fails", async () => {
+  const referenceBack = `data:image/jpeg;base64,${btoa("saved reverse")}`;
+  let calls = 0;
+  const vision: typeof vertexVision = async ({ images }) => {
+    calls++;
+    if (images[0] === reference) assert.deepEqual(images, [reference, referenceBack]);
+    else assert.deepEqual(images, [candidate]);
+    return { ok: true, text: JSON.stringify(clear) };
+  };
+  assert.equal((await comparePillPhotos({ ...input, referenceBack }, vision)).ok, true);
+  assert.equal(calls, 2);
+  assert.equal(
+    (await comparePillPhotos({ ...input, referenceBack, candidate: referenceBack }, vision)).ok,
+    false,
+  );
+  assert.equal(calls, 2);
 });

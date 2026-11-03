@@ -22,7 +22,13 @@ export function useCareSync(): void {
       strength: m.strength,
       times: m.times,
     }));
-    void syncMedicines({ data: { code: householdCode, medicines: payload } }).catch(() => {
+    void syncMedicines({
+      data: {
+        code: householdCode,
+        medicines: payload,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      },
+    }).catch(() => {
       /* best effort — local reminders keep working even if this fails */
     });
     // Re-run whenever the medicine list itself changes (add/edit/remove),

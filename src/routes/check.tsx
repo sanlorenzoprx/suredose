@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Check, Loader2, ShieldAlert, ShieldCheck, TriangleAlert, X } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
@@ -8,7 +8,7 @@ import { comparePills } from "@/lib/ai";
 import { stopDoseAlarm } from "@/lib/alerts";
 import { recordDoseEvent } from "@/lib/care";
 import { toDataUrl } from "@/lib/image";
-import { formatClock, formatTimeLabel, periodOfDay } from "@/lib/schedule";
+import { doseEligibility, formatClock, formatTimeLabel, periodOfDay } from "@/lib/schedule";
 import { buildTakenMessage, copyText, digitsOnly, smsHref } from "@/lib/sms";
 import { useAppStore } from "@/lib/store";
 import { useHydrated } from "@/lib/use-hydrated";
@@ -96,6 +96,17 @@ function CheckReady({
   const [smsNote, setSmsNote] = useState<string | null>(null);
   const [doneAt, setDoneAt] = useState(false);
 
+  const [clock, setClock] = useState(() => new Date());
+  useEffect(() => {
+    const tick = () => setClock(new Date());
+    const timer = setInterval(tick, 1000);
+    window.addEventListener("focus", tick);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", tick);
+    };
+  }, []);
+  const eligibilityError = practice ? null : doseEligibility(medicine, events, date, time, clock);
   const existingEvent = events.find(
     (e) => e.medicineId === medicine.id && e.date === date && e.time === time,
   );
@@ -126,6 +137,9 @@ function CheckReady({
       const res = await comparePills({
         data: {
           reference,
+          referenceBack: medicine.pillImageBack
+            ? await toDataUrl(medicine.pillImageBack)
+            : undefined,
           candidate: front,
           candidateBack: back,
           name: `${medicine.name} ${medicine.strength}`,
@@ -151,6 +165,12 @@ function CheckReady({
       (!practice && existingEvent?.status === "taken")
     )
       return;
+    const current = useAppStore.getState();
+    const liveMedicine = current.medicines.find((m) => m.id === medicine.id);
+    if (!practice && (!liveMedicine || doseEligibility(liveMedicine, current.events, date, time))) {
+      setClock(new Date());
+      return;
+    }
     const verified = true;
     // Practice runs the full photo-check experience but never actually
     // records anything — no local event, no server sync, no text to family.
@@ -162,7 +182,6 @@ function CheckReady({
     }
 
     const phone = digitsOnly(settings.caregiverPhone);
-    const copied = phone ? await copyText(message) : false;
     markTaken({
       medicineId: medicine.id,
       date,
@@ -188,6 +207,7 @@ function CheckReady({
         /* best effort — the family text below still goes out either way */
       });
     }
+    const copied = phone ? await copyText(message) : false;
     if (!phone) setSmsNote("No family number is saved. You can add one under Family.");
     else if (copied) setSmsNote("Message copied. Tap the button below, then tap Send.");
     else setSmsNote("Tap the button below to text your family.");
@@ -272,6 +292,15 @@ function CheckReady({
             Go back home
           </Button>
         </div>
+      </AppShell>
+    );
+  }
+
+  if (eligibilityError) {
+    return (
+      <AppShell title="Check your dose">
+        <p className="text-2xl font-bold">{eligibilityError}</p>
+        <GoHome />
       </AppShell>
     );
   }

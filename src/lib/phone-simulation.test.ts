@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, test } from "node:test";
-import { createServer, type Plugin } from "vite";
 import { comparePillPhotos, readLabelPhoto } from "./vision-checks.ts";
-import { GRACE_MS, todayISO } from "./schedule.ts";
 
 const addRoute = readFileSync(new URL("../routes/add.tsx", import.meta.url), "utf8");
 const checkRoute = readFileSync(new URL("../routes/check.tsx", import.meta.url), "utf8");
@@ -20,7 +18,7 @@ const correctPhoto = "data:image/jpeg;base64,cGlsbC1jb3JyZWN0";
 const wrongPhoto = "data:image/jpeg;base64,cGlsbC13cm9uZw==";
 const clearPill = {
   quality: "clear",
-  sides: [{ marking: "AB 12", readable: true }],
+  sides: [{ marking: "AB 12", readable: true }, { marking: "", readable: true }],
   shape: "round",
   color: "white",
 };
@@ -184,121 +182,4 @@ test("Phone simulation 6: taken dose is rejected on a second accidental log", ()
   assert.equal(doseEvents.get(key), "taken");
 });
 
-test("Phone simulation 7: cron marks a dose missed after 2h15m and captures one caregiver push", async () => {
-  assert.match(
-    viteConfig,
-    /scheduledTasks:\s*\{\s*"\*\/15 \* \* \* \*":\s*\["care:missed-doses"\]/,
-  );
-  assert.match(cronSource, /now\.getTime\(\) - scheduledAt\.getTime\(\) < GRACE_MS/);
-  assert.match(cronSource, /row\.status === "taken"/);
-  assert.match(cronSource, /sendPushToHousehold/);
-  assert.match(cronSource, /notified = true/);
-
-  const scheduledAt = new Date(2026, 10, 2, 8, 0);
-  const mockedNow = new Date(scheduledAt.getTime() + 2 * 60 * 60 * 1000 + 15 * 60 * 1000);
-  assert.equal(todayISO(mockedNow), "2026-11-02");
-  assert.equal(mockedNow.getTime() - scheduledAt.getTime(), 2 * 60 * 60 * 1000 + 15 * 60 * 1000);
-
-  const root = new URL("../../", import.meta.url).pathname;
-  const plugin: Plugin = {
-    name: "phone-simulation-external-mocks",
-    enforce: "pre",
-    resolveId(source, importer) {
-      if (!importer?.endsWith("/server/tasks/care/missed-doses.ts")) return;
-      if (source === "../../../src/lib/db") return "\0phone-simulation-db";
-      if (source === "../../../src/lib/push.server") return "\0phone-simulation-push";
-      if (source === "nitro/task") return "\0phone-simulation-nitro-task";
-      return;
-    },
-    load(id) {
-      if (id === "\0phone-simulation-db") {
-        return "export async function getSql() { return globalThis.__phoneSimulationSql; }";
-      }
-      if (id === "\0phone-simulation-push") {
-        return [
-          "export async function sendPushToHousehold(code, payload) {",
-          "  globalThis.__phoneSimulationPush.push({ endpoint: 'https://push-mock.invalid/phone-2', payload });",
-          "}",
-        ].join("\n");
-      }
-      if (id === "\0phone-simulation-nitro-task") {
-        return "export function defineTask(task) { return task; }";
-      }
-      return;
-    },
-  };
-
-  const missedEvents: {
-    household_id: string;
-    medicine_id: string;
-    time: string;
-    status: string;
-    notified: boolean;
-  }[] = [];
-  const medicine = {
-    id: "medicine-1",
-    household_id: "FAM42X",
-    name: "Metformin",
-    strength: "500 mg",
-    times: ["08:00"],
-  };
-  const fakeSql = async (strings: TemplateStringsArray, ...values: unknown[]) => {
-    const query = strings.join(" ").replace(/\s+/g, " ").trim().toLowerCase();
-    if (query.includes("from care_medicines")) return [medicine];
-    if (query.includes("from dose_events")) return [...missedEvents];
-    if (query.includes("insert into dose_events")) {
-      missedEvents.push({
-        household_id: String(values[1]),
-        medicine_id: String(values[2]),
-        time: String(values[6]),
-        status: "missed",
-        notified: true,
-      });
-    }
-    return [];
-  };
-  const simulationGlobals = globalThis as typeof globalThis & {
-    __phoneSimulationSql?: typeof fakeSql;
-    __phoneSimulationPush?: typeof calls.push;
-  };
-  simulationGlobals.__phoneSimulationSql = fakeSql;
-  simulationGlobals.__phoneSimulationPush = calls.push;
-
-  const realDate = globalThis.Date;
-  globalThis.Date = new Proxy(realDate, {
-    construct(target, args, newTarget) {
-      return Reflect.construct(target, args.length > 0 ? args : [mockedNow.getTime()], newTarget);
-    },
-    get(target, property, receiver) {
-      if (property === "now") return () => mockedNow.getTime();
-      return Reflect.get(target, property, receiver);
-    },
-  });
-
-  const server = await createServer({
-    configFile: false,
-    root,
-    appType: "custom",
-    server: { middlewareMode: true },
-    plugins: [plugin],
-  });
-  try {
-    const { default: missedDoseTask } = await server.ssrLoadModule(
-      "/server/tasks/care/missed-doses.ts",
-    );
-    assert.deepEqual(await missedDoseTask.run(), { result: { checked: 1, flagged: 1 } });
-    assert.equal(calls.push.length, 1);
-    assert.equal(calls.push[0].endpoint, "https://push-mock.invalid/phone-2");
-    assert.equal(calls.push[0].payload.title, "Missed dose");
-
-    assert.deepEqual(await missedDoseTask.run(), { result: { checked: 1, flagged: 0 } });
-    assert.equal(calls.push.length, 1);
-    assert.equal(missedEvents[0].status, "missed");
-    assert.equal(missedEvents[0].notified, true);
-  } finally {
-    globalThis.Date = realDate;
-    delete simulationGlobals.__phoneSimulationSql;
-    delete simulationGlobals.__phoneSimulationPush;
-    await server.close();
-  }
-});
+// Phone simulation 7 now uses real PostgreSQL semantics in missed-dose.test.ts.

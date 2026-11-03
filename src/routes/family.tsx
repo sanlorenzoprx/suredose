@@ -57,8 +57,8 @@ function CaregiverFamilyPage() {
           Stop getting alerts
         </h2>
         <p className="mt-2 text-xl text-muted">
-          This disconnects this phone from {settings.patientName}'s family code and turns off
-          alerts here.
+          This disconnects this phone from {settings.patientName}'s family code and turns off alerts
+          here.
         </p>
         {confirming ? (
           <div className="mt-4 flex flex-col gap-3">
@@ -79,7 +79,12 @@ function CaregiverFamilyPage() {
             </Button>
           </div>
         ) : (
-          <Button size="xl" variant="secondary" className="mt-4 w-full" onClick={() => setConfirming(true)}>
+          <Button
+            size="xl"
+            variant="secondary"
+            className="mt-4 w-full"
+            onClick={() => setConfirming(true)}
+          >
             Disconnect this phone
           </Button>
         )}
@@ -264,7 +269,9 @@ function PillLibrarySection() {
             Delete my pill library photos
           </Button>
           {state === "done" ? (
-            <p className="mt-3 text-lg font-bold">Done. Your pill photos were deleted from the library.</p>
+            <p className="mt-3 text-lg font-bold">
+              Done. Your pill photos were deleted from the library.
+            </p>
           ) : null}
           {state === "error" ? (
             <p className="mt-3 text-lg font-bold text-danger">
@@ -297,8 +304,8 @@ function ConnectFamilySection() {
       {settings.householdCode ? (
         <>
           <p className="mt-2 text-xl text-muted">
-            Share this code so a family member's phone can see when you take your medicine, with
-            a photo, and get alerted if a dose is missed.
+            Share this code so a family member's phone can see when you take your medicine, with a
+            photo, and get alerted if a dose is missed.
           </p>
           <p className="mt-4 rounded-md bg-bg p-4 text-center text-4xl font-bold tracking-[0.2em]">
             {settings.householdCode}
@@ -320,8 +327,8 @@ function ConnectFamilySection() {
             {confirmingDelete ? (
               <div className="flex flex-col gap-3">
                 <p className="text-lg font-bold text-danger">
-                  This permanently deletes the family code and everything shared under it — there
-                  is no undo.
+                  This permanently deletes the family code and everything shared under it — there is
+                  no undo.
                 </p>
                 <Button
                   size="lg"
@@ -389,6 +396,7 @@ function ConnectFamilySection() {
                 void syncMedicines({
                   data: {
                     code: res.code,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     medicines: medicines.map((m) => ({
                       id: m.id,
                       name: m.name,
@@ -440,10 +448,7 @@ function ToggleRow({
       {label}
       <span
         aria-hidden="true"
-        className={cn(
-          "relative h-10 w-16 shrink-0 rounded-full",
-          on ? "bg-primary" : "bg-line",
-        )}
+        className={cn("relative h-10 w-16 shrink-0 rounded-full", on ? "bg-primary" : "bg-line")}
       >
         <span
           className={cn(
@@ -480,7 +485,15 @@ function TestTextButton() {
         <a
           href={smsHref(settings.caregiverPhone, body)}
           className="mt-4 inline-flex min-h-20 w-full items-center justify-center rounded-lg bg-primary px-6 text-2xl font-bold text-primary-fg shadow-card"
-          onClick={() => void copyText(body).then((ok) => setNote(ok ? "Message copied. Tap Send on the next screen." : "Tap Send on the next screen."))}
+          onClick={() =>
+            void copyText(body).then((ok) =>
+              setNote(
+                ok
+                  ? "Message copied. Tap Send on the next screen."
+                  : "Tap Send on the next screen.",
+              ),
+            )
+          }
         >
           Send test text
         </a>

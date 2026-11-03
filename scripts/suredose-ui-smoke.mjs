@@ -20,6 +20,7 @@ const errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
 
 try {
+  await page.clock.install({ time: new Date("2026-10-24T09:45:00") });
   await page.goto(base);
   await page.evaluate(async () => {
     const image = new Image();
@@ -114,7 +115,29 @@ try {
     path: join(screenshots, "suredose-schedule-mobile.png"),
     fullPage: true,
   });
+  await page.locator("#reminder-time").fill("09:30");
+  await page.getByRole("button", { name: "Add this time", exact: true }).click();
+  await acknowledgement.check();
+  await next.click();
+  await page.locator("#gallery-photo-input").setInputFiles("public/samples/white-tablet.jpg");
+  await page.getByRole("heading", { name: "Turn the same pill over" }).waitFor();
+  assert.equal(
+    await page.getByRole("button", { name: "Save this medicine", exact: true }).count(),
+    0,
+  );
+  await page.locator("#gallery-photo-input").setInputFiles("public/samples/peach-tablet.jpg");
+  await page.getByRole("button", { name: "Save this medicine", exact: true }).click();
+  await page.waitForFunction(() =>
+    JSON.parse(localStorage.getItem("suredose-v1")).state.medicines.some(
+      (m) => m.name === "Synthetic example" && m.pillImageBack,
+    ),
+  );
   await page.unroute("**/*");
+  for (const query of ["date=2026-10-23&time=09%3A30", "date=2026-10-24&time=10%3A00"]) {
+    await page.goto(new URL(`/check?medicineId=ui-test&${query}`, base).href);
+    await page.getByText("This is not a dose for today.", { exact: false }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "I took it", exact: true }).count(), 0);
+  }
 
   // Exercise the real server-function boundary with a replay, without calling
   // the vision provider. The same sample is recompressed by PhotoCapture.
@@ -122,12 +145,14 @@ try {
     new URL("/check?medicineId=ui-test&date=2026-10-24&time=09%3A30&practice=false", base).href,
   );
   await page.getByRole("heading", { name: "Take a picture of your pill" }).waitFor();
+  assert.equal(await page.locator("#camera-photo-input").getAttribute("capture"), "environment");
+  assert.equal(await page.locator("#gallery-photo-input").getAttribute("capture"), null);
   assert.equal(
     await page.getByText("Practice — this will not be saved or texted", { exact: true }).count(),
     0,
   );
   assert.equal(await page.getByRole("button", { name: "Use the saved photo instead" }).count(), 0);
-  await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
+  await page.locator("#gallery-photo-input").setInputFiles("public/samples/white-tablet.jpg");
   await page.getByText("That is your saved photo.", { exact: false }).waitFor();
   assert.equal(await page.getByRole("button", { name: /record my confirmation/ }).count(), 0);
   const events = await page.evaluate(
@@ -182,7 +207,7 @@ try {
       reason: "The letters, numbers, shape, and color match your pill.",
     },
   };
-  await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
+  await page.locator("#gallery-photo-input").setInputFiles("public/samples/white-tablet.jpg");
   await page.getByRole("heading", { name: "Right pill.", exact: true }).waitFor();
   assert.equal(requests[1].data.candidate, firstPhoto, "second view must retain first photo");
   assert.ok(requests[1].data.candidateBack);
@@ -199,7 +224,7 @@ try {
         "The letters or numbers on this pill are different. Put it back. Call your pharmacist.",
     },
   };
-  await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
+  await page.locator("#gallery-photo-input").setInputFiles("public/samples/white-tablet.jpg");
   await page.getByRole("heading", { name: "Wrong pill. Do not take it.", exact: true }).waitFor();
   assert.equal(await took.count(), 0);
   assert.equal(requests[2].data.candidateBack, undefined, "new check must discard old second view");
@@ -216,7 +241,7 @@ try {
       reason: "The photo is blurry. Hold your phone still and try again.",
     },
   };
-  await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
+  await page.locator("#gallery-photo-input").setInputFiles("public/samples/white-tablet.jpg");
   await page.getByText("The photo is blurry.", { exact: false }).waitFor();
   assert.equal(await took.count(), 0);
   await page.getByRole("button", { name: "Try again", exact: true }).click();
@@ -228,7 +253,7 @@ try {
       reason: "The letters, numbers, shape, and color match your pill.",
     },
   };
-  await page.locator('input[type="file"]').setInputFiles("public/samples/white-tablet.jpg");
+  await page.locator("#gallery-photo-input").setInputFiles("public/samples/white-tablet.jpg");
   await took.click();
   await page.getByRole("heading", { name: "You marked this dose taken.", exact: true }).waitFor();
   const recorded = await page.evaluate(

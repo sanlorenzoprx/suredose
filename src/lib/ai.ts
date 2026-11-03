@@ -36,6 +36,7 @@ export const comparePills = createServerFn({ method: "POST" })
   .validator(
     (input: {
       reference: string;
+      referenceBack?: string;
       candidate: string;
       candidateBack?: string;
       name: string;
@@ -45,6 +46,7 @@ export const comparePills = createServerFn({ method: "POST" })
       officialReference?: boolean;
     }) => ({
       reference: imageSchema.parse(input.reference),
+      referenceBack: input.referenceBack === undefined ? undefined : imageSchema.parse(input.referenceBack),
       candidate: imageSchema.parse(input.candidate),
       candidateBack:
         input.candidateBack === undefined ? undefined : imageSchema.parse(input.candidateBack),

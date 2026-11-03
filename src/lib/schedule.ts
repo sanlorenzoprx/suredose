@@ -1,4 +1,4 @@
-import type { DoseEvent, DoseSlot, DoseStatus, Medicine } from "./types";
+import type { DoseEvent, DoseSlot, DoseStatus, Medicine } from "./types.ts";
 
 export function todayISO(now = new Date()): string {
   const y = now.getFullYear();
@@ -10,7 +10,23 @@ export function todayISO(now = new Date()): string {
 export function parseTimeOnDate(dateISO: string, time: string): Date {
   const [h, min] = time.split(":").map((n) => Number(n));
   const [y, m, d] = dateISO.split("-").map((n) => Number(n));
-  return new Date(y, m - 1, d, h, min, 0, 0);
+  const instant = new Date(y, m - 1, d, h, min, 0, 0);
+  // Match PostgreSQL AT TIME ZONE: use the later occurrence of a repeated
+  // fall-back wall clock. Spring gaps already advance consistently in Date.
+  const tomorrow = new Date(y, m - 1, d + 1, h, min, 0, 0);
+  const shift = tomorrow.getTimezoneOffset() - instant.getTimezoneOffset();
+  if (shift > 0) {
+    const later = new Date(instant.getTime() + shift * 60_000);
+    if (
+      later.getFullYear() === y &&
+      later.getMonth() === m - 1 &&
+      later.getDate() === d &&
+      later.getHours() === h &&
+      later.getMinutes() === min
+    )
+      return later;
+  }
+  return instant;
 }
 
 export function formatClock(date = new Date()): string {
@@ -111,4 +127,31 @@ export function periodPreset(period: "Morning" | "Noon" | "Evening" | "Night"): 
     case "Night":
       return "21:00";
   }
+}
+
+/** Rechecked at display and confirmation; URL parameters are never authority. */
+export function doseEligibility(
+  medicine: Pick<Medicine, "id" | "times">,
+  events: DoseEvent[],
+  date: string,
+  time: string,
+  now = new Date(),
+): string | null {
+  if (
+    date !== todayISO(now) ||
+    !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time) ||
+    !medicine.times.includes(time)
+  )
+    return "This is not a dose for today. Go home to see your next dose.";
+  if (
+    events.some(
+      (e) =>
+        e.medicineId === medicine.id && e.date === date && e.time === time && e.status === "taken",
+    )
+  )
+    return "You already marked this dose taken.";
+  const elapsed = now.getTime() - parseTimeOnDate(date, time).getTime();
+  if (elapsed < 0) return "It is not time for this dose yet.";
+  if (elapsed > GRACE_MS) return "This dose is late. Ask your pharmacist what to do.";
+  return null;
 }

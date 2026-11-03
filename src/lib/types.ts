@@ -7,6 +7,7 @@ export type Medicine = {
   instructions: string;
   bottleImage: string;
   pillImage: string;
+  pillImageBack?: string;
   times: string[];
   createdAt: number;
   /**
