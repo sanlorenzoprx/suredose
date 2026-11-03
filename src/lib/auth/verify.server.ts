@@ -1,3 +1,4 @@
+import { getD1Binding, inWorkerRuntime } from "../d1";
 import { getRequest } from "@tanstack/react-start/server";
 import { gateIdentityEnabled } from "./gate-identity.server";
 import { auth, authConfigured } from "./server";
@@ -83,9 +84,9 @@ export async function getSessionUser(
  */
 export async function requireUserId(bearerToken?: string): Promise<string> {
   if (!authConfigured && !gateIdentityEnabled()) {
-    if (databaseConfigured) {
+    if (databaseConfigured || getD1Binding() || inWorkerRuntime()) {
       throw new Error(
-        "Auth is disabled (VITE_AUTH_ENABLED=false) but DATABASE_URL is set — " +
+        "Auth is disabled (VITE_AUTH_ENABLED=false) but a durable database or Worker runtime is configured — " +
           "refusing to fall back to the shared dev user against a real database.",
       );
     }

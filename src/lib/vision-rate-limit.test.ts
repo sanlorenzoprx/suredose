@@ -45,7 +45,7 @@ function rateLimitDependencies(db: Pick<Sql, "query">) {
 const hashed = (ip: string) => createHash("sha256").update(ip).digest("hex");
 
 test("three rapid photo checks pass and a fourth is blocked before vision runs", async () => {
-  let now = 0;
+  const now = 0;
   const { db } = mockDatabase(() => now);
   const dependencies = rateLimitDependencies(db);
   const headers = new Headers({ "cf-connecting-ip": "203.0.113.8" });

@@ -3,12 +3,12 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { toCrossJSON, fromJSON } from "seroval";
 import { chromium } from "playwright";
-import { checkedUrl } from "./browser-guard.mjs";
+import { checkedUrl, PROJECT_ROOT } from "./browser-guard.mjs";
 
 // Deterministic browser regression with synthetic local state. No real medicine
 // is taken, no caregiver is paired, and no AI/API credentials are required.
 const base = checkedUrl(process.argv[2] ?? "http://127.0.0.1:8080/");
-const screenshots = "/workspace/screenshots";
+const screenshots = join(PROJECT_ROOT, "screenshots");
 mkdirSync(screenshots, { recursive: true });
 const browser = await chromium.launch({
   headless: true,

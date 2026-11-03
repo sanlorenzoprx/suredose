@@ -6,6 +6,10 @@
  * into a PNG the agent can read, and write it anywhere.
  */
 import { resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+
+export const PROJECT_ROOT = fileURLToPath(new URL("../", import.meta.url)).replace(/\/$/, "");
+export const SCREENSHOT_ROOTS = ["/workspace", PROJECT_ROOT];
 
 const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 

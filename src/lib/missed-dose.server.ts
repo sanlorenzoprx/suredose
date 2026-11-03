@@ -1,4 +1,5 @@
 import type { Sql } from "./db.ts";
+import { d1DueDoses } from "./d1-due.ts";
 
 type Sender = (
   code: string,
@@ -19,7 +20,7 @@ type Due = {
  * local date/time is one occurrence; repeated fall-back hours cannot double-log.
  */
 export async function runMissedDoses(sql: Sql, send: Sender, now = new Date()) {
-  const due = await sql<Due>`
+  const due = sql.dialect === "sqlite" ? await d1DueDoses(sql, now) : await sql<Due>`
     select m.id, m.household_id, m.name, m.strength, m.timezone,
       to_char(d.day, 'YYYY-MM-DD') as date, t.time
     from care_medicines m
@@ -46,7 +47,7 @@ export async function runMissedDoses(sql: Sql, send: Sender, now = new Date()) {
     const claimed = await sql`
       insert into dose_events
         (id, household_id, medicine_id, medicine_name, strength, date, time, status, verified, notified, notification_claim, notification_claim_until)
-      values (${id}, ${dose.household_id}, ${dose.id}, ${dose.name}, ${dose.strength}, ${dose.date}, ${dose.time}, 'missed', false, false, ${token}, ${now}::timestamptz + interval '5 minutes')
+      values (${id}, ${dose.household_id}, ${dose.id}, ${dose.name}, ${dose.strength}, ${dose.date}, ${dose.time}, 'missed', false, false, ${token}, ${new Date(now.getTime() + 5 * 60_000)})
       on conflict (household_id, medicine_id, date, time) do update set
         notification_claim = excluded.notification_claim,
         notification_claim_until = excluded.notification_claim_until

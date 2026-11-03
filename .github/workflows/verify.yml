@@ -30,8 +30,12 @@ jobs:
       - run: npm run ${{ matrix.check }}
 
   browser:
-    name: Verify (browser)
+    name: Verify (browser-${{ matrix.database }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [postgres, d1]
     services:
       postgres:
         image: postgres:16
@@ -48,7 +52,7 @@ jobs:
           --health-retries 10
     env:
       # Disposable job-local service. No repository/production secrets are used.
-      DATABASE_URL: postgresql://suredose_test:isolated_ci_only@127.0.0.1:5432/suredose_test
+      DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgresql://suredose_test:isolated_ci_only@127.0.0.1:5432/suredose_test' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -67,11 +71,16 @@ jobs:
           node --input-type=module <<'JS'
           import { writeFileSync } from 'node:fs';
           import { randomBytes } from 'node:crypto';
-          const url = new URL(process.env.DATABASE_URL);
-          if (url.hostname !== '127.0.0.1' || url.pathname !== '/suredose_test') throw new Error('CI database must be isolated');
+          if (process.env.DATABASE_URL) {
+            const url = new URL(process.env.DATABASE_URL);
+            if (url.hostname !== '127.0.0.1' || url.pathname !== '/suredose_test') throw new Error('CI database must be isolated');
+          }
           // Wrangler reads local vars beside the original root config, even when redirected.
           writeFileSync('.dev.vars', `DATABASE_URL=${process.env.DATABASE_URL}\nBETTER_AUTH_SECRET=${randomBytes(32).toString('hex')}\n`);
           JS
+      - name: Prepare isolated local D1 schema
+        if: matrix.database == 'd1'
+        run: npm run db:migrate:d1:local
       - name: Start development preview
         run: |
           npm run dev > /tmp/suredose-dev.log 2>&1 &
@@ -100,6 +109,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: suredose-browser-evidence
-          path: /workspace/screenshots/
+          name: suredose-browser-evidence-${{ matrix.database }}
+          path: |
+            /workspace/screenshots/
+            screenshots/
           if-no-files-found: warn

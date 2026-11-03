@@ -65,13 +65,23 @@ Three things must be set up before the caregiver-facing features work in
 production — the reminder/schedule/photo-check/SMS parts of the app don't
 need any of this and work with nothing configured:
 
-1. **A real Postgres database.** Locally, with nothing configured, the app
-   falls back to an embedded in-memory Postgres — fine for trying things out
-   on one machine, but a caregiver's phone and the patient's phone are two
-   separate devices that both need to reach the *same* database, so this
-   fallback cannot work once deployed. Get a free one at
-   [neon.tech](https://neon.tech) and set it as `DATABASE_URL`. This also
-   stores caregiver email accounts and their saved family-code connection.
+1. **A durable database.** The confirmed test Worker is
+   `suredose-test` at https://suredose-test.sanlorenzoprx.workers.dev/ and already
+   has Cloudflare D1 bound as `DB`. This branch now uses that binding when
+   `DATABASE_URL` is absent. PostgreSQL remains supported when DATABASE_URL is
+   explicitly configured; plain Node development falls back to embedded PGLite.
+   A Worker without either database fails explicitly rather than trying PGLite.
+
+   D1 uses SQLite-specific migrations under `migrations/d1/`; PostgreSQL continues
+   to use root `migrations/*.sql`. Never interchange these files. Local D1 setup:
+   `npm run db:migrate:d1:local`, then `npm run db:check:d1 -- --local`.
+   The default build does NOT migrate remote D1. Before an authorized release,
+   run the schema-only remote preflight and review existing tables, constraints,
+   indexes and D1 migration history. Existing schemas may need a tailored additive
+   upgrade rather than blind application of a fresh-database baseline. D1 token
+   permissions are currently insufficient for remote inspection; no live upgrade
+   or data conversion has been performed. See `D1_DATABASE_FIX.md`.
+
 2. **A VAPID key pair**, for sending push notifications to the caregiver's
    phone. Generate one with `npx web-push generate-vapid-keys` and set
    `VITE_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`
@@ -97,7 +107,7 @@ npm run dev            # local dev server at http://localhost:8080
 
 # Deploy to Cloudflare:
 npx wrangler login
-wrangler secret put DATABASE_URL
+ # D1 uses the existing DB binding; DATABASE_URL is only for an intentional Postgres deployment.
 wrangler secret put VAPID_PRIVATE_KEY
 wrangler secret put VAPID_SUBJECT
 wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON   # or GOOGLE_VERTEX_API_KEY

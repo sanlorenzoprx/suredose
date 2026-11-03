@@ -4,7 +4,7 @@ export const VISION_RATE_LIMIT_MESSAGE =
   "Too many photo checks — please wait a few minutes and try again, or type the medicine name.";
 
 type Env = Record<string, string | undefined>;
-type RateLimitSql = Pick<Sql, "query">;
+type RateLimitSql = Pick<Sql, "query" | "dialect">;
 
 type Dependencies = {
   getSql?: () => Promise<RateLimitSql>;
@@ -46,6 +46,23 @@ export async function consumeVisionCheck(
   const sql = dependencies.getSql
     ? await dependencies.getSql()
     : await (await import("./db.ts")).getSql();
+
+  if (sql.dialect === "sqlite") {
+    // One atomic SQLite UPSERT, including refill bookkeeping. No read/write race.
+    const intervals = `cast(max(0, (julianday('now') - julianday(current_bucket.window_start)) * 86400) / ($3 * 60) as integer)`;
+    const available = `min($2, max(current_bucket.count, 0) + ${intervals})`;
+    const rows = await sql.query<{ count: number }>(
+      `insert into vision_rate_limits as current_bucket (ip_hash, window_start, count)
+       values ($1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), $2 - 1)
+       on conflict (ip_hash) do update set
+         count = case when ${available} >= 1 then ${available} - 1 else -1 end,
+         window_start = strftime('%Y-%m-%dT%H:%M:%fZ', julianday(current_bucket.window_start) + ${intervals} * $3 / 1440.0)
+       returning count`,
+      [ipHash, capacity, refillMinutes],
+    );
+    if (!rows[0]) throw new Error("Vision rate-limit query returned no counter row.");
+    return rows[0].count >= 0;
+  }
 
   // `count` stores remaining tokens; -1 marks a blocked attempt so RETURNING
   // can distinguish it from a successful use of the final token.
