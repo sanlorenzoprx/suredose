@@ -17,6 +17,12 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 page.setDefaultTimeout(15000);
 const errors = [];
+const serverResponses = [];
+page.on("response", async (response) => {
+  if (response.url().includes("/_serverFn/")) {
+    serverResponses.push({ status: response.status(), body: (await response.text().catch(() => "unreadable response")).slice(0, 6000) });
+  }
+});
 page.on("pageerror", (error) => errors.push(error.message));
 
 try {
@@ -287,7 +293,7 @@ try {
   );
 } catch (error) {
   console.error(
-    JSON.stringify({ url: page.url(), body: await page.locator("body").innerText(), errors }),
+    JSON.stringify({ url: page.url(), body: await page.locator("body").innerText(), errors, serverResponses }),
   );
   await page.screenshot({
     path: join(screenshots, "suredose-regression-failure.png"),
