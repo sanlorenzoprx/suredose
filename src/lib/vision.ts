@@ -107,6 +107,21 @@ function isUnreadable(result: VisionResult): boolean {
   return hasLowConfidenceMarker(parsed);
 }
 
+/** Why an answer was rejected — a short category only, never label or photo content. */
+function unreadableReason(result: VisionResult): string {
+  if (!result.ok) return "provider-error";
+  const parsed = parseResponse(result.text);
+  if (!isRecord(parsed)) return "no-json";
+  const f = parsed;
+  if (f.needs_manual_check === true) return "model-said-manual-check";
+  if ("name" in f || "strength" in f) {
+    if (typeof f.name !== "string" || !f.name.trim()) return "name-empty";
+    if (typeof f.strength !== "string" || !f.strength.trim()) return "strength-empty";
+  }
+  if (hasLowConfidenceMarker(parsed)) return "low-confidence-marker";
+  return isUnreadable(result) ? "failed-validation" : "ok";
+}
+
 async function callProvider(call: () => Promise<VisionResult>): Promise<VisionResult> {
   try {
     return await call();
@@ -122,7 +137,9 @@ export async function vision(
 ): Promise<VisionResult> {
   if (visionProvider(env) === "google") {
     console.log("vision: provider=google (forced or no Meta key)");
-    return callProvider(() => vertexVision(opts, env));
+    const only = await callProvider(() => vertexVision(opts, env));
+    if (!only.ok) console.log("vision: provider=google result=failed reason=provider-error");
+    return only;
   }
 
   const meta = await callProvider(() => metaVision(opts, env));
@@ -133,11 +150,17 @@ export async function vision(
 
   const metaWasUnreadable = meta.ok;
   console.log(
-    `vision: provider=meta result=${metaWasUnreadable ? "unreadable" : "failed"}; trying google`,
+    `vision: provider=meta result=${metaWasUnreadable ? "unreadable" : "failed"} reason=${unreadableReason(meta)}; trying google`,
   );
   const google = await callProvider(() => vertexVision(opts, env));
-  if (!google.ok) return metaWasUnreadable ? { ok: false, error: MANUAL_CHECK_ERROR } : google;
-  if (isUnreadable(google)) return { ok: false, error: MANUAL_CHECK_ERROR };
+  if (!google.ok) {
+    console.log("vision: provider=google result=failed reason=provider-error");
+    return metaWasUnreadable ? { ok: false, error: MANUAL_CHECK_ERROR } : google;
+  }
+  if (isUnreadable(google)) {
+    console.log(`vision: provider=google result=unreadable reason=${unreadableReason(google)}`);
+    return { ok: false, error: MANUAL_CHECK_ERROR };
+  }
   console.log("vision: provider=google result=used (fallback)");
   return google;
 }
