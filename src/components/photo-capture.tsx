@@ -105,13 +105,20 @@ export function PhotoCapture({
     setCameraFallback(false);
     setBusy(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: detailed ? 3840 : 1280 },
-          height: { ideal: detailed ? 2160 : 720 },
-        },
-        audio: false,
+      const openStream = () =>
+        navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: detailed ? 3840 : 1280 },
+            height: { ideal: detailed ? 2160 : 720 },
+          },
+          audio: false,
+        });
+      // Right after another camera view closes, some phones still hold the camera for a moment.
+      // Wait briefly and try once more before giving up.
+      const stream = await openStream().catch(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        return openStream();
       });
       streamRef.current = stream;
       const track = stream.getVideoTracks()[0];

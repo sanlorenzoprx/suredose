@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Check, Loader2, ShieldAlert, ShieldCheck, TriangleAlert } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
@@ -218,6 +218,13 @@ function AddMedicine() {
   // from the maker's photo (its label may be wrong).
   const canShareToLibrary =
     Boolean(pillImage) && !pillIsSample && !officialRejected && !confirmed?.officialImage;
+
+  // After the front photo, bring the "turn the pill over" camera into view.
+  useEffect(() => {
+    if (pillImage && !pillImageBack) {
+      document.getElementById("pill-back")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [pillImage, pillImageBack]);
 
   async function save(image: string, source: "official" | "own") {
     const validationError = medicineSaveError({ name, strength, times, scheduleConfirmed });
@@ -643,24 +650,46 @@ function AddMedicine() {
                   }
                 />
               ) : (
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setPillImage(null);
-                    setPillImageBack(null);
-                  }}
-                >
-                  Retake both sides
-                </Button>
+                <section className="flex flex-col gap-3 rounded-xl bg-paper p-4 shadow-card">
+                  <p className="flex items-center gap-2 text-xl font-bold text-success">
+                    <Check className="size-6 shrink-0" />
+                    {pillImageBack ? "Both sides saved" : "Front saved. Now turn the pill over."}
+                  </p>
+                  <div className="flex gap-3">
+                    <img
+                      src={pillImage}
+                      alt="Front of the pill"
+                      className="h-28 w-28 rounded-lg object-cover"
+                    />
+                    {pillImageBack ? (
+                      <img
+                        src={pillImageBack}
+                        alt="Back of the pill"
+                        className="h-28 w-28 rounded-lg object-cover"
+                      />
+                    ) : null}
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setPillImage(null);
+                      setPillImageBack(null);
+                    }}
+                  >
+                    Retake both sides
+                  </Button>
+                </section>
               )}
               {pillImage ? (
-                <PhotoCapture
-                  pillDetail
-                  title="Turn the same pill over"
-                  hint="Take a clear picture of the other side, even if it is blank."
-                  preview={pillImageBack}
-                  onCapture={setPillImageBack}
-                />
+                <div id="pill-back" className="scroll-mt-24">
+                  <PhotoCapture
+                    pillDetail
+                    title="Turn the same pill over"
+                    hint="Take a clear picture of the other side, even if it is blank."
+                    preview={pillImageBack}
+                    onCapture={setPillImageBack}
+                  />
+                </div>
               ) : null}
               {canShareToLibrary ? (
                 <label className="flex min-h-20 cursor-pointer items-start gap-4 rounded-lg bg-paper p-4 shadow-card">
