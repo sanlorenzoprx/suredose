@@ -50,6 +50,8 @@ function VideoPage() {
   const container = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<"starting" | "live" | "backup">("starting");
   const [backupUrl, setBackupUrl] = useState("");
+  /** Short code for why the in-app call did not start, shown small so a failure can be diagnosed. */
+  const [why, setWhy] = useState("");
 
   useEffect(() => {
     let instance: ZegoInstance | undefined;
@@ -68,41 +70,51 @@ function VideoPage() {
       const myName =
         (isCaregiver ? settings.caregiverName : settings.patientName).trim() || "Family";
 
-      const backup = async () => {
+      const backup = async (reason: string) => {
+        setWhy(reason);
         setBackupUrl(await videoCallUrl(code, myName));
         if (!cancelled) setPhase("backup");
       };
 
       try {
         const res = await getVideoToken({ data: { code, userId, userName: myName } });
-        if (!res.ok) return await backup();
-        const Zego = await loadZego();
+        if (!res.ok) return await backup(res.reason);
+        let Zego: ZegoStatic;
+        try {
+          Zego = await loadZego();
+        } catch {
+          return await backup("script-load");
+        }
         if (cancelled || !container.current) return;
-        const kit = Zego.generateKitTokenForProduction(
-          res.appId,
-          res.token,
-          res.roomId,
-          res.userId,
-          myName,
-        );
-        instance = Zego.create(kit);
-        instance.joinRoom({
-          container: container.current,
-          scenario: { mode: Zego.GroupCall },
-          maxUsers: 4,
-          showPreJoinView: false,
-          showLeavingView: false,
-          turnOnMicrophoneWhenJoining: true,
-          turnOnCameraWhenJoining: true,
-          showScreenSharingButton: false,
-          showTextChat: false,
-          showUserList: false,
-          showLayoutButton: false,
-          onLeaveRoom: () => void navigate({ to: "/family" }),
-        });
+        try {
+          const kit = Zego.generateKitTokenForProduction(
+            res.appId,
+            res.token,
+            res.roomId,
+            res.userId,
+            myName,
+          );
+          instance = Zego.create(kit);
+          instance.joinRoom({
+            container: container.current,
+            scenario: { mode: Zego.GroupCall },
+            maxUsers: 4,
+            showPreJoinView: false,
+            showLeavingView: false,
+            turnOnMicrophoneWhenJoining: true,
+            turnOnCameraWhenJoining: true,
+            showScreenSharingButton: false,
+            showTextChat: false,
+            showUserList: false,
+            showLayoutButton: false,
+            onLeaveRoom: () => void navigate({ to: "/family" }),
+          });
+        } catch (err) {
+          return await backup(`join-${err instanceof Error ? err.name : "error"}`);
+        }
         setPhase("live");
       } catch {
-        await backup();
+        await backup("token-request-failed");
       }
     }
 
@@ -136,6 +148,7 @@ function VideoPage() {
           <Button size="xl" onClick={() => window.location.assign(backupUrl)}>
             Open the backup video call
           </Button>
+          {why ? <p className="text-sm text-white/40">Reason: {why}</p> : null}
         </div>
       ) : null}
       {/* Always reachable, so a call that never connects can never trap the person. */}
