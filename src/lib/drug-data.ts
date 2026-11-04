@@ -92,6 +92,21 @@ export function normStrength(s: string): string {
   return s.toLowerCase().replace(/\s+/g, "");
 }
 
+export function normalizeStrength(s: string): string {
+  return s
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .replace(
+      /(\d+)\.(\d+)(?=\s|MG|MCG|ML|G|IU|%|\/|$)/g,
+      (_, whole: string, fraction: string) => {
+        const trimmedFraction = fraction.replace(/0+$/, "");
+        return trimmedFraction ? `${whole}.${trimmedFraction}` : whole;
+      },
+    )
+    .replace(/(\d+(?:\.\d+)?)\s+(MG|MCG|ML|G|IU|%)/g, "$1$2");
+}
+
 // Words that appear in many drug names and prove nothing on their own.
 const GENERIC_WORDS = new Set([
   "tablet", "tablets", "capsule", "capsules", "oral", "extended", "release",
@@ -116,6 +131,20 @@ export function namesMatch(readName: string, officialNames: string[]): boolean {
     for (const t of nameTokens(official)) if (read.has(t)) return true;
   }
   return false;
+}
+
+/**
+ * Does an official product agree with what the label says? Name must share
+ * a real drug word; strength must not contradict (unknown is fine). With no
+ * hint at all, anything agrees.
+ */
+export function productAgreesWithLabel(
+  product: { names: string[]; strength: string },
+  label: { name?: string; strength?: string },
+): boolean {
+  const nameOk = !label.name || namesMatch(label.name, product.names.filter(Boolean));
+  const strengthOk = !label.strength || strengthMatches(label.strength, product.strength) !== false;
+  return nameOk && strengthOk;
 }
 
 /* ------------------------------------------------------------------ */
@@ -150,9 +179,11 @@ function toComparable(v: StrengthValue): string {
  * ("5/325" vs "325 MG / 5 MG"). Returns null when the bottle gave none.
  */
 export function strengthMatches(bottle: string, official: string): boolean | null {
-  const a = parseStrengthValues(bottle);
+  const normalizedBottle = normalizeStrength(bottle);
+  const normalizedOfficial = normalizeStrength(official);
+  const a = parseStrengthValues(normalizedBottle);
   if (a.length === 0) return null;
-  const b = parseStrengthValues(official);
+  const b = parseStrengthValues(normalizedOfficial);
   if (b.length === 0) return false;
   const unitless = a.every((v) => v.unit === "");
   const key = (vs: StrengthValue[]) =>
@@ -232,7 +263,7 @@ type FdaNdcResult = {
   spl_set_id?: string;
 };
 
-export function parseFdaProduct(r: FdaNdcResult): FdaProduct | null {
+export function parseFdaProduct(r: FdaNdcResult, preferredRxcui?: string): FdaProduct | null {
   if (!r.product_ndc) return null;
   const generic = titleCase(r.generic_name ?? "");
   const brand = titleCase(r.brand_name ?? "");
@@ -251,14 +282,16 @@ export function parseFdaProduct(r: FdaNdcResult): FdaProduct | null {
       .join(" / "),
     form: plainForm(r.dosage_form ?? ""),
     labeler: r.labeler_name ?? "",
-    rxcui: r.openfda?.rxcui?.[0] ?? "",
+    rxcui: r.openfda?.rxcui?.find((id) => id === preferredRxcui) ?? r.openfda?.rxcui?.[0] ?? "",
     splSetId: r.openfda?.spl_set_id?.[0] ?? r.spl_set_id ?? "",
   };
 }
 
-export function parseFdaNdcResponse(json: unknown): FdaProduct[] {
+export function parseFdaNdcResponse(json: unknown, preferredRxcui?: string): FdaProduct[] {
   const results = (json as { results?: FdaNdcResult[] })?.results ?? [];
-  return results.map(parseFdaProduct).filter((p): p is FdaProduct => p !== null);
+  return results
+    .map((result) => parseFdaProduct(result, preferredRxcui))
+    .filter((p): p is FdaProduct => p !== null);
 }
 
 /* ------------------------------------------------------------------ */
@@ -464,3 +497,52 @@ export function parseClinicalDrugName(name: string): ParsedClinicalDrug | null {
 
 /** Term types that name a specific drug with its strength and form. */
 export const SPECIFIC_DRUG_TTYS = new Set(["SCD", "SBD", "GPCK", "BPCK"]);
+
+/**
+ * Component-level entries ("metformin hydrochloride 500 MG", no dosage form). A search often
+ * returns these instead of the full tablet entry; follow them to the full entries.
+ */
+export const COMPONENT_DRUG_TTYS = new Set(["SCDC", "SBDC"]);
+
+/** RxNav "related" response → the concepts it lists, any term type. */
+export function parseRelatedConcepts(json: unknown): RxConcept[] {
+  const groups =
+    (
+      json as {
+        relatedGroup?: {
+          conceptGroup?: {
+            conceptProperties?: { rxcui?: string; name?: string; tty?: string }[];
+          }[];
+        };
+      }
+    )?.relatedGroup?.conceptGroup ?? [];
+  const out: RxConcept[] = [];
+  for (const g of groups) {
+    for (const c of g.conceptProperties ?? []) {
+      if (c.rxcui && c.name && c.tty && !out.some((o) => o.rxcui === c.rxcui)) {
+        out.push({ rxcui: c.rxcui, name: c.name, tty: c.tty });
+      }
+    }
+  }
+  return out;
+}
+
+const MODIFIED_FORM = /extended-release|delayed-release|chewable|dissolving|sublingual|buccal/;
+
+/**
+ * Same strength can exist as plain tablets and as extended-release / chewable versions.
+ * Put the plain form first unless the bottle's own wording asks for the modified one.
+ */
+export function plainFormFirst<T extends { parsed: { form: string } }>(
+  items: T[],
+  bottleName: string,
+): T[] {
+  const wanted = bottleName.toLowerCase();
+  const asksModified = /\b(er|xr|xl|sr|cr|dr|ec)\b|extended|delayed|chew|dissolv|sublingual|buccal/.test(
+    wanted,
+  );
+  if (asksModified) return items;
+  return [...items].sort(
+    (a, b) => Number(MODIFIED_FORM.test(a.parsed.form)) - Number(MODIFIED_FORM.test(b.parsed.form)),
+  );
+}

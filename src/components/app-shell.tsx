@@ -14,20 +14,27 @@ export function AppShell({
   children,
   title,
   hideNav = false,
+  headerAction,
 }: {
   children: ReactNode;
   title?: string;
   hideNav?: boolean;
+  /** A button kept at the top-right of the page header, visible while scrolling (e.g. Exit). */
+  headerAction?: ReactNode;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   useCareSync();
 
-
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col bg-bg">
       <header className="sticky top-0 z-20 border-b border-line bg-bg/95 px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-sm">
-        <p className="text-sm font-bold tracking-[0.18em] text-primary uppercase">SureDose</p>
-        {title ? <h1 className="mt-1 text-3xl font-bold leading-tight">{title}</h1> : null}
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-bold tracking-[0.18em] text-primary uppercase">SureDose</p>
+            {title ? <h1 className="mt-1 text-3xl font-bold leading-tight">{title}</h1> : null}
+          </div>
+          {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
+        </div>
       </header>
       <main className={cn("flex-1 px-5 py-5", hideNav ? "pb-8" : "pb-32")}>{children}</main>
       {hideNav ? null : (

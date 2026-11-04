@@ -1,7 +1,8 @@
+import { createD1Sql, getD1Binding, inWorkerRuntime } from "./d1.ts";
 import { pendingMigrations } from "../../scripts/migration-plan.mjs";
 
 /** Which database backend is active. */
-export type DbSource = "neon" | "pglite";
+export type DbSource = "neon" | "pglite" | "d1";
 
 // An empty/whitespace DATABASE_URL (an easy misconfig in deploy UIs) must mean
 // "unset" — otherwise production would silently run on the PGLite fallback.
@@ -11,12 +12,12 @@ const databaseUrl =
   rawDatabaseUrl && rawDatabaseUrl.trim() ? rawDatabaseUrl : undefined;
 
 /**
- * Active backend: real **Neon** when `DATABASE_URL` is set (deployed / configured
- * sandbox), otherwise a local embedded **PGLite** (Postgres compiled to WASM) so
- * the app has a working database even with nothing configured — the live preview
- * included. Swap in Neon later by just setting `DATABASE_URL`; no code changes.
+ * PostgreSQL when DATABASE_URL is set, otherwise the Worker's D1 DB binding.
+ * Plain Node development uses embedded PGLite when neither is configured.
+ * Workers never try the Node/WASM PGlite fallback. D1 bindings are selected
+ * per request in getSql; dbSource is an import-time diagnostic snapshot.
  */
-export const dbSource: DbSource = databaseUrl ? "neon" : "pglite";
+export const dbSource: DbSource = databaseUrl ? "neon" : getD1Binding() ? "d1" : "pglite";
 
 /**
  * Minimal shared SQL surface, satisfied by both Neon and PGLite. Both the
@@ -27,6 +28,7 @@ export const dbSource: DbSource = databaseUrl ? "neon" : "pglite";
  *   const rows2 = await sql.query("select * from todos where id = $1", [id]);
  */
 export interface Sql {
+  dialect?: "sqlite" | "postgres";
   <T = Record<string, unknown>>(
     strings: TemplateStringsArray,
     ...values: unknown[]
@@ -180,13 +182,19 @@ async function createSql(): Promise<Sql> {
 }
 
 /**
- * Get the shared, **server-only** SQL client. Neon when `DATABASE_URL` is set,
- * otherwise the local PGLite fallback. Memoized — safe to call per request.
+ * Get server-only SQL: explicit PostgreSQL, request-bound D1, or Node PGlite.
+ * PostgreSQL/PGlite clients are memoized; D1 bindings are resolved per request.
  *
- * Schema comes from `migrations/*.sql`, auto-applied before the first query on
- * both backends — define tables there, never inline in server functions.
+ * D1 schema is applied explicitly from migrations/d1 before release; it is
+ * never migrated from a request. PGlite auto-applies root PostgreSQL migrations.
  */
 export function getSql(): Promise<Sql> {
+  // Resolve bindings per invocation; never cache a request-scoped Worker binding.
+  const d1 = getD1Binding();
+  if (d1 && !databaseUrl) return Promise.resolve(createD1Sql(d1));
+  if (!databaseUrl && inWorkerRuntime()) {
+    return Promise.reject(new Error("Database is not configured: bind D1 as DB or configure DATABASE_URL."));
+  }
   sqlPromise ??= createSql().catch((err) => {
     sqlPromise = null; // don't memoize failures — let the next call retry
     throw err;
@@ -195,12 +203,12 @@ export function getSql(): Promise<Sql> {
 }
 
 /**
- * The shared PGLite instance (preview only), with `migrations/*.sql` applied.
+ * The shared PGLite instance (plain Node preview only), with root migrations applied.
  * Lets Better Auth persist to the SAME embedded DB as app data in preview (via a
  * Kysely dialect). Throws when `DATABASE_URL` is set (that path uses Neon).
  */
 export async function getPglite(): Promise<import("@electric-sql/pglite").PGlite> {
-  if (dbSource !== "pglite") {
+  if (databaseUrl || getD1Binding() || inWorkerRuntime()) {
     throw new Error("getPglite() is only available on the PGLite fallback (no DATABASE_URL)");
   }
   await getSql();
@@ -220,7 +228,7 @@ export async function getPglite(): Promise<import("@electric-sql/pglite").PGlite
  * module kick it off immediately (see bottom of file).
  */
 export function ensureDbReady(): Promise<void> {
-  if (dbSource !== "pglite") return Promise.resolve();
+  if (databaseUrl || getD1Binding() || inWorkerRuntime()) return Promise.resolve();
   return getSql().then(() => undefined);
 }
 
@@ -229,7 +237,7 @@ export function ensureDbReady(): Promise<void> {
 const globalBoot = globalThis as typeof globalThis & {
   __pgBootstrapPromise__?: Promise<void>;
 };
-if (typeof window === "undefined" && dbSource === "pglite") {
+if (typeof window === "undefined" && !databaseUrl && !getD1Binding() && !inWorkerRuntime()) {
   globalBoot.__pgBootstrapPromise__ ??= ensureDbReady().catch((err) => {
     globalBoot.__pgBootstrapPromise__ = undefined;
     console.error("[db] PGLite bootstrap failed:", err);

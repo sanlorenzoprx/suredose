@@ -1,0 +1,1731 @@
+
+> preview
+> node scripts/with-app-env.mjs vite preview
+
+
+ ╭────────── [Build Info] ─────────────╮
+ │                                     │
+ │  - Build Directory: .output         │
+ │  - Date: 11/3/2026, 10:52:58 AM     │
+ │  - Nitro Version: 3.0.260610-beta   │
+ │  - Nitro Preset: cloudflare-module  │
+ │                                     │
+ ╰─────────────────────────────────────╯
+
+ℹ Spawning preview server...
+ℹ npx wrangler --cwd ./ dev
+
+error when starting preview server:
+SystemError [ERR_SYSTEM_ERROR]: A system error occurred: uv_interface_addresses returned Unknown system error 1 (Unknown system error 1)
+    at networkInterfaces (node:os:218:16)
+    at _getLocalHosts (file:///workspaces/suredose/node_modules/nitro/dist/node_modules/get-port-please/dist/index.mjs:214:42)
+    at checkPort (file:///workspaces/suredose/node_modules/nitro/dist/node_modules/get-port-please/dist/index.mjs:350:12)
+    at getRandomPort (file:///workspaces/suredose/node_modules/nitro/dist/node_modules/get-port-please/dist/index.mjs:329:22)
+    at runPreviewCommand (file:///workspaces/suredose/node_modules/nitro/dist/_chunks/nitro2.mjs:79:27)
+    at async startPreview (file:///workspaces/suredose/node_modules/nitro/dist/_chunks/nitro2.mjs:30:10)
+    at async BasicMinimalPluginContext.configurePreviewServer (file:///workspaces/suredose/node_modules/nitro/dist/vite.mjs:140:20)
+    at async preview (file:///workspaces/suredose/node_modules/vite/dist/node/chunks/node.js:35843:91)
+    at async CAC.<anonymous> (file:///workspaces/suredose/node_modules/vite/dist/node/cli.js:807:18) {
+  code: 'ERR_SYSTEM_ERROR',
+  info: {
+    errno: 1,
+    code: 'Unknown system error 1',
+    message: 'Unknown system error 1',
+    syscall: 'uv_interface_addresses'
+  },
+  errno: [Getter/Setter: 1],
+  syscall: [Getter/Setter: 'uv_interface_addresses']
+}
+
+> preview
+> node scripts/with-app-env.mjs vite preview
+
+
+ ╭────────── [Build Info] ─────────────╮
+ │                                     │
+ │  - Build Directory: .output         │
+ │  - Date: 11/3/2026, 10:52:58 AM     │
+ │  - Nitro Version: 3.0.260610-beta   │
+ │  - Nitro Preset: cloudflare-module  │
+ │                                     │
+ ╰─────────────────────────────────────╯
+
+ℹ Spawning preview server...
+ℹ npx wrangler --cwd ./ dev
+
+
+ ⛅️ wrangler 4.129.0
+────────────────────
+Using redirected Wrangler configuration.
+ - Configuration being used: ".output/server/wrangler.json"
+ - Original user's configuration: "wrangler.jsonc"
+ - Deploy configuration file: ".wrangler/deploy/config.json"
+Your Worker has access to the following bindings:
+Binding                                     Resource       Mode
+env.PILL_IMAGES (suredose-pill-images)      R2 Bucket      local
+env.ASSETS                                  Assets         local
+
+Attaching additional modules:
+┌─────────────────────────────────────────────┬──────┬─────────────┐
+│ Name                                        │ Type │ Size        │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _chunks/ssr-renderer.mjs                    │ esm  │ 0.94 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/core+[...].mjs           │ esm  │ 780.14 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/kysely-adapter+[...].mjs │ esm  │ 467.89 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/telemetry+[...].mjs      │ esm  │ 14.42 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@block65/webcrypto-web-push+[...].mjs │ esm  │ 9.25 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@tanstack/react-router+[...].mjs      │ esm  │ 654.06 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@tanstack/router-core+[...].mjs       │ esm  │ 120.38 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/better-auth__memory-adapter.mjs       │ esm  │ 14.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/better-auth__utils.mjs                │ esm  │ 3.72 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/class-variance-authority+clsx.mjs     │ esm  │ 3.10 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/defu.mjs                              │ esm  │ 1.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/electric-sql__pglite.mjs              │ esm  │ 734.77 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/h3+rou3+srvx.mjs                      │ esm  │ 13.91 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/h3-v2+rou3.mjs                        │ esm  │ 17.17 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/hookable.mjs                          │ esm  │ 1.14 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/jose.mjs                              │ esm  │ 37.73 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/lucide-react.mjs                      │ esm  │ 10.59 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/nanostores.mjs                        │ esm  │ 5.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/noble__ciphers.mjs                    │ esm  │ 46.29 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/noble__hashes.mjs                     │ esm  │ 23.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/pg.mjs                                │ esm  │ 148.74 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/tailwind-merge.mjs                    │ esm  │ 86.07 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/tanstack__history.mjs                 │ esm  │ 11.77 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/zod.mjs                               │ esm  │ 0.36 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/zustand.mjs                           │ esm  │ 6.56 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _runtime.mjs                                │ esm  │ 1.90 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/add-DgQv3EGG.mjs                       │ esm  │ 31.38 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/ai-DFQcvQic.mjs                        │ esm  │ 2.51 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/app-shell-BUhLP-63.mjs                 │ esm  │ 15.86 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/button-DvwCqZNR.mjs                    │ esm  │ 1.41 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/care-BJ6I_DCs.mjs                      │ esm  │ 16.62 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/caregiver-account-Bl0EfNdQ.mjs         │ esm  │ 2.62 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/check-CMDcpR1b.mjs                     │ esm  │ 18.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/client-BoMzwnHN.mjs                    │ esm  │ 31.70 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/createServerRpc-CcvdN_gc.mjs           │ esm  │ 0.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/db-sKwgcdjC.mjs                        │ esm  │ 20.21 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-lookup.server-BQ2XuV6_.mjs        │ esm  │ 13.55 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-verify-Baa62JR9.mjs               │ esm  │ 1.00 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-verify.server-CdgAzaB4.mjs        │ esm  │ 3.13 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/email-password-form-Pj9QWu75.mjs       │ esm  │ 4.95 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/empty-plugin-adapters-D9UWiqvJ.mjs     │ esm  │ 0.22 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/family-BvBMnwsx.mjs                    │ esm  │ 21.14 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/gate-session-marker-xmFBQyXo.mjs       │ esm  │ 0.98 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/help-CdMPTZnW.mjs                      │ esm  │ 3.66 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/image-store.server-QDzMVzu0.mjs        │ esm  │ 14.60 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/input-BBSpgmhq.mjs                     │ esm  │ 0.74 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/isolation.server-CGNg1r0B.mjs          │ esm  │ 2.01 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/kysely-adapter-Cj_QZw5p.mjs            │ esm  │ 0.15 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/legal-page-ngW4VeM3.mjs                │ esm  │ 1.04 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/login-BDt060ln.mjs                     │ esm  │ 1.37 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/medicines-DZERUFvf.mjs                 │ esm  │ 6.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/middleware-BvXv09N9.mjs                │ esm  │ 1.93 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/photo-capture-2B0GNxs-.mjs             │ esm  │ 11.58 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/pill-cache-G3wwN4Ur.mjs                │ esm  │ 8.10 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/privacy-BkPHqHfX.mjs                   │ esm  │ 9.13 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/push-client-DGIhyH_B.mjs               │ esm  │ 0.91 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/rolldown-runtime-D7D4PA-g.mjs          │ esm  │ 0.40 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/router-CqTlbtW3.mjs                    │ esm  │ 18.97 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/routes-Dr_eeKvQ.mjs                    │ esm  │ 37.60 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/schedule-DnrDCuHm.mjs                  │ esm  │ 3.67 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/server-MI3ZhZgN.mjs                    │ esm  │ 330.25 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/sms-81EqhfOT.mjs                       │ esm  │ 0.82 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/ssr.mjs                                │ esm  │ 69.08 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/start-5Z2QO8AU.mjs                     │ esm  │ 0.14 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/terms-j00AF5WQ.mjs                     │ esm  │ 3.77 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/url-DwGxbmbA.mjs                       │ esm  │ 15.18 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/use-care-activity-DivWp7i-.mjs         │ esm  │ 1.37 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/use-hydrated-BtCLv5zs.mjs              │ esm  │ 3.75 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/utils-DvfgwUB7.mjs                     │ esm  │ 0.86 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/verify.server-C35vadJV.mjs             │ esm  │ 3.50 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/vision-rate-limit-Dcyko7We.mjs         │ esm  │ 24.72 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _tanstack-start-manifest_v-DGsjDOnl.mjs     │ esm  │ 3.54 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _tasks/missed-doses.mjs                     │ esm  │ 25.79 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ Total (73 modules)                          │      │ 4006.45 KiB │
+└─────────────────────────────────────────────┴──────┴─────────────┘
+⎔ Starting local server...
+[wrangler:info] ✨ Parsed 1 valid header rule.
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mScheduled Workers are not automatically triggered during local development.[0m
+
+  To manually trigger a scheduled event, run:
+    curl "http://localhost:42395/cdn-cgi/local/scheduled"
+  For more details, see [4mhttps://developers.cloudflare.com/workers/configuration/cron-triggers/#test-cron-triggers-locally[0m
+
+
+Wrangler detected this dev session is running in an AI agent.
+The Local Explorer API is available at http://localhost:42395/cdn-cgi/local/explorer/api
+Useful routes:
+  GET http://localhost:42395/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings
+  GET http://localhost:42395/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces
+  GET http://localhost:42395/cdn-cgi/local/explorer/api/d1/database - D1 databases
+  GET http://localhost:42395/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets
+  GET http://localhost:42395/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces
+  GET http://localhost:42395/cdn-cgi/local/explorer/api/workflows - Workflows
+  POST http://localhost:42395/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:
+    curl -X POST http://localhost:42395/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{"sql":"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20"}'
+If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):
+  GET http://localhost:42395/cdn-cgi/local/explorer/api - OpenAPI schema
+  ➜  Local:   http://127.0.0.1:8081/
+[wrangler:info] Ready on http://localhost:42395
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m[db] PGLite bootstrap failed: TypeError: Invalid URL string.[0m
+
+      at N.Ye (file:///workspaces/suredose/.output/server/_libs/electric-sql__pglite.mjs:14750:50)
+      at null.<anonymous> (async file:///workspaces/suredose/.output/server/_ssr/db-sKwgcdjC.mjs:133:3)
+      at async createPgliteSql (file:///workspaces/suredose/.output/server/_ssr/db-sKwgcdjC.mjs:140:13)
+
+
+[wrangler:info] GET / 200 OK (726ms)
+[wrangler:info] GET / 200 OK (74ms)
+🪵  Logs were written to "/home/codespace/.config/.wrangler/logs/wrangler-2026-11-03_11-02-07_177.log"
+
+> preview
+> node scripts/with-app-env.mjs vite preview
+
+
+ ╭────────── [Build Info] ─────────────╮
+ │                                     │
+ │  - Build Directory: .output         │
+ │  - Date: 11/3/2026, 10:52:58 AM     │
+ │  - Nitro Version: 3.0.260610-beta   │
+ │  - Nitro Preset: cloudflare-module  │
+ │                                     │
+ ╰─────────────────────────────────────╯
+
+ℹ Spawning preview server...
+ℹ npx wrangler --cwd ./ dev
+
+
+ ⛅️ wrangler 4.129.0 (update available 4.156.2)
+───────────────────────────────────────────────
+Using redirected Wrangler configuration.
+ - Configuration being used: ".output/server/wrangler.json"
+ - Original user's configuration: "wrangler.jsonc"
+ - Deploy configuration file: ".wrangler/deploy/config.json"
+Your Worker has access to the following bindings:
+Binding                                     Resource       Mode
+env.PILL_IMAGES (suredose-pill-images)      R2 Bucket      local
+env.ASSETS                                  Assets         local
+
+Attaching additional modules:
+┌─────────────────────────────────────────────┬──────┬─────────────┐
+│ Name                                        │ Type │ Size        │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _chunks/ssr-renderer.mjs                    │ esm  │ 0.94 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/core+[...].mjs           │ esm  │ 780.14 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/kysely-adapter+[...].mjs │ esm  │ 467.89 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/telemetry+[...].mjs      │ esm  │ 14.42 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@block65/webcrypto-web-push+[...].mjs │ esm  │ 9.25 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@tanstack/react-router+[...].mjs      │ esm  │ 654.06 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@tanstack/router-core+[...].mjs       │ esm  │ 120.38 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/better-auth__memory-adapter.mjs       │ esm  │ 14.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/better-auth__utils.mjs                │ esm  │ 3.72 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/class-variance-authority+clsx.mjs     │ esm  │ 3.10 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/defu.mjs                              │ esm  │ 1.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/electric-sql__pglite.mjs              │ esm  │ 734.77 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/h3+rou3+srvx.mjs                      │ esm  │ 13.91 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/h3-v2+rou3.mjs                        │ esm  │ 17.17 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/hookable.mjs                          │ esm  │ 1.14 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/jose.mjs                              │ esm  │ 37.73 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/lucide-react.mjs                      │ esm  │ 10.59 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/nanostores.mjs                        │ esm  │ 5.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/noble__ciphers.mjs                    │ esm  │ 46.29 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/noble__hashes.mjs                     │ esm  │ 23.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/pg.mjs                                │ esm  │ 148.74 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/tailwind-merge.mjs                    │ esm  │ 86.07 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/tanstack__history.mjs                 │ esm  │ 11.77 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/zod.mjs                               │ esm  │ 0.36 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/zustand.mjs                           │ esm  │ 6.56 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _runtime.mjs                                │ esm  │ 1.90 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/add-DgQv3EGG.mjs                       │ esm  │ 31.38 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/ai-DFQcvQic.mjs                        │ esm  │ 2.51 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/app-shell-BUhLP-63.mjs                 │ esm  │ 15.86 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/button-DvwCqZNR.mjs                    │ esm  │ 1.41 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/care-BJ6I_DCs.mjs                      │ esm  │ 16.62 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/caregiver-account-Bl0EfNdQ.mjs         │ esm  │ 2.62 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/check-CMDcpR1b.mjs                     │ esm  │ 18.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/client-BoMzwnHN.mjs                    │ esm  │ 31.70 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/createServerRpc-CcvdN_gc.mjs           │ esm  │ 0.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/db-sKwgcdjC.mjs                        │ esm  │ 20.21 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-lookup.server-BQ2XuV6_.mjs        │ esm  │ 13.55 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-verify-Baa62JR9.mjs               │ esm  │ 1.00 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-verify.server-CdgAzaB4.mjs        │ esm  │ 3.13 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/email-password-form-Pj9QWu75.mjs       │ esm  │ 4.95 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/empty-plugin-adapters-D9UWiqvJ.mjs     │ esm  │ 0.22 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/family-BvBMnwsx.mjs                    │ esm  │ 21.14 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/gate-session-marker-xmFBQyXo.mjs       │ esm  │ 0.98 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/help-CdMPTZnW.mjs                      │ esm  │ 3.66 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/image-store.server-QDzMVzu0.mjs        │ esm  │ 14.60 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/input-BBSpgmhq.mjs                     │ esm  │ 0.74 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/isolation.server-CGNg1r0B.mjs          │ esm  │ 2.01 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/kysely-adapter-Cj_QZw5p.mjs            │ esm  │ 0.15 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/legal-page-ngW4VeM3.mjs                │ esm  │ 1.04 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/login-BDt060ln.mjs                     │ esm  │ 1.37 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/medicines-DZERUFvf.mjs                 │ esm  │ 6.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/middleware-BvXv09N9.mjs                │ esm  │ 1.93 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/photo-capture-2B0GNxs-.mjs             │ esm  │ 11.58 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/pill-cache-G3wwN4Ur.mjs                │ esm  │ 8.10 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/privacy-BkPHqHfX.mjs                   │ esm  │ 9.13 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/push-client-DGIhyH_B.mjs               │ esm  │ 0.91 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/rolldown-runtime-D7D4PA-g.mjs          │ esm  │ 0.40 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/router-CqTlbtW3.mjs                    │ esm  │ 18.97 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/routes-Dr_eeKvQ.mjs                    │ esm  │ 37.60 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/schedule-DnrDCuHm.mjs                  │ esm  │ 3.67 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/server-MI3ZhZgN.mjs                    │ esm  │ 330.25 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/sms-81EqhfOT.mjs                       │ esm  │ 0.82 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/ssr.mjs                                │ esm  │ 69.08 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/start-5Z2QO8AU.mjs                     │ esm  │ 0.14 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/terms-j00AF5WQ.mjs                     │ esm  │ 3.77 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/url-DwGxbmbA.mjs                       │ esm  │ 15.18 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/use-care-activity-DivWp7i-.mjs         │ esm  │ 1.37 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/use-hydrated-BtCLv5zs.mjs              │ esm  │ 3.75 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/utils-DvfgwUB7.mjs                     │ esm  │ 0.86 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/verify.server-C35vadJV.mjs             │ esm  │ 3.50 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/vision-rate-limit-Dcyko7We.mjs         │ esm  │ 24.72 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _tanstack-start-manifest_v-DGsjDOnl.mjs     │ esm  │ 3.54 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _tasks/missed-doses.mjs                     │ esm  │ 25.79 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ Total (73 modules)                          │      │ 4006.45 KiB │
+└─────────────────────────────────────────────┴──────┴─────────────┘
+⎔ Starting local server...
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mScheduled Workers are not automatically triggered during local development.[0m
+
+  To manually trigger a scheduled event, run:
+    curl "http://localhost:36765/cdn-cgi/local/scheduled"
+  For more details, see [4mhttps://developers.cloudflare.com/workers/configuration/cron-triggers/#test-cron-triggers-locally[0m
+
+
+Wrangler detected this dev session is running in an AI agent.
+The Local Explorer API is available at http://localhost:36765/cdn-cgi/local/explorer/api
+Useful routes:
+  GET http://localhost:36765/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings
+  GET http://localhost:36765/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces
+  GET http://localhost:36765/cdn-cgi/local/explorer/api/d1/database - D1 databases
+  GET http://localhost:36765/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets
+  GET http://localhost:36765/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces
+  GET http://localhost:36765/cdn-cgi/local/explorer/api/workflows - Workflows
+  POST http://localhost:36765/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:
+    curl -X POST http://localhost:36765/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{"sql":"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20"}'
+If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):
+  GET http://localhost:36765/cdn-cgi/local/explorer/api - OpenAPI schema
+[wrangler:info] ✨ Parsed 1 valid header rule.
+  ➜  Local:   http://127.0.0.1:8081/
+[wrangler:info] Ready on http://localhost:36765
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m[db] PGLite bootstrap failed: TypeError: Invalid URL string.[0m
+
+      at N.Ye (file:///workspaces/suredose/.output/server/_libs/electric-sql__pglite.mjs:14750:50)
+      at null.<anonymous> (async file:///workspaces/suredose/.output/server/_ssr/db-sKwgcdjC.mjs:133:3)
+      at async createPgliteSql (file:///workspaces/suredose/.output/server/_ssr/db-sKwgcdjC.mjs:140:13)
+
+
+[wrangler:info] GET / 200 OK (4037ms)
+[wrangler:info] GET / 200 OK (1903ms)
+⎔ Reloading local server...
+This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). The promise rejected with the reason:
+Error: ENOENT: no such file or directory, open '/workspaces/suredose/.output/server/_libs/@tanstack/router-core+[...].mjs'
+    at async open (node:internal/fs/promises:1345:25)
+    at async Object.readFile (node:internal/fs/promises:2003:14)
+    at async matchFiles (/workspaces/suredose/node_modules/wrangler/wrangler-dist/cli.js:138613:29)
+    at async findAdditionalModules (/workspaces/suredose/node_modules/wrangler/wrangler-dist/cli.js:138496:20)
+    at async getAdditionalModules (/workspaces/suredose/node_modules/wrangler/wrangler-dist/cli.js:177276:45)
+    at async updateBundle (/workspaces/suredose/node_modules/wrangler/wrangler-dist/cli.js:177287:34)
+    at async FSWatcher.<anonymous> (/workspaces/suredose/node_modules/wrangler/wrangler-dist/cli.js:177371:9)
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m[db] PGLite bootstrap failed: TypeError: Invalid URL string.[0m
+
+      at N.Ye (file:///workspaces/suredose/.output/server/_libs/electric-sql__pglite.mjs:14750:50)
+      at null.<anonymous> (async file:///workspaces/suredose/.output/server/_ssr/db-sKwgcdjC.mjs:133:3)
+      at async createPgliteSql (file:///workspaces/suredose/.output/server/_ssr/db-sKwgcdjC.mjs:140:13)
+
+
+[wrangler:info] GET / 200 OK (1046ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 404 Not Found (157ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 404 Not Found (250ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 404 Not Found (1206ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 404 Not Found (1249ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 404 Not Found (1256ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 404 Not Found (1243ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 404 Not Found (1161ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 404 Not Found (1108ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 404 Not Found (96ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 404 Not Found (633ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 404 Not Found (610ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 404 Not Found (592ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 404 Not Found (622ms)
+[wrangler:info] GET /samples/white-tablet.jpg 404 Not Found (370ms)
+🪵  Logs were written to "/home/codespace/.config/.wrangler/logs/wrangler-2026-11-03_11-15-58_040.log"
+
+> preview
+> node scripts/with-app-env.mjs vite preview
+
+
+ ╭────────── [Build Info] ─────────────╮
+ │                                     │
+ │  - Build Directory: .output         │
+ │  - Date: 11/3/2026, 11:17:09 AM     │
+ │  - Nitro Version: 3.0.260610-beta   │
+ │  - Nitro Preset: cloudflare-module  │
+ │                                     │
+ ╰─────────────────────────────────────╯
+
+ℹ Spawning preview server...
+ℹ npx wrangler --cwd ./ dev
+
+
+ ⛅️ wrangler 4.129.0 (update available 4.156.2)
+───────────────────────────────────────────────
+Using redirected Wrangler configuration.
+ - Configuration being used: ".output/server/wrangler.json"
+ - Original user's configuration: "wrangler.jsonc"
+ - Deploy configuration file: ".wrangler/deploy/config.json"
+Your Worker has access to the following bindings:
+Binding                                     Resource       Mode
+env.PILL_IMAGES (suredose-pill-images)      R2 Bucket      local
+env.ASSETS                                  Assets         local
+
+Attaching additional modules:
+┌─────────────────────────────────────────────┬──────┬─────────────┐
+│ Name                                        │ Type │ Size        │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _chunks/ssr-renderer.mjs                    │ esm  │ 0.94 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/core+[...].mjs           │ esm  │ 780.14 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/kysely-adapter+[...].mjs │ esm  │ 467.89 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/telemetry+[...].mjs      │ esm  │ 14.42 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@block65/webcrypto-web-push+[...].mjs │ esm  │ 9.25 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@tanstack/react-router+[...].mjs      │ esm  │ 654.06 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@tanstack/router-core+[...].mjs       │ esm  │ 120.38 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/better-auth__memory-adapter.mjs       │ esm  │ 14.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/better-auth__utils.mjs                │ esm  │ 3.72 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/class-variance-authority+clsx.mjs     │ esm  │ 3.10 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/defu.mjs                              │ esm  │ 1.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/electric-sql__pglite.mjs              │ esm  │ 734.77 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/h3+rou3+srvx.mjs                      │ esm  │ 13.91 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/h3-v2+rou3.mjs                        │ esm  │ 17.17 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/hookable.mjs                          │ esm  │ 1.14 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/jose.mjs                              │ esm  │ 37.73 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/lucide-react.mjs                      │ esm  │ 10.59 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/nanostores.mjs                        │ esm  │ 5.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/noble__ciphers.mjs                    │ esm  │ 46.29 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/noble__hashes.mjs                     │ esm  │ 23.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/pg.mjs                                │ esm  │ 148.74 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/tailwind-merge.mjs                    │ esm  │ 86.07 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/tanstack__history.mjs                 │ esm  │ 11.77 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/zod.mjs                               │ esm  │ 0.36 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/zustand.mjs                           │ esm  │ 6.56 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _runtime.mjs                                │ esm  │ 1.90 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/add-DgQv3EGG.mjs                       │ esm  │ 31.38 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/ai-DFQcvQic.mjs                        │ esm  │ 2.51 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/app-shell-BUhLP-63.mjs                 │ esm  │ 15.86 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/button-DvwCqZNR.mjs                    │ esm  │ 1.41 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/care-BJ6I_DCs.mjs                      │ esm  │ 16.62 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/caregiver-account-Bl0EfNdQ.mjs         │ esm  │ 2.62 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/check-CMDcpR1b.mjs                     │ esm  │ 18.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/client-BoMzwnHN.mjs                    │ esm  │ 31.70 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/createServerRpc-CcvdN_gc.mjs           │ esm  │ 0.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/db-sKwgcdjC.mjs                        │ esm  │ 20.21 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-lookup.server-BQ2XuV6_.mjs        │ esm  │ 13.55 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-verify-Baa62JR9.mjs               │ esm  │ 1.00 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-verify.server-CdgAzaB4.mjs        │ esm  │ 3.13 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/email-password-form-Pj9QWu75.mjs       │ esm  │ 4.95 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/empty-plugin-adapters-D9UWiqvJ.mjs     │ esm  │ 0.22 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/family-BvBMnwsx.mjs                    │ esm  │ 21.14 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/gate-session-marker-xmFBQyXo.mjs       │ esm  │ 0.98 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/help-CdMPTZnW.mjs                      │ esm  │ 3.66 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/image-store.server-QDzMVzu0.mjs        │ esm  │ 14.60 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/input-BBSpgmhq.mjs                     │ esm  │ 0.74 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/isolation.server-CGNg1r0B.mjs          │ esm  │ 2.01 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/kysely-adapter-Cj_QZw5p.mjs            │ esm  │ 0.15 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/legal-page-ngW4VeM3.mjs                │ esm  │ 1.04 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/login-BDt060ln.mjs                     │ esm  │ 1.37 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/medicines-DZERUFvf.mjs                 │ esm  │ 6.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/middleware-BvXv09N9.mjs                │ esm  │ 1.93 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/photo-capture-2B0GNxs-.mjs             │ esm  │ 11.58 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/pill-cache-G3wwN4Ur.mjs                │ esm  │ 8.10 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/privacy-BkPHqHfX.mjs                   │ esm  │ 9.13 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/push-client-DGIhyH_B.mjs               │ esm  │ 0.91 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/rolldown-runtime-D7D4PA-g.mjs          │ esm  │ 0.40 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/router-CqTlbtW3.mjs                    │ esm  │ 18.97 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/routes-Dr_eeKvQ.mjs                    │ esm  │ 37.60 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/schedule-DnrDCuHm.mjs                  │ esm  │ 3.67 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/server-MI3ZhZgN.mjs                    │ esm  │ 330.25 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/sms-81EqhfOT.mjs                       │ esm  │ 0.82 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/ssr.mjs                                │ esm  │ 69.08 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/start-5Z2QO8AU.mjs                     │ esm  │ 0.14 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/terms-j00AF5WQ.mjs                     │ esm  │ 3.77 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/url-DwGxbmbA.mjs                       │ esm  │ 15.18 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/use-care-activity-DivWp7i-.mjs         │ esm  │ 1.37 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/use-hydrated-BtCLv5zs.mjs              │ esm  │ 3.75 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/utils-DvfgwUB7.mjs                     │ esm  │ 0.86 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/verify.server-C35vadJV.mjs             │ esm  │ 3.50 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/vision-rate-limit-Dcyko7We.mjs         │ esm  │ 24.72 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _tanstack-start-manifest_v-DGsjDOnl.mjs     │ esm  │ 3.54 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _tasks/missed-doses.mjs                     │ esm  │ 25.79 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ Total (73 modules)                          │      │ 4006.45 KiB │
+└─────────────────────────────────────────────┴──────┴─────────────┘
+⎔ Starting local server...
+[wrangler:info] ✨ Parsed 1 valid header rule.
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mScheduled Workers are not automatically triggered during local development.[0m
+
+  To manually trigger a scheduled event, run:
+    curl "http://localhost:45535/cdn-cgi/local/scheduled"
+  For more details, see [4mhttps://developers.cloudflare.com/workers/configuration/cron-triggers/#test-cron-triggers-locally[0m
+
+
+Wrangler detected this dev session is running in an AI agent.
+The Local Explorer API is available at http://localhost:45535/cdn-cgi/local/explorer/api
+Useful routes:
+  GET http://localhost:45535/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings
+  GET http://localhost:45535/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces
+  GET http://localhost:45535/cdn-cgi/local/explorer/api/d1/database - D1 databases
+  GET http://localhost:45535/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets
+  GET http://localhost:45535/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces
+  GET http://localhost:45535/cdn-cgi/local/explorer/api/workflows - Workflows
+  POST http://localhost:45535/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:
+    curl -X POST http://localhost:45535/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{"sql":"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20"}'
+If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):
+  GET http://localhost:45535/cdn-cgi/local/explorer/api - OpenAPI schema
+  ➜  Local:   http://127.0.0.1:8081/
+[wrangler:info] Ready on http://localhost:45535
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m[db] PGLite bootstrap failed: TypeError: Invalid URL string.[0m
+
+      at N.Ye (file:///workspaces/suredose/.output/server/_libs/electric-sql__pglite.mjs:14750:50)
+      at null.<anonymous> (async file:///workspaces/suredose/.output/server/_ssr/db-sKwgcdjC.mjs:133:3)
+      at async createPgliteSql (file:///workspaces/suredose/.output/server/_ssr/db-sKwgcdjC.mjs:140:13)
+
+
+[wrangler:info] GET / 200 OK (412ms)
+[wrangler:info] GET / 200 OK (30ms)
+[wrangler:info] GET / 200 OK (40ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (92ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (66ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (67ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (89ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (80ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (98ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (178ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (208ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (102ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (116ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (125ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (120ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (228ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (226ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (228ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (230ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (231ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (83ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (28ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (57ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (58ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (58ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (76ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (81ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (75ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (71ms)
+[wrangler:info] GET /samples/white-tablet.jpg 200 OK (10ms)
+[wrangler:info] GET /add 200 OK (24ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (21ms)
+[wrangler:info] GET /samples/bottle-lisinopril.jpg 200 OK (28ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (40ms)
+[wrangler:info] GET /assets/add-dCFfzpai.js 200 OK (64ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (63ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (86ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (65ms)
+[wrangler:info] GET /assets/arrow-left-BX3K0tmm.js 200 OK (77ms)
+[wrangler:info] GET /assets/ai-GERzAdAl.js 200 OK (51ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (33ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (54ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (46ms)
+[wrangler:info] GET /assets/shield-alert-Bd58MJi5.js 200 OK (66ms)
+[wrangler:info] GET /assets/shield-check-B_zY3eXR.js 200 OK (65ms)
+[wrangler:info] GET / 200 OK (50ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (51ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (29ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (65ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (74ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (65ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (79ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (53ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (26ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (61ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (78ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (90ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (119ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (108ms)
+[wrangler:info] GET /samples/white-tablet.jpg 200 OK (13ms)
+[wrangler:info] GET /samples/blue-capsule.jpg 200 OK (30ms)
+[wrangler:info] GET /samples/peach-tablet.jpg 200 OK (31ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (11ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (20ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (22ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (24ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (26ms)
+[wrangler:info] GET /check 307 Temporary Redirect (39ms)
+[wrangler:info] GET /check 200 OK (17ms)
+[wrangler:info] GET /assets/check-CqnjS2bm.js 200 OK (23ms)
+[wrangler:info] GET /assets/sms-CX2tc124.js 200 OK (25ms)
+[wrangler:info] GET /check 307 Temporary Redirect (12ms)
+[wrangler:info] GET /check 200 OK (26ms)
+[wrangler:info] GET /__app-env 404 Not Found (159ms)
+[wrangler:info] GET /check 200 OK (104ms)
+[wrangler:info] POST /_serverFn/63a79891fcb37df693e3223573ca07147bc34e6bd6437df2d821e16f55c76352 200 OK (59ms)
+🪵  Logs were written to "/home/codespace/.config/.wrangler/logs/wrangler-2026-11-03_11-17-45_986.log"
+
+> preview
+> node scripts/with-app-env.mjs vite preview
+
+
+ ╭────────── [Build Info] ─────────────╮
+ │                                     │
+ │  - Build Directory: .output         │
+ │  - Date: 11/3/2026, 11:17:09 AM     │
+ │  - Nitro Version: 3.0.260610-beta   │
+ │  - Nitro Preset: cloudflare-module  │
+ │                                     │
+ ╰─────────────────────────────────────╯
+
+ℹ Spawning preview server...
+ℹ npx wrangler --cwd ./ dev
+
+
+ ⛅️ wrangler 4.129.0 (update available 4.156.2)
+───────────────────────────────────────────────
+Using redirected Wrangler configuration.
+ - Configuration being used: ".output/server/wrangler.json"
+ - Original user's configuration: "wrangler.jsonc"
+ - Deploy configuration file: ".wrangler/deploy/config.json"
+Using secrets defined in .dev.vars
+Your Worker has access to the following bindings:
+Binding                                            Resource                  Mode
+env.PILL_IMAGES (suredose-pill-images)             R2 Bucket                 local
+env.ASSETS                                         Assets                    local
+env.DATABASE_URL ("(hidden)")                      Environment Variable      local
+env.BETTER_AUTH_SECRET ("(hidden)")                Environment Variable      local
+
+Attaching additional modules:
+┌─────────────────────────────────────────────┬──────┬─────────────┐
+│ Name                                        │ Type │ Size        │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _chunks/ssr-renderer.mjs                    │ esm  │ 0.94 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/core+[...].mjs           │ esm  │ 780.14 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/kysely-adapter+[...].mjs │ esm  │ 467.89 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/telemetry+[...].mjs      │ esm  │ 14.42 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@block65/webcrypto-web-push+[...].mjs │ esm  │ 9.25 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@tanstack/react-router+[...].mjs      │ esm  │ 654.06 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@tanstack/router-core+[...].mjs       │ esm  │ 120.38 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/better-auth__memory-adapter.mjs       │ esm  │ 14.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/better-auth__utils.mjs                │ esm  │ 3.72 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/class-variance-authority+clsx.mjs     │ esm  │ 3.10 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/defu.mjs                              │ esm  │ 1.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/electric-sql__pglite.mjs              │ esm  │ 734.77 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/h3+rou3+srvx.mjs                      │ esm  │ 13.91 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/h3-v2+rou3.mjs                        │ esm  │ 17.17 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/hookable.mjs                          │ esm  │ 1.14 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/jose.mjs                              │ esm  │ 37.73 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/lucide-react.mjs                      │ esm  │ 10.59 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/nanostores.mjs                        │ esm  │ 5.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/noble__ciphers.mjs                    │ esm  │ 46.29 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/noble__hashes.mjs                     │ esm  │ 23.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/pg.mjs                                │ esm  │ 148.74 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/tailwind-merge.mjs                    │ esm  │ 86.07 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/tanstack__history.mjs                 │ esm  │ 11.77 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/zod.mjs                               │ esm  │ 0.36 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/zustand.mjs                           │ esm  │ 6.56 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _runtime.mjs                                │ esm  │ 1.90 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/add-DgQv3EGG.mjs                       │ esm  │ 31.38 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/ai-DFQcvQic.mjs                        │ esm  │ 2.51 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/app-shell-BUhLP-63.mjs                 │ esm  │ 15.86 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/button-DvwCqZNR.mjs                    │ esm  │ 1.41 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/care-BJ6I_DCs.mjs                      │ esm  │ 16.62 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/caregiver-account-Bl0EfNdQ.mjs         │ esm  │ 2.62 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/check-CMDcpR1b.mjs                     │ esm  │ 18.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/client-BoMzwnHN.mjs                    │ esm  │ 31.70 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/createServerRpc-CcvdN_gc.mjs           │ esm  │ 0.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/db-sKwgcdjC.mjs                        │ esm  │ 20.21 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-lookup.server-BQ2XuV6_.mjs        │ esm  │ 13.55 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-verify-Baa62JR9.mjs               │ esm  │ 1.00 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-verify.server-CdgAzaB4.mjs        │ esm  │ 3.13 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/email-password-form-Pj9QWu75.mjs       │ esm  │ 4.95 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/empty-plugin-adapters-D9UWiqvJ.mjs     │ esm  │ 0.22 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/family-BvBMnwsx.mjs                    │ esm  │ 21.14 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/gate-session-marker-xmFBQyXo.mjs       │ esm  │ 0.98 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/help-CdMPTZnW.mjs                      │ esm  │ 3.66 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/image-store.server-QDzMVzu0.mjs        │ esm  │ 14.60 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/input-BBSpgmhq.mjs                     │ esm  │ 0.74 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/isolation.server-CGNg1r0B.mjs          │ esm  │ 2.01 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/kysely-adapter-Cj_QZw5p.mjs            │ esm  │ 0.15 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/legal-page-ngW4VeM3.mjs                │ esm  │ 1.04 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/login-BDt060ln.mjs                     │ esm  │ 1.37 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/medicines-DZERUFvf.mjs                 │ esm  │ 6.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/middleware-BvXv09N9.mjs                │ esm  │ 1.93 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/photo-capture-2B0GNxs-.mjs             │ esm  │ 11.58 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/pill-cache-G3wwN4Ur.mjs                │ esm  │ 8.10 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/privacy-BkPHqHfX.mjs                   │ esm  │ 9.13 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/push-client-DGIhyH_B.mjs               │ esm  │ 0.91 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/rolldown-runtime-D7D4PA-g.mjs          │ esm  │ 0.40 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/router-CqTlbtW3.mjs                    │ esm  │ 18.97 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/routes-Dr_eeKvQ.mjs                    │ esm  │ 37.60 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/schedule-DnrDCuHm.mjs                  │ esm  │ 3.67 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/server-MI3ZhZgN.mjs                    │ esm  │ 330.25 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/sms-81EqhfOT.mjs                       │ esm  │ 0.82 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/ssr.mjs                                │ esm  │ 69.08 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/start-5Z2QO8AU.mjs                     │ esm  │ 0.14 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/terms-j00AF5WQ.mjs                     │ esm  │ 3.77 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/url-DwGxbmbA.mjs                       │ esm  │ 15.18 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/use-care-activity-DivWp7i-.mjs         │ esm  │ 1.37 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/use-hydrated-BtCLv5zs.mjs              │ esm  │ 3.75 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/utils-DvfgwUB7.mjs                     │ esm  │ 0.86 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/verify.server-C35vadJV.mjs             │ esm  │ 3.50 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/vision-rate-limit-Dcyko7We.mjs         │ esm  │ 24.72 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _tanstack-start-manifest_v-DGsjDOnl.mjs     │ esm  │ 3.54 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _tasks/missed-doses.mjs                     │ esm  │ 25.79 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ Total (73 modules)                          │      │ 4006.45 KiB │
+└─────────────────────────────────────────────┴──────┴─────────────┘
+⎔ Starting local server...
+[wrangler:info] ✨ Parsed 1 valid header rule.
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mScheduled Workers are not automatically triggered during local development.[0m
+
+  To manually trigger a scheduled event, run:
+    curl "http://localhost:43297/cdn-cgi/local/scheduled"
+  For more details, see [4mhttps://developers.cloudflare.com/workers/configuration/cron-triggers/#test-cron-triggers-locally[0m
+
+
+Wrangler detected this dev session is running in an AI agent.
+The Local Explorer API is available at http://localhost:43297/cdn-cgi/local/explorer/api
+Useful routes:
+  GET http://localhost:43297/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings
+  GET http://localhost:43297/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces
+  GET http://localhost:43297/cdn-cgi/local/explorer/api/d1/database - D1 databases
+  GET http://localhost:43297/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets
+  GET http://localhost:43297/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces
+  GET http://localhost:43297/cdn-cgi/local/explorer/api/workflows - Workflows
+  POST http://localhost:43297/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:
+    curl -X POST http://localhost:43297/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{"sql":"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20"}'
+If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):
+  GET http://localhost:43297/cdn-cgi/local/explorer/api - OpenAPI schema
+  ➜  Local:   http://127.0.0.1:8081/
+[wrangler:info] Ready on http://localhost:43297
+[wrangler:info] GET / 200 OK (526ms)
+[wrangler:info] GET / 200 OK (33ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (31ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (57ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (54ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (70ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (72ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (73ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (40ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (124ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (59ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (44ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (64ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (59ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (28ms)
+[wrangler:info] GET / 200 OK (14ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (7ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (23ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (23ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (87ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (43ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (103ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (101ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (32ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (98ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (21ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (19ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (20ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (34ms)
+[wrangler:info] GET /__app-env 404 Not Found (45ms)
+[wrangler:info] GET / 200 OK (32ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (9ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (10ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (15ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (9ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (11ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (12ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (12ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (45ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (34ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (28ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (8ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (8ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (16ms)
+[wrangler:info] GET /favicon.svg 200 OK (6ms)
+[wrangler:info] GET / 200 OK (20ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (22ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (32ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (71ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (72ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (97ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (83ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (73ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (15ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (36ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (36ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (43ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (44ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (50ms)
+[wrangler:info] GET /samples/white-tablet.jpg 200 OK (5ms)
+[wrangler:info] GET /add 200 OK (29ms)
+[wrangler:info] GET /samples/bottle-lisinopril.jpg 200 OK (9ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (18ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (26ms)
+[wrangler:info] GET /assets/arrow-left-BX3K0tmm.js 200 OK (102ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (114ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (113ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (113ms)
+[wrangler:info] GET /assets/add-dCFfzpai.js 200 OK (122ms)
+[wrangler:info] GET /assets/ai-GERzAdAl.js 200 OK (86ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (18ms)
+[wrangler:info] GET /assets/shield-alert-Bd58MJi5.js 200 OK (30ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (33ms)
+[wrangler:info] GET /assets/shield-check-B_zY3eXR.js 200 OK (39ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (39ms)
+[wrangler:info] GET /samples/white-tablet.jpg 200 OK (27ms)
+[wrangler:info] GET /samples/blue-capsule.jpg 200 OK (25ms)
+[wrangler:info] GET /samples/peach-tablet.jpg 200 OK (26ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (33ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (30ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (36ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (34ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (37ms)
+[wrangler:info] GET /check 307 Temporary Redirect (79ms)
+[wrangler:info] GET /check 200 OK (22ms)
+[wrangler:info] GET /assets/check-CqnjS2bm.js 200 OK (9ms)
+[wrangler:info] GET /assets/sms-CX2tc124.js 200 OK (20ms)
+[wrangler:info] GET /check 307 Temporary Redirect (12ms)
+[wrangler:info] GET /check 200 OK (14ms)
+[wrangler:info] GET /check 200 OK (22ms)
+[wrangler:info] POST /_serverFn/63a79891fcb37df693e3223573ca07147bc34e6bd6437df2d821e16f55c76352 200 OK (726ms)
+[wrangler:info] GET /check 200 OK (24ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (18ms)
+[wrangler:info] GET /assets/check-CqnjS2bm.js 200 OK (38ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (40ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (37ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (49ms)
+[wrangler:info] GET /assets/shield-check-B_zY3eXR.js 200 OK (43ms)
+[wrangler:info] GET /assets/ai-GERzAdAl.js 200 OK (113ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (126ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (73ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (31ms)
+[wrangler:info] GET /assets/shield-alert-Bd58MJi5.js 200 OK (70ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (18ms)
+[wrangler:info] GET /assets/sms-CX2tc124.js 200 OK (14ms)
+
+> preview
+> node scripts/with-app-env.mjs vite preview
+
+
+ ╭────────── [Build Info] ─────────────╮
+ │                                     │
+ │  - Build Directory: .output         │
+ │  - Date: 11/3/2026, 12:07:03 PM     │
+ │  - Nitro Version: 3.0.260610-beta   │
+ │  - Nitro Preset: cloudflare-module  │
+ │                                     │
+ ╰─────────────────────────────────────╯
+
+ℹ Spawning preview server...
+ℹ npx wrangler --cwd ./ dev
+
+
+ ⛅️ wrangler 4.129.0 (update available 4.157.0)
+───────────────────────────────────────────────
+Using redirected Wrangler configuration.
+ - Configuration being used: ".output/server/wrangler.json"
+ - Original user's configuration: "wrangler.jsonc"
+ - Deploy configuration file: ".wrangler/deploy/config.json"
+Your Worker has access to the following bindings:
+Binding                                     Resource         Mode
+env.DB (suredose-test)                      D1 Database      local
+env.PILL_IMAGES (suredose-pill-images)      R2 Bucket        local
+env.ASSETS                                  Assets           local
+
+Attaching additional modules:
+┌─────────────────────────────────────────────┬──────┬─────────────┐
+│ Name                                        │ Type │ Size        │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _chunks/ssr-renderer.mjs                    │ esm  │ 0.94 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/core+[...].mjs           │ esm  │ 780.14 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/kysely-adapter+[...].mjs │ esm  │ 467.89 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/telemetry+[...].mjs      │ esm  │ 14.42 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@block65/webcrypto-web-push+[...].mjs │ esm  │ 9.25 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@tanstack/react-router+[...].mjs      │ esm  │ 654.06 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@tanstack/router-core+[...].mjs       │ esm  │ 120.38 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/better-auth__memory-adapter.mjs       │ esm  │ 14.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/better-auth__utils.mjs                │ esm  │ 3.72 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/class-variance-authority+clsx.mjs     │ esm  │ 3.10 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/defu.mjs                              │ esm  │ 1.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/electric-sql__pglite.mjs              │ esm  │ 734.77 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/h3+rou3+srvx.mjs                      │ esm  │ 13.91 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/h3-v2+rou3.mjs                        │ esm  │ 17.17 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/hookable.mjs                          │ esm  │ 1.14 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/jose.mjs                              │ esm  │ 37.73 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/lucide-react.mjs                      │ esm  │ 10.59 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/nanostores.mjs                        │ esm  │ 5.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/noble__ciphers.mjs                    │ esm  │ 46.29 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/noble__hashes.mjs                     │ esm  │ 23.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/pg.mjs                                │ esm  │ 148.74 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/tailwind-merge.mjs                    │ esm  │ 86.07 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/tanstack__history.mjs                 │ esm  │ 11.77 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/zod.mjs                               │ esm  │ 0.36 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/zustand.mjs                           │ esm  │ 6.56 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _runtime.mjs                                │ esm  │ 1.90 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/add-DgQv3EGG.mjs                       │ esm  │ 31.38 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/ai-B_wSDz0V.mjs                        │ esm  │ 2.51 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/app-shell-BUhLP-63.mjs                 │ esm  │ 15.86 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/button-DvwCqZNR.mjs                    │ esm  │ 1.41 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/care-Dh_jbGaQ.mjs                      │ esm  │ 16.62 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/caregiver-account-jxnaNYkF.mjs         │ esm  │ 2.62 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/check-BwVOVD6V.mjs                     │ esm  │ 18.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/client-BoMzwnHN.mjs                    │ esm  │ 31.70 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/createServerRpc-CcvdN_gc.mjs           │ esm  │ 0.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/db-BNx4IR3G.mjs                        │ esm  │ 22.69 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-lookup.server-DUg6fFL8.mjs        │ esm  │ 13.55 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-verify-BZlXpqEc.mjs               │ esm  │ 1.00 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-verify.server-B_VPVzWZ.mjs        │ esm  │ 3.13 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/email-password-form-Pj9QWu75.mjs       │ esm  │ 4.95 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/empty-plugin-adapters-D9UWiqvJ.mjs     │ esm  │ 0.22 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/family-BvBMnwsx.mjs                    │ esm  │ 21.14 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/gate-session-marker-xmFBQyXo.mjs       │ esm  │ 0.98 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/help-CdMPTZnW.mjs                      │ esm  │ 3.66 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/image-store.server-QDzMVzu0.mjs        │ esm  │ 14.60 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/input-BBSpgmhq.mjs                     │ esm  │ 0.74 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/isolation.server-CGNg1r0B.mjs          │ esm  │ 2.01 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/kysely-adapter-Cj_QZw5p.mjs            │ esm  │ 0.15 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/legal-page-ngW4VeM3.mjs                │ esm  │ 1.04 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/login-BDt060ln.mjs                     │ esm  │ 1.37 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/medicines-DZERUFvf.mjs                 │ esm  │ 6.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/middleware-DbN7ui69.mjs                │ esm  │ 1.93 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/photo-capture-2B0GNxs-.mjs             │ esm  │ 11.58 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/pill-cache-BR-LJ1ZH.mjs                │ esm  │ 8.10 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/privacy-BkPHqHfX.mjs                   │ esm  │ 9.13 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/push-client-DGIhyH_B.mjs               │ esm  │ 0.91 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/rolldown-runtime-D7D4PA-g.mjs          │ esm  │ 0.40 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/router-BsrKzVVY.mjs                    │ esm  │ 18.97 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/routes-BygpvIwx.mjs                    │ esm  │ 37.60 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/schedule-DnrDCuHm.mjs                  │ esm  │ 3.67 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/server-wre1GVC_.mjs                    │ esm  │ 330.29 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/sms-81EqhfOT.mjs                       │ esm  │ 0.82 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/ssr.mjs                                │ esm  │ 69.08 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/start-5Z2QO8AU.mjs                     │ esm  │ 0.14 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/terms-j00AF5WQ.mjs                     │ esm  │ 3.77 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/url-DwGxbmbA.mjs                       │ esm  │ 15.18 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/use-care-activity-DivWp7i-.mjs         │ esm  │ 1.37 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/use-hydrated-BtCLv5zs.mjs              │ esm  │ 3.75 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/utils-DvfgwUB7.mjs                     │ esm  │ 0.86 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/verify.server-DMgKFYsE.mjs             │ esm  │ 3.62 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/vision-rate-limit-B5QtOT9R.mjs         │ esm  │ 25.57 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _tanstack-start-manifest_v-DGsjDOnl.mjs     │ esm  │ 3.54 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _tasks/missed-doses.mjs                     │ esm  │ 30.64 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ Total (73 modules)                          │      │ 4014.78 KiB │
+└─────────────────────────────────────────────┴──────┴─────────────┘
+⎔ Starting local server...
+[wrangler:info] ✨ Parsed 1 valid header rule.
+  ➜  Local:   http://127.0.0.1:8081/
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mScheduled Workers are not automatically triggered during local development.[0m
+
+  To manually trigger a scheduled event, run:
+    curl "http://localhost:37459/cdn-cgi/local/scheduled"
+  For more details, see [4mhttps://developers.cloudflare.com/workers/configuration/cron-triggers/#test-cron-triggers-locally[0m
+
+
+Wrangler detected this dev session is running in an AI agent.
+The Local Explorer API is available at http://localhost:37459/cdn-cgi/local/explorer/api
+Useful routes:
+  GET http://localhost:37459/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings
+  GET http://localhost:37459/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces
+  GET http://localhost:37459/cdn-cgi/local/explorer/api/d1/database - D1 databases
+  GET http://localhost:37459/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets
+  GET http://localhost:37459/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces
+  GET http://localhost:37459/cdn-cgi/local/explorer/api/workflows - Workflows
+  POST http://localhost:37459/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:
+    curl -X POST http://localhost:37459/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{"sql":"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20"}'
+If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):
+  GET http://localhost:37459/cdn-cgi/local/explorer/api - OpenAPI schema
+[wrangler:info] Ready on http://localhost:37459
+[wrangler:info] GET / 200 OK (1018ms)
+[wrangler:info] GET / 200 OK (14ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (39ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (25ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (117ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (148ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (156ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (171ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (157ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (124ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (23ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (23ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (30ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (31ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (42ms)
+[wrangler:info] GET /samples/white-tablet.jpg 200 OK (8ms)
+[wrangler:info] GET /add 200 OK (21ms)
+[wrangler:info] GET /samples/bottle-lisinopril.jpg 200 OK (7ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (16ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (38ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (100ms)
+[wrangler:info] GET /assets/arrow-left-BX3K0tmm.js 200 OK (87ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (123ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (123ms)
+[wrangler:info] GET /assets/add-dCFfzpai.js 200 OK (122ms)
+[wrangler:info] GET /assets/ai-GERzAdAl.js 200 OK (72ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (27ms)
+[wrangler:info] GET /assets/shield-alert-Bd58MJi5.js 200 OK (22ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (32ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (32ms)
+[wrangler:info] GET /assets/shield-check-B_zY3eXR.js 200 OK (37ms)
+[wrangler:info] GET /samples/white-tablet.jpg 200 OK (9ms)
+[wrangler:info] GET /samples/blue-capsule.jpg 200 OK (30ms)
+[wrangler:info] GET /samples/peach-tablet.jpg 200 OK (34ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (46ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (52ms)
+[wrangler:info] GET /check 307 Temporary Redirect (126ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (150ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (162ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (154ms)
+[wrangler:info] GET /check 200 OK (28ms)
+[wrangler:info] GET /assets/check-CqnjS2bm.js 200 OK (27ms)
+[wrangler:info] GET /assets/sms-CX2tc124.js 200 OK (34ms)
+[wrangler:info] GET /check 307 Temporary Redirect (14ms)
+[wrangler:info] GET /check 200 OK (39ms)
+[wrangler:info] GET /check 200 OK (39ms)
+[wrangler:info] POST /_serverFn/63a79891fcb37df693e3223573ca07147bc34e6bd6437df2d821e16f55c76352 200 OK (79ms)
+[wrangler:info] GET /check 200 OK (31ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (16ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (12ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (45ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (63ms)
+[wrangler:info] GET /assets/check-CqnjS2bm.js 200 OK (45ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (52ms)
+[wrangler:info] GET /assets/ai-GERzAdAl.js 200 OK (73ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (63ms)
+[wrangler:info] GET /assets/shield-check-B_zY3eXR.js 200 OK (40ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (44ms)
+[wrangler:info] GET /assets/shield-alert-Bd58MJi5.js 200 OK (48ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (53ms)
+[wrangler:info] GET /assets/sms-CX2tc124.js 200 OK (38ms)
+[wrangler:info] GET / 200 OK (20ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (7ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (23ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (28ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (87ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (94ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (67ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (101ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (60ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (76ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (16ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (64ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (74ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (81ms)
+[wrangler:info] GET / 200 OK (62ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (55ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (80ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (76ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (85ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (85ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (86ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (87ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (47ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (48ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (39ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (29ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (29ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (33ms)
+[wrangler:info] GET /__app-env 404 Not Found (37ms)
+[wrangler:info] GET / 200 OK (19ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (15ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (12ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (59ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (38ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (72ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (71ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (79ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (41ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (24ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (33ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (46ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (46ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (53ms)
+[wrangler:info] GET /assets/family-Jk0MGBwX.js 200 OK (22ms)
+[wrangler:info] GET /assets/shield-alert-Bd58MJi5.js 200 OK (34ms)
+[wrangler:info] GET /assets/trash-2-uZ7Gego5.js 200 OK (34ms)
+[wrangler:info] GET /assets/sms-CX2tc124.js 200 OK (35ms)
+[wrangler:info] POST /_serverFn/6e63876eed1a5f7b4f4f95401ae526a7cc96a4b12e313456ef5ac8a03156c0a7 200 OK (213ms)
+[wrangler:info] POST /_serverFn/d8cadb242f984c86ec5b3582ce1b5f9cee4b3523f72766a7659b8b492c8f83db 200 OK (312ms)
+[wrangler:info] POST /_serverFn/d8cadb242f984c86ec5b3582ce1b5f9cee4b3523f72766a7659b8b492c8f83db 200 OK (345ms)
+⎔ Reloading local server...
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mENOENT: no such file or directory, scandir '/workspaces/suredose/.output/public'[0m
+
+
+[32mIf you think this is a bug then please create an issue at https://github.com/cloudflare/workers-sdk/issues/new/choose[0m
+Note that there is a newer version of Wrangler available (4.157.0). Consider checking whether upgrading resolves this error.
+⎔ Reloading local server...
+🪵  Logs were written to "/home/codespace/.config/.wrangler/logs/wrangler-2026-11-03_12-08-55_943.log"
+
+ ERROR  [nitro] Preview server exited with code 1
+
+
+> preview
+> node scripts/with-app-env.mjs vite preview
+
+
+ ╭────────── [Build Info] ─────────────╮
+ │                                     │
+ │  - Build Directory: .output         │
+ │  - Date: 11/3/2026, 12:13:22 PM     │
+ │  - Nitro Version: 3.0.260610-beta   │
+ │  - Nitro Preset: cloudflare-module  │
+ │                                     │
+ ╰─────────────────────────────────────╯
+
+ℹ Spawning preview server...
+ℹ npx wrangler --cwd ./ dev
+
+
+ ⛅️ wrangler 4.129.0 (update available 4.157.0)
+───────────────────────────────────────────────
+Using redirected Wrangler configuration.
+ - Configuration being used: ".output/server/wrangler.json"
+ - Original user's configuration: "wrangler.jsonc"
+ - Deploy configuration file: ".wrangler/deploy/config.json"
+Your Worker has access to the following bindings:
+Binding                                     Resource         Mode
+env.DB (suredose-test)                      D1 Database      local
+env.PILL_IMAGES (suredose-pill-images)      R2 Bucket        local
+env.ASSETS                                  Assets           local
+
+Attaching additional modules:
+┌─────────────────────────────────────────────┬──────┬─────────────┐
+│ Name                                        │ Type │ Size        │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _chunks/ssr-renderer.mjs                    │ esm  │ 0.94 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/core+[...].mjs           │ esm  │ 780.14 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/kysely-adapter+[...].mjs │ esm  │ 467.89 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@better-auth/telemetry+[...].mjs      │ esm  │ 14.42 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@block65/webcrypto-web-push+[...].mjs │ esm  │ 9.25 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@tanstack/react-router+[...].mjs      │ esm  │ 654.06 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/@tanstack/router-core+[...].mjs       │ esm  │ 120.38 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/better-auth__memory-adapter.mjs       │ esm  │ 14.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/better-auth__utils.mjs                │ esm  │ 3.72 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/class-variance-authority+clsx.mjs     │ esm  │ 3.10 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/defu.mjs                              │ esm  │ 1.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/electric-sql__pglite.mjs              │ esm  │ 734.77 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/h3+rou3+srvx.mjs                      │ esm  │ 13.91 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/h3-v2+rou3.mjs                        │ esm  │ 17.17 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/hookable.mjs                          │ esm  │ 1.14 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/jose.mjs                              │ esm  │ 37.73 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/lucide-react.mjs                      │ esm  │ 10.59 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/nanostores.mjs                        │ esm  │ 5.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/noble__ciphers.mjs                    │ esm  │ 46.29 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/noble__hashes.mjs                     │ esm  │ 23.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/pg.mjs                                │ esm  │ 148.74 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/tailwind-merge.mjs                    │ esm  │ 86.07 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/tanstack__history.mjs                 │ esm  │ 11.77 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/zod.mjs                               │ esm  │ 0.36 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _libs/zustand.mjs                           │ esm  │ 6.56 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _runtime.mjs                                │ esm  │ 1.90 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/add-DgQv3EGG.mjs                       │ esm  │ 31.38 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/ai-CYGSbLgd.mjs                        │ esm  │ 2.51 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/app-shell-BUhLP-63.mjs                 │ esm  │ 15.86 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/button-DvwCqZNR.mjs                    │ esm  │ 1.41 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/care-ChVu6Lso.mjs                      │ esm  │ 16.62 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/caregiver-account-DJVhuYyP.mjs         │ esm  │ 2.62 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/check-BPVcWdib.mjs                     │ esm  │ 18.37 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/client-BoMzwnHN.mjs                    │ esm  │ 31.70 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/createServerRpc-CcvdN_gc.mjs           │ esm  │ 0.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/db-C5b74qmr.mjs                        │ esm  │ 22.67 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-lookup.server-CGU8IkSH.mjs        │ esm  │ 13.55 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-verify-6rq1Dxma.mjs               │ esm  │ 1.00 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/drug-verify.server-ByXift9t.mjs        │ esm  │ 3.13 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/email-password-form-Pj9QWu75.mjs       │ esm  │ 4.95 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/empty-plugin-adapters-D9UWiqvJ.mjs     │ esm  │ 0.22 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/family-BvBMnwsx.mjs                    │ esm  │ 21.14 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/gate-session-marker-xmFBQyXo.mjs       │ esm  │ 0.98 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/help-CdMPTZnW.mjs                      │ esm  │ 3.66 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/image-store.server-QDzMVzu0.mjs        │ esm  │ 14.60 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/input-BBSpgmhq.mjs                     │ esm  │ 0.74 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/isolation.server-CGNg1r0B.mjs          │ esm  │ 2.01 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/kysely-adapter-Cj_QZw5p.mjs            │ esm  │ 0.15 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/legal-page-ngW4VeM3.mjs                │ esm  │ 1.04 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/login-BDt060ln.mjs                     │ esm  │ 1.37 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/medicines-DZERUFvf.mjs                 │ esm  │ 6.38 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/middleware-CKTs_vrn.mjs                │ esm  │ 1.93 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/photo-capture-2B0GNxs-.mjs             │ esm  │ 11.58 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/pill-cache-DkJVPg6n.mjs                │ esm  │ 8.10 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/privacy-BkPHqHfX.mjs                   │ esm  │ 9.13 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/push-client-DGIhyH_B.mjs               │ esm  │ 0.91 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/rolldown-runtime-D7D4PA-g.mjs          │ esm  │ 0.40 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/router-CvA5fuNR.mjs                    │ esm  │ 18.97 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/routes-9fMXbx7s.mjs                    │ esm  │ 37.60 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/schedule-DnrDCuHm.mjs                  │ esm  │ 3.67 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/server-DLgOJwQz.mjs                    │ esm  │ 330.29 KiB  │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/sms-81EqhfOT.mjs                       │ esm  │ 0.82 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/ssr.mjs                                │ esm  │ 69.08 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/start-5Z2QO8AU.mjs                     │ esm  │ 0.14 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/terms-j00AF5WQ.mjs                     │ esm  │ 3.77 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/url-DwGxbmbA.mjs                       │ esm  │ 15.18 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/use-care-activity-DivWp7i-.mjs         │ esm  │ 1.37 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/use-hydrated-BtCLv5zs.mjs              │ esm  │ 3.75 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/utils-DvfgwUB7.mjs                     │ esm  │ 0.86 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/verify.server-yL_chyw8.mjs             │ esm  │ 3.65 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _ssr/vision-rate-limit-BpWOHbeq.mjs         │ esm  │ 25.57 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _tanstack-start-manifest_v-DGsjDOnl.mjs     │ esm  │ 3.54 KiB    │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ _tasks/missed-doses.mjs                     │ esm  │ 30.62 KiB   │
+├─────────────────────────────────────────────┼──────┼─────────────┤
+│ Total (73 modules)                          │      │ 4014.78 KiB │
+└─────────────────────────────────────────────┴──────┴─────────────┘
+⎔ Starting local server...
+[wrangler:info] ✨ Parsed 1 valid header rule.
+  ➜  Local:   http://127.0.0.1:8081/
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mScheduled Workers are not automatically triggered during local development.[0m
+
+  To manually trigger a scheduled event, run:
+    curl "http://localhost:42177/cdn-cgi/local/scheduled"
+  For more details, see [4mhttps://developers.cloudflare.com/workers/configuration/cron-triggers/#test-cron-triggers-locally[0m
+
+
+Wrangler detected this dev session is running in an AI agent.
+The Local Explorer API is available at http://localhost:42177/cdn-cgi/local/explorer/api
+Useful routes:
+  GET http://localhost:42177/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings
+  GET http://localhost:42177/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces
+  GET http://localhost:42177/cdn-cgi/local/explorer/api/d1/database - D1 databases
+  GET http://localhost:42177/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets
+  GET http://localhost:42177/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces
+  GET http://localhost:42177/cdn-cgi/local/explorer/api/workflows - Workflows
+  POST http://localhost:42177/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:
+    curl -X POST http://localhost:42177/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{"sql":"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20"}'
+If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):
+  GET http://localhost:42177/cdn-cgi/local/explorer/api - OpenAPI schema
+[wrangler:info] Ready on http://localhost:42177
+[wrangler:info] GET / 200 OK (1061ms)
+[wrangler:info] GET / 200 OK (43ms)
+[wrangler:info] GET / 200 OK (15ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (57ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (156ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (158ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (167ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (152ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (172ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (78ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (194ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (68ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (51ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (88ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (100ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (50ms)
+[wrangler:info] GET / 200 OK (19ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (12ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (10ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (59ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (77ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (76ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (56ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (82ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (74ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (39ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (52ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (60ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (61ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (69ms)
+[wrangler:info] GET /__app-env 404 Not Found (31ms)
+[wrangler:info] GET / 200 OK (17ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (7ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (27ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (68ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (71ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (63ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (63ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (46ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (74ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (22ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (40ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (31ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (47ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (62ms)
+[wrangler:info] GET /samples/white-tablet.jpg 200 OK (8ms)
+[wrangler:info] GET /add 200 OK (42ms)
+[wrangler:info] GET /samples/bottle-lisinopril.jpg 200 OK (8ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (14ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (72ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (79ms)
+[wrangler:info] GET /assets/arrow-left-BX3K0tmm.js 200 OK (63ms)
+[wrangler:info] GET /assets/ai-GERzAdAl.js 200 OK (23ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (75ms)
+[wrangler:info] GET /assets/add-dCFfzpai.js 200 OK (75ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (76ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (7ms)
+[wrangler:info] GET /assets/shield-alert-Bd58MJi5.js 200 OK (48ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (60ms)
+[wrangler:info] GET /assets/input-BjW4Khwd.js 200 OK (72ms)
+[wrangler:info] GET /assets/shield-check-B_zY3eXR.js 200 OK (75ms)
+[wrangler:info] GET /samples/white-tablet.jpg 200 OK (18ms)
+[wrangler:info] GET /samples/blue-capsule.jpg 200 OK (19ms)
+[wrangler:info] GET /samples/peach-tablet.jpg 200 OK (25ms)
+[wrangler:info] GET /assets/routes-DNCs9NQP.js 200 OK (33ms)
+[wrangler:info] GET /assets/push-client-CVwjdevC.js 200 OK (32ms)
+[wrangler:info] GET /assets/email-password-form-BEmxnfbx.js 200 OK (35ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (30ms)
+[wrangler:info] GET /assets/use-care-activity-DZyFmBxP.js 200 OK (37ms)
+[wrangler:info] GET /check 307 Temporary Redirect (101ms)
+[wrangler:info] GET /check 200 OK (25ms)
+[wrangler:info] GET /assets/check-CqnjS2bm.js 200 OK (22ms)
+[wrangler:info] GET /assets/sms-CX2tc124.js 200 OK (35ms)
+[wrangler:info] GET /check 307 Temporary Redirect (15ms)
+[wrangler:info] GET /check 200 OK (27ms)
+[wrangler:info] GET /check 200 OK (13ms)
+[wrangler:info] POST /_serverFn/63a79891fcb37df693e3223573ca07147bc34e6bd6437df2d821e16f55c76352 200 OK (79ms)
+[wrangler:info] GET /check 200 OK (29ms)
+[wrangler:info] GET /assets/styles-Sy3IIQVl.css 200 OK (10ms)
+[wrangler:info] GET /assets/index-D1dCubAY.js 200 OK (25ms)
+[wrangler:info] GET /assets/app-shell-K_lyJvp7.js 200 OK (81ms)
+[wrangler:info] GET /assets/ai-GERzAdAl.js 200 OK (56ms)
+[wrangler:info] GET /assets/react-SIfiwpqq.js 200 OK (92ms)
+[wrangler:info] GET /assets/createClientRpc-2Mxs1SE1.js 200 OK (91ms)
+[wrangler:info] GET /assets/check-CqnjS2bm.js 200 OK (90ms)
+[wrangler:info] GET /assets/refresh-cw-BtkfFnPU.js 200 OK (35ms)
+[wrangler:info] GET /assets/shield-alert-Bd58MJi5.js 200 OK (23ms)
+[wrangler:info] GET /assets/use-hydrated-W8GiLGw8.js 200 OK (39ms)
+[wrangler:info] GET /assets/sms-CX2tc124.js 200 OK (39ms)
+[wrangler:info] GET /assets/shield-check-B_zY3eXR.js 200 OK (43ms)
+[wrangler:info] GET /assets/button-BvpGlYhM.js 200 OK (45ms)

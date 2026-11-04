@@ -7,6 +7,7 @@ export type Medicine = {
   instructions: string;
   bottleImage: string;
   pillImage: string;
+  pillImageBack?: string;
   times: string[];
   createdAt: number;
   /**
@@ -56,6 +57,27 @@ export type Settings = {
   role: CareRole;
   /** The shared family pairing code, once created or joined. Empty = not paired. */
   householdCode: string;
+  /**
+   * Random id for this phone, used only to find and delete the pill photos
+   * this phone added to the pill library. Created the first time it's needed.
+   */
+  deviceId?: string;
+  /** Stable browser id used to make caregiver household joins idempotent. */
+  caregiverDeviceId?: string;
+  /**
+   * The person ticked "Add this pill photo to the SureDose pill library".
+   * Off unless they choose it: a pill photo plus its medicine name is
+   * health information, so it is shared only with consent.
+   */
+  sharePillPhotos?: boolean;
+};
+
+/** Visible features of a pill, as read from a photo by the vision model. */
+export type PillFeatures = {
+  imprint: string;
+  color: string;
+  shape: string;
+  form: string;
 };
 
 export type DoseSlot = {
@@ -70,7 +92,7 @@ export type DoseSlot = {
 export type BottleRead = {
   name: string;
   strength: string;
-  timesPerDay: number;
+  timesPerDay: number | null;
   times: string[];
   instructions: string;
   /** NDC printed on the label, as printed ("" when not visible). */
@@ -89,9 +111,9 @@ export type VerifiedMedicine = {
   labeler: string;
   ndc: string;
   rxcui: string;
-  /** From the FDA label (NDC checks only), "" otherwise. */
+  /** From the matched FDA product label when available. */
   appearance: string;
-  /** The maker's pill photo from the FDA label, as a JPEG data URL. */
+  /** The matched maker's pill photo from the FDA label, as a JPEG data URL. */
   officialImage: string | null;
 };
 
@@ -101,9 +123,10 @@ export type MedicineCheck =
   | { status: "unavailable"; message: string };
 
 export type PillMatch = {
-  match: boolean;
-  confidence: number;
+  /** Visual observation only; never proof of identity or permission to dose. */
+  observation: "similar" | "different" | "uncertain";
   reason: string;
+  nextAction: "none" | "retake" | "other_side" | "reference" | "pharmacist";
 };
 
 /** One row in the caregiver's activity feed — a dose that was taken or missed. */

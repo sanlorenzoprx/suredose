@@ -7,3 +7,7 @@ node_modules/
 .output/
 .vercel/
 .wrangler/
+
+# Vision evaluation output (real label photos; never commit)
+eval-results/
+eval-photos/

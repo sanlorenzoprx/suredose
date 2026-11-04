@@ -1,5 +1,5 @@
 {
-  "name": "suredose",
+  "name": "suredose-test",
   "compatibility_date": "2026-09-06",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
@@ -16,6 +16,12 @@
       "bucket_name": "suredose-pill-images"
     }
   ],
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "suredose",
+    "database_id": "f0ff8234-58ff-420f-9ffa-b5363ed713ad",
+    "migrations_dir": "migrations/d1"
+  }],
   "observability": {
     "enabled": true
   }

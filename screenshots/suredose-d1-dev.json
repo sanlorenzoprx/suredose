@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "SureDose",
+      "hasCanvas": false,
+      "bodyTextLen": 96,
+      "bodyTextHash": "aed4d34715c1551d014552a1eb755bf473fbfa0b3b4534d7537c7f0bf2818e2b",
+      "bodyTextPrefix": "SUREDOSE Welcome Whose phone is this? I take medicine I'm helpin",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspaces/suredose/screenshots/suredose-d1-dev.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "SureDose",
+      "hasCanvas": false,
+      "bodyTextLen": 96,
+      "bodyTextHash": "aed4d34715c1551d014552a1eb755bf473fbfa0b3b4534d7537c7f0bf2818e2b",
+      "bodyTextPrefix": "SUREDOSE Welcome Whose phone is this? I take medicine I'm helpin",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspaces/suredose/screenshots/suredose-d1-dev-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspaces/suredose/screenshots/suredose-d1-dev.json"
+}

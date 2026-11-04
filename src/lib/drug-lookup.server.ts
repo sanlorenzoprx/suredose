@@ -1,6 +1,9 @@
 import { getSql } from "./db";
 import {
+  COMPONENT_DRUG_TTYS,
   SPECIFIC_DRUG_TTYS,
+  parseRelatedConcepts,
+  plainFormFirst,
   canonicalProductNdc,
   dailyMedImageUrl,
   describeAppearance,
@@ -12,6 +15,7 @@ import {
   parseFdaNdcResponse,
   parseRxProperties,
   parseSplAppearance,
+  productAgreesWithLabel,
   productNdcCandidates,
   strengthMatches,
   type FdaProduct,
@@ -71,9 +75,9 @@ async function fetchJson(url: string): Promise<unknown | null> {
   return res ? res.json() : null;
 }
 
-function fdaUrl(search: string, limit: number): string {
+function fdaUrl(search: string, limit: number, skip = 0): string {
   const key = process.env.OPENFDA_API_KEY;
-  return `${OPENFDA}?search=${encodeURIComponent(search)}&limit=${limit}${key ? `&api_key=${encodeURIComponent(key)}` : ""}`;
+  return `${OPENFDA}?search=${encodeURIComponent(search)}&limit=${limit}${skip ? `&skip=${skip}` : ""}${key ? `&api_key=${encodeURIComponent(key)}` : ""}`;
 }
 
 function isFresh(fetchedAt: string | Date, days: number): boolean {
@@ -111,6 +115,32 @@ async function fdaByProductNdc(productNdc: string): Promise<FdaProduct | null> {
   return json ? (parseFdaNdcResponse(json)[0] ?? null) : null;
 }
 
+async function fdaByRxcui(
+  rxcui: string,
+): Promise<{ products: FdaProduct[]; complete: boolean }> {
+  const products: FdaProduct[] = [];
+  let skip = 0;
+  while (true) {
+    const json = await fetchJson(fdaUrl(`openfda.rxcui:"${rxcui}"`, 1000, skip));
+    if (!json) return { products, complete: skip === 0 };
+    const page = json as {
+      results?: unknown[];
+      meta?: { results?: { total?: number } };
+    };
+    const records = page.results ?? [];
+    products.push(...parseFdaNdcResponse(json, rxcui));
+    const total = page.meta?.results?.total;
+    if (typeof total === "number") {
+      if (skip + records.length >= total) return { products, complete: true };
+      if (records.length === 0) return { products, complete: false };
+    } else if (records.length < 1000) {
+      return { products, complete: true };
+    }
+    skip += records.length;
+    if (skip > 25000) return { products, complete: false };
+  }
+}
+
 async function fdaBySetId(setId: string): Promise<FdaProduct[]> {
   const json = await fetchJson(fdaUrl(`openfda.spl_set_id:"${setId}"`, 100));
   return json ? parseFdaNdcResponse(json) : [];
@@ -134,9 +164,14 @@ async function fetchJpeg(url: string): Promise<Uint8Array | null> {
     const res = await fetchOrNull(url, "image/jpeg");
     if (!res) return null;
     const bytes = new Uint8Array(await res.arrayBuffer());
-    return isJpeg(bytes) && bytes.length <= MAX_IMAGE_BYTES ? bytes : null;
+    if (!isJpeg(bytes) || bytes.length > MAX_IMAGE_BYTES) {
+      console.error("DailyMed pill image response was not usable");
+      return null;
+    }
+    return bytes;
   } catch {
-    return null; // a missing photo never blocks the check itself
+    console.error("DailyMed pill image fetch failed");
+    return null;
   }
 }
 
@@ -145,7 +180,14 @@ async function fetchJpeg(url: string): Promise<Uint8Array | null> {
  * the given products (all from that label) to the cache.
  */
 export async function ingestProducts(setId: string, products: FdaProduct[]): Promise<ProductRow[]> {
-  const xml = setId ? await fetchSplXml(setId).catch(() => null) : null;
+  let xml: string | null = null;
+  if (setId) {
+    try {
+      xml = await fetchSplXml(setId);
+    } catch {
+      console.error("DailyMed pill label lookup failed");
+    }
+  }
   const looks = xml ? parseSplAppearance(xml) : [];
   const sql = await getSql();
   const rows: ProductRow[] = [];
@@ -209,30 +251,121 @@ export async function ingestProducts(setId: string, products: FdaProduct[]): Pro
  * The exact product for an NDC read off a bottle: cache first, then
  * openFDA + DailyMed. Returns null when no reading of the NDC is a real
  * product. Serves a stale cached row if the government services are down.
+ *
+ * An NDC printed without dashes can be read several ways, and more than
+ * one reading can be a real product. `hint` (the name and strength read
+ * off the same label) picks the reading that agrees with the label, so a
+ * different drug that happens to share the digits isn't returned first.
  */
-export async function lookupByNdc(rawNdc: string): Promise<ProductRow | null> {
+export async function lookupByNdc(
+  rawNdc: string,
+  hint: { name?: string; strength?: string } = {},
+): Promise<ProductRow | null> {
   const candidates = productNdcCandidates(rawNdc);
   if (candidates.length === 0) return null;
+  const agrees = (r: ProductRow) =>
+    productAgreesWithLabel({ names: [r.name, r.generic_name, r.brand_name], strength: r.strength }, hint);
+
   const sql = await getSql();
   const cached = await sql<ProductRow>`
     select * from drug_products where product_ndc = any(${candidates.map(canonicalProductNdc)})
   `;
-  const fresh = cached.find((r) => isFresh(r.fetched_at, PRODUCT_TTL_DAYS));
-  if (fresh) return fresh;
+  const fresh = cached.filter((r) => isFresh(r.fetched_at, PRODUCT_TTL_DAYS));
+  const freshMatch = fresh.find(agrees);
+  if (freshMatch) return freshMatch;
+  // A single reading that's fresh in the cache is the answer even if it
+  // disagrees with the label; verifyMedicine reports the disagreement.
+  if (candidates.length === 1 && fresh[0]) return fresh[0];
 
+  const found: ProductRow[] = [];
   try {
     for (const c of candidates) {
-      const product = await fdaByProductNdc(c);
-      if (!product) continue;
-      const setId = product.splSetId || (await dailyMedSetIdForNdc(product.productNdc).catch(() => ""));
-      const [row] = await ingestProducts(setId, [product]);
-      return row ?? null;
+      let row = fresh.find((r) => r.product_ndc === canonicalProductNdc(c));
+      if (!row) {
+        const product = await fdaByProductNdc(c);
+        if (!product) continue;
+        const setId = product.splSetId || (await dailyMedSetIdForNdc(product.productNdc).catch(() => ""));
+        [row] = await ingestProducts(setId, [product]);
+      }
+      if (!row) continue;
+      if (agrees(row)) return row;
+      found.push(row);
     }
-    return null;
+    return found[0] ?? null;
   } catch (err) {
-    if (cached[0]) return cached[0];
+    const fallback = found[0] ?? cached.find(agrees) ?? cached[0];
+    if (fallback) return fallback;
     throw err;
   }
+}
+
+/**
+ * Find a maker's photo for an RxNorm drug when the bottle NDC was unreadable.
+ * The RxCUI narrows FDA products to the verified drug concept; exact name and
+ * strength matching then keeps a different product from supplying its photo.
+ */
+export async function lookupImageByRxcui(
+  rxcui: string,
+  hint: { name: string; strength: string },
+): Promise<ProductRow | null> {
+  if (!/^\d+$/.test(rxcui)) return null;
+
+  const sql = await getSql();
+  const cached = await sql<ProductRow>`
+    select * from drug_products where rxcui = ${rxcui}
+  `;
+  const matches = (product: {
+    name: string;
+    generic_name: string;
+    brand_name: string;
+    strength: string;
+  }) =>
+    productAgreesWithLabel(
+      {
+        names: [product.name, product.generic_name, product.brand_name],
+        strength: product.strength,
+      },
+      hint,
+    ) && strengthMatches(hint.strength, product.strength) === true;
+  const result = await fdaByRxcui(rxcui);
+  if (!result.complete) return null;
+
+  const distinctProducts = new Map<string, FdaProduct>();
+  for (const product of result.products) {
+    const rawNdc = product.productNdc.trim();
+    if (!/^\d{4,5}-\d{3,4}$/.test(rawNdc)) continue;
+    if (
+      product.rxcui !== rxcui ||
+      !matches({
+        name: product.name,
+        generic_name: product.genericName,
+        brand_name: product.brandName,
+        strength: product.strength,
+      })
+    )
+      continue;
+    const normalizedNdc = canonicalProductNdc(rawNdc);
+    if (!distinctProducts.has(normalizedNdc)) distinctProducts.set(normalizedNdc, product);
+  }
+  if (distinctProducts.size !== 1) return null;
+
+  const [productNdc, product] = [...distinctProducts.entries()][0];
+  const cachedPhoto = cached.find(
+    (row) =>
+      row.product_ndc === productNdc &&
+      row.image_storage !== "none" &&
+      matches(row),
+  );
+  if (cachedPhoto) return cachedPhoto;
+
+  try {
+    const setId = product.splSetId || (await dailyMedSetIdForNdc(product.productNdc));
+    const [row] = await ingestProducts(setId, [product]);
+    if (row && row.image_storage !== "none") return row;
+  } catch {
+    console.error("DailyMed pill image lookup failed");
+  }
+  return null;
 }
 
 /** Warm the cache with every product on one DailyMed label (seeding). */
@@ -244,12 +377,16 @@ export async function warmLabel(setId: string): Promise<{ products: number; with
 }
 
 export async function productToVerified(row: ProductRow): Promise<VerifiedMedicine> {
-  const officialImage =
-    row.image_storage === "inline"
-      ? row.inline_image
-      : row.image_storage === "r2" && row.image_sha
-        ? await getOfficialImage(row.image_sha).catch(() => null)
-        : null;
+  let officialImage: string | null = null;
+  if (row.image_storage === "inline") {
+    officialImage = row.inline_image;
+  } else if (row.image_storage === "r2" && row.image_sha) {
+    try {
+      officialImage = await getOfficialImage(row.image_sha);
+    } catch {
+      console.error("Cached official pill image could not be loaded");
+    }
+  }
   return {
     by: "ndc",
     name: row.name,
@@ -283,24 +420,59 @@ function displayStrength(bottle: string, official: string): string {
   return official;
 }
 
+type SpecificDrug = { c: RxConcept; parsed: NonNullable<ReturnType<typeof parseClinicalDrugName>> };
+
+function toSpecific(concepts: RxConcept[]): SpecificDrug[] {
+  return concepts
+    .filter((c) => SPECIFIC_DRUG_TTYS.has(c.tty))
+    .map((c) => ({ c, parsed: parseClinicalDrugName(c.name) }))
+    .filter((x): x is SpecificDrug => x.parsed !== null);
+}
+
 async function lookupByNameUncached(name: string, strength: string): Promise<NameLookup> {
   const term = `${name} ${strength}`.trim();
-  const approx = await fetchJson(`${RXNAV}/approximateTerm.json?term=${encodeURIComponent(term)}&maxEntries=10&option=1`);
-  const rxcuis = approx ? parseApproximateTerm(approx).slice(0, 6) : [];
+  const approx = await fetchJson(`${RXNAV}/approximateTerm.json?term=${encodeURIComponent(term)}&maxEntries=15&option=1`);
+  const rxcuis = approx ? parseApproximateTerm(approx).slice(0, 10) : [];
   const concepts = (await Promise.all(rxcuis.map(rxProperties))).filter((c): c is RxConcept => c !== null);
 
   const sameDrug = concepts.filter((c) => namesMatch(name, [c.name]));
   if (sameDrug.length === 0) return { found: false, reason: "no_drug" };
 
-  const specific = sameDrug
-    .filter((c) => SPECIFIC_DRUG_TTYS.has(c.tty))
-    .map((c) => ({ c, parsed: parseClinicalDrugName(c.name) }))
-    .filter((x): x is { c: RxConcept; parsed: NonNullable<typeof x.parsed> } => x.parsed !== null);
+  let specific = toSpecific(sameDrug);
+  const hasStrength = (list: SpecificDrug[]) =>
+    strength !== "" && list.some((x) => strengthMatches(strength, x.parsed.strength) === true);
+
+  // Searches often return component-level entries ("metformin hydrochloride 500 MG") and not
+  // the full tablet entry. When none of the full entries match, follow the matching
+  // components to their full entries instead of reporting a wrong "different strength".
+  if (strength && !hasStrength(specific)) {
+    const components = sameDrug
+      .filter((c) => COMPONENT_DRUG_TTYS.has(c.tty))
+      .filter((c) => {
+        const parsed = parseClinicalDrugName(c.name);
+        return parsed !== null && strengthMatches(strength, parsed.strength) === true;
+      })
+      .slice(0, 3);
+    for (const component of components) {
+      const related = await fetchJson(
+        `${RXNAV}/rxcui/${encodeURIComponent(component.rxcui)}/related.json?tty=SCD+SBD`,
+      );
+      const full = toSpecific(
+        parseRelatedConcepts(related).filter((c) => namesMatch(name, [c.name])),
+      );
+      for (const item of full) {
+        if (!specific.some((x) => x.c.rxcui === item.c.rxcui)) specific = [...specific, item];
+      }
+    }
+  }
 
   const drugName = specific[0]?.parsed.ingredients ?? sameDrug[0].name;
   if (!strength) return { found: false, reason: "need_strength", drugName };
 
-  const withStrength = specific.filter((x) => strengthMatches(strength, x.parsed.strength) === true);
+  const withStrength = plainFormFirst(
+    specific.filter((x) => strengthMatches(strength, x.parsed.strength) === true),
+    name,
+  );
   if (withStrength.length === 0) return { found: false, reason: "strength", drugName };
 
   // Bottle says a brand ("Lipitor") → the branded concept; otherwise generic.
@@ -319,7 +491,8 @@ async function lookupByNameUncached(name: string, strength: string): Promise<Nam
 }
 
 export async function lookupByName(name: string, strength: string): Promise<NameLookup> {
-  const key = `${normName(name)}|${normStrength(strength)}`;
+  // v2: earlier versions cached wrong "different strength" answers for 30 days.
+  const key = `v2|${normName(name)}|${normStrength(strength)}`;
   const sql = await getSql();
   const cached = await sql<{ result: NameLookup; fetched_at: string }>`
     select result, fetched_at from drug_name_lookups where query_key = ${key}
@@ -333,6 +506,8 @@ export async function lookupByName(name: string, strength: string): Promise<Name
     if (cached[0]) return cached[0].result;
     throw err;
   }
+  // Only remember successes: a "not found" can be a search miss, and must be retried.
+  if (!result.found) return result;
   await sql`
     insert into drug_name_lookups (query_key, result, fetched_at)
     values (${key}, ${JSON.stringify(result)}::jsonb, now())

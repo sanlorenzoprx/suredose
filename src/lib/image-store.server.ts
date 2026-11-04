@@ -2,7 +2,9 @@ import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
 
 /**
- * Where cached official pill photos are kept.
+ * Where cached pill photos are kept — both kinds share one bucket:
+ *   official/<sha256>.jpg  makers' photos from FDA labels (drug cache)
+ *   pills/<sha256>.jpg     photos people chose to add to the pill library
  *
  * Deployed on Cloudflare: the R2 bucket bound as `PILL_IMAGES` (see
  * wrangler.jsonc). Nitro's cloudflare_module preset puts the Worker's `env`
@@ -24,6 +26,7 @@ interface R2BucketLike {
   ): Promise<unknown>;
   get(key: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> } | null>;
   head(key: string): Promise<unknown | null>;
+  delete(key: string): Promise<void>;
 }
 
 function bucket(): R2BucketLike | null {
@@ -52,25 +55,49 @@ export function toJpegDataUrl(bytes: Uint8Array | ArrayBuffer): string {
   return `data:image/jpeg;base64,${buf.toString("base64")}`;
 }
 
-function objectKey(sha: string): string {
-  return `official/${sha}.jpg`;
+export type ImageKind = "official" | "pills";
+
+function objectKey(kind: ImageKind, sha: string): string {
+  return `${kind}/${sha}.jpg`;
 }
 
 /** Store in R2, content-addressed so an identical photo is kept once. */
-export async function putOfficialImage(bytes: Uint8Array): Promise<string> {
+export async function putImage(kind: ImageKind, bytes: Uint8Array): Promise<string> {
   const b = bucket();
   if (!b) throw new Error("R2 bucket PILL_IMAGES is not bound");
   const sha = sha256Hex(bytes);
-  const key = objectKey(sha);
+  const key = objectKey(kind, sha);
   if (!(await b.head(key))) {
     await b.put(key, bytes, { httpMetadata: { contentType: "image/jpeg" } });
   }
   return sha;
 }
 
-export async function getOfficialImage(sha: string): Promise<string | null> {
+export async function getImage(kind: ImageKind, sha: string): Promise<string | null> {
   const b = bucket();
   if (!b) return null;
-  const obj = await b.get(objectKey(sha));
+  const obj = await b.get(objectKey(kind, sha));
   return obj ? toJpegDataUrl(await obj.arrayBuffer()) : null;
+}
+
+export async function deleteImage(kind: ImageKind, sha: string): Promise<void> {
+  const b = bucket();
+  if (!b) return;
+  await b.delete(objectKey(kind, sha));
+}
+
+export const putOfficialImage = (bytes: Uint8Array) => putImage("official", bytes);
+export const getOfficialImage = (sha: string) => getImage("official", sha);
+
+/**
+ * Decode a `data:image/jpeg;base64,...` URL from the phone and check it is a
+ * JPEG of sane size. The phone re-encodes every photo through a canvas
+ * (src/lib/image.ts), which also strips EXIF data such as GPS location.
+ */
+export function decodeJpegDataUrl(dataUrl: string): { bytes: Uint8Array; sha256: string } | null {
+  const match = /^data:image\/jpe?g;base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  if (!match) return null;
+  const bytes = new Uint8Array(Buffer.from(match[1], "base64"));
+  if (!isJpeg(bytes) || bytes.length > MAX_IMAGE_BYTES) return null;
+  return { bytes, sha256: sha256Hex(bytes) };
 }

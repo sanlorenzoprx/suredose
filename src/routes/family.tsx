@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Bell, Heart, ShieldAlert, Trash2, Volume2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
+import { VideoCallButton } from "@/components/video-call-button";
 import { Input, Label } from "@/components/ui/input";
 import { requestNotifyPermission } from "@/lib/alerts";
 import { createHousehold, deleteHousehold } from "@/lib/care";
@@ -51,14 +52,22 @@ function CaregiverFamilyPage() {
         <p className="mt-2 text-lg text-muted">Family code: {settings.householdCode}</p>
       </section>
 
+      {settings.householdCode ? (
+        <VideoCallButton
+          familyCode={settings.householdCode}
+          myName={settings.caregiverName}
+          otherName={settings.patientName}
+        />
+      ) : null}
+
       <section className="rounded-xl bg-paper p-5 shadow-card">
         <h2 className="flex items-center gap-2 text-2xl font-bold">
           <ShieldAlert className="size-6" />
           Stop getting alerts
         </h2>
         <p className="mt-2 text-xl text-muted">
-          This disconnects this phone from {settings.patientName}'s family code and turns off
-          alerts here.
+          This disconnects this phone from {settings.patientName}'s family code and turns off alerts
+          here.
         </p>
         {confirming ? (
           <div className="mt-4 flex flex-col gap-3">
@@ -79,7 +88,12 @@ function CaregiverFamilyPage() {
             </Button>
           </div>
         ) : (
-          <Button size="xl" variant="secondary" className="mt-4 w-full" onClick={() => setConfirming(true)}>
+          <Button
+            size="xl"
+            variant="secondary"
+            className="mt-4 w-full"
+            onClick={() => setConfirming(true)}
+          >
             Disconnect this phone
           </Button>
         )}
@@ -159,6 +173,14 @@ function PatientFamilyPage() {
 
       <ConnectFamilySection />
 
+      {settings.householdCode ? (
+        <VideoCallButton
+          familyCode={settings.householdCode}
+          myName={settings.patientName}
+          otherName={settings.caregiverName}
+        />
+      ) : null}
+
       <section className="rounded-xl bg-paper p-5 shadow-card">
         <h2 className="flex items-center gap-2 text-2xl font-bold">
           <Bell className="size-6" />
@@ -215,8 +237,67 @@ function PatientFamilyPage() {
 
       <TestTextButton />
 
+      <PillLibrarySection />
+
       <LegalFooterLinks />
     </div>
+  );
+}
+
+/**
+ * Lets a person who opted in to the pill library see that setting and
+ * delete everything this phone added, without removing medicines.
+ */
+function PillLibrarySection() {
+  const sharing = useAppStore((s) => s.settings.sharePillPhotos === true);
+  const deviceId = useAppStore((s) => s.settings.deviceId);
+  const setSettings = useAppStore((s) => s.setSettings);
+  const forgetAllPillPhotos = useAppStore((s) => s.forgetAllPillPhotos);
+  const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+
+  if (!sharing && !deviceId) return null;
+
+  return (
+    <section className="rounded-xl bg-paper p-5 shadow-card">
+      <h2 className="text-2xl font-bold">Pill library</h2>
+      <ToggleRow
+        label="Offer to add new pill photos"
+        on={sharing}
+        onChange={(sharePillPhotos) => setSettings({ sharePillPhotos })}
+      />
+      {deviceId ? (
+        <>
+          <p className="mt-3 text-lg text-muted">
+            Pill photos you added help us recognize pills. They are not linked to your name.
+          </p>
+          <Button
+            size="lg"
+            variant="secondary"
+            className="mt-4 w-full"
+            disabled={state === "busy"}
+            onClick={() => {
+              setState("busy");
+              forgetAllPillPhotos()
+                .then(() => setState("done"))
+                .catch(() => setState("error"));
+            }}
+          >
+            <Trash2 className="size-6" />
+            Delete my pill library photos
+          </Button>
+          {state === "done" ? (
+            <p className="mt-3 text-lg font-bold">
+              Done. Your pill photos were deleted from the library.
+            </p>
+          ) : null}
+          {state === "error" ? (
+            <p className="mt-3 text-lg font-bold text-danger">
+              Could not reach our server. Please try again when you are online.
+            </p>
+          ) : null}
+        </>
+      ) : null}
+    </section>
   );
 }
 
@@ -240,8 +321,8 @@ function ConnectFamilySection() {
       {settings.householdCode ? (
         <>
           <p className="mt-2 text-xl text-muted">
-            Share this code so a family member's phone can see when you take your medicine, with
-            a photo, and get alerted if a dose is missed.
+            Share this code so a family member's phone can see when you take your medicine, with a
+            photo, and get alerted if a dose is missed.
           </p>
           <p className="mt-4 rounded-md bg-bg p-4 text-center text-4xl font-bold tracking-[0.2em]">
             {settings.householdCode}
@@ -263,8 +344,8 @@ function ConnectFamilySection() {
             {confirmingDelete ? (
               <div className="flex flex-col gap-3">
                 <p className="text-lg font-bold text-danger">
-                  This permanently deletes the family code and everything shared under it — there
-                  is no undo.
+                  This permanently deletes the family code and everything shared under it — there is
+                  no undo.
                 </p>
                 <Button
                   size="lg"
@@ -332,6 +413,7 @@ function ConnectFamilySection() {
                 void syncMedicines({
                   data: {
                     code: res.code,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     medicines: medicines.map((m) => ({
                       id: m.id,
                       name: m.name,
@@ -383,10 +465,7 @@ function ToggleRow({
       {label}
       <span
         aria-hidden="true"
-        className={cn(
-          "relative h-10 w-16 shrink-0 rounded-full",
-          on ? "bg-primary" : "bg-line",
-        )}
+        className={cn("relative h-10 w-16 shrink-0 rounded-full", on ? "bg-primary" : "bg-line")}
       >
         <span
           className={cn(
@@ -423,7 +502,15 @@ function TestTextButton() {
         <a
           href={smsHref(settings.caregiverPhone, body)}
           className="mt-4 inline-flex min-h-20 w-full items-center justify-center rounded-lg bg-primary px-6 text-2xl font-bold text-primary-fg shadow-card"
-          onClick={() => void copyText(body).then((ok) => setNote(ok ? "Message copied. Tap Send on the next screen." : "Tap Send on the next screen."))}
+          onClick={() =>
+            void copyText(body).then((ok) =>
+              setNote(
+                ok
+                  ? "Message copied. Tap Send on the next screen."
+                  : "Tap Send on the next screen.",
+              ),
+            )
+          }
         >
           Send test text
         </a>

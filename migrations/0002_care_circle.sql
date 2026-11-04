@@ -2,11 +2,11 @@
 -- see dose activity (with the confirmation photo) and get alerted to a
 -- missed dose, without a full account system.
 --
--- Auth stays OFF for this app: there is no signed-in user, so "household_id"
--- (the shareable pairing code, e.g. "K3F7QM") is the only scope. Treat a code
--- like a shared link — anyone who has it can read and write that household's
--- rows. Keep this in mind before storing more than a first name, a phone
--- number, and pill name/strength/schedule here.
+-- Caregivers can use an account to restore their family connection, while
+-- patients keep the existing no-account flow. The household code remains a
+-- shared link: anyone who has it can read and write that household's rows.
+-- Keep this in mind before storing more than a first name, a phone number,
+-- and pill name/strength/schedule here.
 
 create table if not exists households (
   id text primary key,

@@ -1,6 +1,7 @@
 import { createRootRoute, HeadContent, Link, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { StorageGate } from "@/components/storage-gate";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "SureDose";
@@ -23,8 +24,10 @@ export const Route = createRootRoute({
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "stylesheet", href: appCss },
-      { rel: "manifest", href: "/__grok/manifest.webmanifest" },
-      { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
+      // SureDose's own install identity. The platform manifest can only name apps hosted on
+      // *.grok.me, so on suredose.app it would call the installed app "Grok App".
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/icons/apple-touch-icon-180.png" },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap",
@@ -51,7 +54,9 @@ export const Route = createRootRoute({
       <body>
         <PreviewHostBridge />
         <AuthProvider>
-          <Outlet />
+          <StorageGate>
+            <Outlet />
+          </StorageGate>
         </AuthProvider>
         <Scripts />
       </body>

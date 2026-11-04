@@ -69,7 +69,8 @@ export function vertexConfig(env: Env): VertexConfig | { error: string } | null 
     return { error: "GOOGLE_SERVICE_ACCOUNT_JSON is missing client_email or private_key" };
   }
   const project = env.GOOGLE_CLOUD_PROJECT?.trim() || account.project_id || "";
-  if (!project) return { error: "Set GOOGLE_CLOUD_PROJECT (the service account has no project_id)" };
+  if (!project)
+    return { error: "Set GOOGLE_CLOUD_PROJECT (the service account has no project_id)" };
   const location = env.GOOGLE_CLOUD_LOCATION?.trim() || DEFAULT_LOCATION;
   return { auth: "serviceAccount", account, project, location, model, thinkingLevel };
 }
@@ -80,7 +81,10 @@ export function generateContentUrl(cfg: VertexConfig): string {
     // Express mode: no project or location in the path; the key decides.
     return `https://aiplatform.googleapis.com/v1/publishers/google/models/${model}:generateContent`;
   }
-  const host = cfg.location === "global" ? "aiplatform.googleapis.com" : `${cfg.location}-aiplatform.googleapis.com`;
+  const host =
+    cfg.location === "global"
+      ? "aiplatform.googleapis.com"
+      : `${cfg.location}-aiplatform.googleapis.com`;
   return `https://${host}/v1/projects/${encodeURIComponent(cfg.project)}/locations/${encodeURIComponent(cfg.location)}/publishers/google/models/${model}:generateContent`;
 }
 
@@ -89,7 +93,9 @@ export function generateContentUrl(cfg: VertexConfig): string {
 /* ------------------------------------------------------------------ */
 
 /** "data:image/jpeg;base64,AAAA" → inline image part. */
-export function imagePart(dataUrl: string): { inlineData: { mimeType: string; data: string } } | null {
+export function imagePart(
+  dataUrl: string,
+): { inlineData: { mimeType: string; data: string } } | null {
   const m = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i.exec(dataUrl);
   return m ? { inlineData: { mimeType: m[1].toLowerCase(), data: m[2] } } : null;
 }
@@ -111,7 +117,8 @@ export function buildRequest(opts: {
     // Every prompt in ai.ts asks for a JSON object.
     responseMimeType: "application/json",
   };
-  if (opts.thinkingLevel) generationConfig.thinkingConfig = { thinkingLevel: opts.thinkingLevel.toUpperCase() };
+  if (opts.thinkingLevel)
+    generationConfig.thinkingConfig = { thinkingLevel: opts.thinkingLevel.toUpperCase() };
   return { contents: [{ role: "user", parts }], generationConfig };
 }
 
@@ -126,7 +133,8 @@ type GenerateContentResponse = {
 /** The answer text, skipping the model's "thought" parts. */
 export function responseText(json: unknown): { text: string } | { error: string } {
   const body = json as GenerateContentResponse;
-  if (body?.promptFeedback?.blockReason) return { error: `blocked (${body.promptFeedback.blockReason})` };
+  if (body?.promptFeedback?.blockReason)
+    return { error: `blocked (${body.promptFeedback.blockReason})` };
   const cand = body?.candidates?.[0];
   const text = (cand?.content?.parts ?? [])
     .filter((p) => !p.thought && typeof p.text === "string")
@@ -160,7 +168,10 @@ function pemToPkcs8(pem: string): ArrayBuffer {
 }
 
 /** A signed JWT asking Google for a cloud-platform access token. */
-export async function signServiceAccountJwt(account: ServiceAccount, nowSeconds: number): Promise<string> {
+export async function signServiceAccountJwt(
+  account: ServiceAccount,
+  nowSeconds: number,
+): Promise<string> {
   const key = await crypto.subtle.importKey(
     "pkcs8",
     pemToPkcs8(account.private_key),
@@ -179,7 +190,11 @@ export async function signServiceAccountJwt(account: ServiceAccount, nowSeconds:
     }),
   );
   const unsigned = `${header}.${claims}`;
-  const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsigned));
+  const sig = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    key,
+    new TextEncoder().encode(unsigned),
+  );
   return `${unsigned}.${base64url(new Uint8Array(sig))}`;
 }
 
@@ -197,10 +212,16 @@ export async function accessToken(account: ServiceAccount): Promise<string> {
   const res = await fetch(account.token_uri || DEFAULT_TOKEN_URI, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
-  if (!res.ok) throw new Error(`Google token request failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok)
+    throw new Error(
+      `Google token request failed (${res.status}): ${(await res.text()).slice(0, 200)}`,
+    );
   const body = (await res.json()) as { access_token?: string; expires_in?: number };
   if (!body.access_token) throw new Error("Google token response had no access_token");
   tokenCache.__vertexToken__ = {
@@ -215,7 +236,12 @@ export async function accessToken(account: ServiceAccount): Promise<string> {
 /* The call                                                            */
 /* ------------------------------------------------------------------ */
 
-export type VisionResult = { ok: true; text: string } | { ok: false; error: string };
+/**
+ * `quality` is set when a model read a pill photo and said why it cannot be read
+ * ("blur", "dark", "glare" or "not_pill"), so the person can be told what to fix.
+ */
+export type VisionResult =
+  { ok: true; text: string } | { ok: false; error: string; quality?: string };
 
 function userError(status: number): string {
   if (status === 429) return "The photo checker is busy. Please try again in a minute.";

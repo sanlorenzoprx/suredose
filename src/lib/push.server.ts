@@ -1,4 +1,7 @@
-import { buildPushPayload, type PushSubscription as WebPushSubscription } from "@block65/webcrypto-web-push";
+import {
+  buildPushPayload,
+  type PushSubscription as WebPushSubscription,
+} from "@block65/webcrypto-web-push";
 import { getSql } from "./db";
 
 /**
@@ -12,7 +15,7 @@ import { getSql } from "./db";
  * On Cloudflare, set these with `wrangler secret put <NAME>` (or as plain
  * vars for the non-secret public key) — with `nodejs_compat` enabled they
  * still show up on `process.env` exactly like on Node.
- * Without all three, sendPushToHousehold() is a silent no-op — the rest of
+ * Without all three, sendPushToHousehold() is reported as undelivered — the rest of
  * the app (reminders, local schedule, SMS) is unaffected.
  *
  * Uses @block65/webcrypto-web-push instead of the `web-push` npm package:
@@ -32,17 +35,20 @@ function vapidKeys(): { subject: string; publicKey: string; privateKey: string }
 export type PushPayload = { title: string; body: string; tag?: string };
 
 /** Best-effort: send a push notification to every device paired to this household. */
-export async function sendPushToHousehold(householdCode: string, payload: PushPayload): Promise<void> {
+export async function sendPushToHousehold(
+  householdCode: string,
+  payload: PushPayload,
+): Promise<boolean> {
   const vapid = vapidKeys();
-  if (!vapid) return;
+  if (!vapid) return false;
 
   const sql = await getSql();
   const subs = await sql<{ id: string; endpoint: string; p256dh: string; auth: string }>`
     select id, endpoint, p256dh, auth from push_subscriptions where household_id = ${householdCode}
   `;
-  if (subs.length === 0) return;
+  if (subs.length === 0) return false;
 
-  await Promise.all(
+  const results = await Promise.all(
     subs.map(async (sub) => {
       const subscription: WebPushSubscription = {
         endpoint: sub.endpoint,
@@ -55,16 +61,26 @@ export async function sendPushToHousehold(householdCode: string, payload: PushPa
           subscription,
           vapid,
         );
-        const res = await fetch(sub.endpoint, { method: method.toUpperCase(), headers, body });
+        const res = await fetch(sub.endpoint, {
+          method: method.toUpperCase(),
+          headers,
+          body,
+          signal: AbortSignal.timeout(30_000),
+        });
         if (res.status === 404 || res.status === 410) {
           // The browser unsubscribed or the subscription expired — clean it up.
           await sql`delete from push_subscriptions where id = ${sub.id}`;
+          return false;
         } else if (!res.ok) {
           console.error("[push] send failed:", res.status, await res.text().catch(() => ""));
+          return false;
         }
+        return true;
       } catch (err) {
         console.error("[push] send failed:", err);
+        return false;
       }
     }),
   );
+  return results.every(Boolean);
 }

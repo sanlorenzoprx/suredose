@@ -5,11 +5,13 @@ import {
   cleanFdaStrength,
   describeAppearance,
   namesMatch,
+  normalizeStrength,
   parseApproximateTerm,
   parseClinicalDrugName,
   parseFdaNdcResponse,
   parseSplAppearance,
   plainForm,
+  productAgreesWithLabel,
   productNdcCandidates,
   strengthMatches,
 } from "./drug-data.ts";
@@ -40,6 +42,19 @@ test("canonical product NDC pads to 5-4", () => {
 });
 
 test("strength matching", () => {
+  assert.equal(normalizeStrength(" 20  MG "), "20MG");
+  assert.equal(normalizeStrength("20.0MG"), "20MG");
+  assert.equal(normalizeStrength("20 mcg"), "20MCG");
+  assert.equal(normalizeStrength("0.050 ml"), "0.05ML");
+  assert.equal(normalizeStrength("10.00 g"), "10G");
+  assert.equal(normalizeStrength("2 IU"), "2IU");
+  assert.equal(normalizeStrength("20 %"), "20%");
+  assert.equal(strengthMatches("20MG", "20 MG"), true);
+  assert.equal(strengthMatches("20 mg", "20 MG"), true);
+  assert.equal(strengthMatches(" 20  MG ", "20 MG"), true);
+  assert.equal(strengthMatches("20.0MG", "20 MG"), true);
+  assert.equal(strengthMatches("40MG", "20 MG"), false);
+  assert.equal(strengthMatches("20MCG", "20MG"), false);
   assert.equal(strengthMatches("10mg", "10 mg/1"), true);
   assert.equal(strengthMatches("10 MG", "20 mg/1"), false);
   assert.equal(strengthMatches("50 mcg", "0.05 MG"), true);
@@ -84,6 +99,23 @@ test("openFDA NDC response", () => {
     results: [{ product_ndc: "0071-0155", generic_name: "ATORVASTATIN CALCIUM", brand_name: "Lipitor" }],
   });
   assert.equal(brand.name, "Lipitor (Atorvastatin Calcium)");
+});
+
+test("openFDA response prefers the queried RxCUI when a product lists several", () => {
+  const [product] = parseFdaNdcResponse(
+    {
+      results: [
+        {
+          product_ndc: "0378-1805",
+          generic_name: "FUROSEMIDE",
+          active_ingredients: [{ strength: "20 mg/1" }],
+          openfda: { rxcui: ["other-concept", "310965"] },
+        },
+      ],
+    },
+    "310965",
+  );
+  assert.equal(product.rxcui, "310965");
 });
 
 const SPL = `<?xml version="1.0" encoding="UTF-8"?>
@@ -184,4 +216,38 @@ test("RxNorm approximate term + clinical drug names", () => {
     parseClinicalDrugName("acetaminophen 325 MG / hydrocodone bitartrate 5 MG Oral Tablet")?.strength,
     "325 mg / 5 mg",
   );
+});
+
+test("product agrees with the label it was read from", () => {
+  const lisinopril10 = { names: ["Lisinopril", "LISINOPRIL", ""], strength: "10 mg" };
+  assert.equal(productAgreesWithLabel(lisinopril10, { name: "Lisinopril", strength: "10mg" }), true);
+  assert.equal(productAgreesWithLabel(lisinopril10, { name: "Lisinopril", strength: "20 mg" }), false);
+  assert.equal(productAgreesWithLabel(lisinopril10, { name: "Losartan", strength: "10 mg" }), false);
+  // Strength not read off the label: name alone decides.
+  assert.equal(productAgreesWithLabel(lisinopril10, { name: "Lisinopril" }), true);
+  // No hint at all (e.g. the cache warmer): anything agrees.
+  assert.equal(productAgreesWithLabel(lisinopril10, {}), true);
+});
+
+import { parseRelatedConcepts, plainFormFirst } from "./drug-data.ts";
+
+test("related concepts are flattened and de-duplicated", () => {
+  const json = {
+    relatedGroup: {
+      conceptGroup: [
+        { tty: "SCD", conceptProperties: [{ rxcui: "1", name: "a 5 MG Oral Tablet", tty: "SCD" }] },
+        { tty: "SBD", conceptProperties: [{ rxcui: "1", name: "a 5 MG Oral Tablet", tty: "SCD" }, { rxcui: "2", name: "b 5 MG [X]", tty: "SBD" }] },
+        { tty: "X" },
+      ],
+    },
+  };
+  assert.deepEqual(parseRelatedConcepts(json).map((c) => c.rxcui), ["1", "2"]);
+  assert.deepEqual(parseRelatedConcepts(null), []);
+});
+
+test("plain tablets come before extended-release unless the bottle asks for it", () => {
+  const items = [{ parsed: { form: "extended-release tablet" }, id: "er" }, { parsed: { form: "tablet" }, id: "ir" }];
+  assert.deepEqual(plainFormFirst(items, "Metformin").map((i) => i.id), ["ir", "er"]);
+  assert.deepEqual(plainFormFirst(items, "Metformin ER").map((i) => i.id), ["er", "ir"]);
+  assert.deepEqual(plainFormFirst(items, "Metformin Extended Release").map((i) => i.id), ["er", "ir"]);
 });

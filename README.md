@@ -5,7 +5,47 @@ chime, spoken words, and vibration) when it's time for a pill, checks a
 photo of the pill against a saved reference photo before they take it, opens
 a pre-written text message to a family member once it's confirmed — and now
 a family member's own phone can pair to see that same confirmation with the
-photo, and gets alerted automatically if a dose is missed.
+photo, and gets alerted automatically if a dose is missed. Caregivers can
+register with email and restore their family connection on another phone;
+patients do not need an account.
+
+## Photo and schedule boundaries
+
+Bottle reading transcribes visible text only. Missing name/strength/directions stay
+blank; frequency alone never generates clock times. During setup, the person
+checks name and strength, explicitly chooses reminder times, and confirms those
+times and directions against their prescription or pharmacist's guidance.
+
+Pill capture uses ImageCapture still photos when supported, with a video-frame
+fallback, continuous autofocus when advertised, and up to 1600px JPEG at 0.9 quality.
+Camera controls vary by phone; no optical stabilization or aperture control is promised.
+Reference setup uses the same detail settings for new pill photos. Existing low-resolution
+references must be replaced if markings cannot be read.
+
+Reference and candidate markings are extracted in separate model calls. Candidate
+reading never receives the expected medication name, description, or reference image.
+Code compares complete readable markings (only case and whitespace normalized), shape,
+and color. Missing reverse-side markings request a second photo; conflicting markings,
+poor quality, unclear references, errors and replay cannot pass. A second incomplete
+view directs the user to a pharmacist. The UI says "Pill matched", "Pill does not match",
+or "We can’t check this pill" with one next action.
+
+"Pill matched" means the extracted visible features match the saved photo. It is
+not validated medication identity or permission to dose. The user checks their bottle
+before recording "I took it"; verified=false remains intentional. Already-taken doses
+cannot be logged again through this screen. Practice creates no event or caregiver message.
+Provider selection and real-model false-match measurement remain outstanding. Unit tests
+use synthetic provider responses; browser response fixtures test UI flow, not AI accuracy.
+
+The saved-photo shortcut has been removed, and the server rejects the same image
+bytes even if the data-URL MIME type/whitespace differs. This does not establish
+camera liveness: a re-encoded or rephotographed older image may evade that check.
+Real-world model accuracy, Android behavior, and delivery still require testing.
+
+`npm test` runs all script and application test groups even when one group fails.
+Generic PWA test fixtures do not read the product workspace's branding. GitHub
+Actions checks tests, typechecking, and the Cloudflare production build separately;
+verification builds have no live DATABASE_URL and do not deploy.
 
 ## What this actually is
 
@@ -25,12 +65,23 @@ Three things must be set up before the caregiver-facing features work in
 production — the reminder/schedule/photo-check/SMS parts of the app don't
 need any of this and work with nothing configured:
 
-1. **A real Postgres database.** Locally, with nothing configured, the app
-   falls back to an embedded in-memory Postgres — fine for trying things out
-   on one machine, but a caregiver's phone and the patient's phone are two
-   separate devices that both need to reach the *same* database, so this
-   fallback cannot work once deployed. Get a free one at
-   [neon.tech](https://neon.tech) and set it as `DATABASE_URL`.
+1. **A durable database.** The confirmed test Worker is
+   `suredose-test` at https://suredose-test.sanlorenzoprx.workers.dev/ and already
+   has Cloudflare D1 bound as `DB`. This branch now uses that binding when
+   `DATABASE_URL` is absent. PostgreSQL remains supported when DATABASE_URL is
+   explicitly configured; plain Node development falls back to embedded PGLite.
+   A Worker without either database fails explicitly rather than trying PGLite.
+
+   D1 uses SQLite-specific migrations under `migrations/d1/`; PostgreSQL continues
+   to use root `migrations/*.sql`. Never interchange these files. Local D1 setup:
+   `npm run db:migrate:d1:local`, then `npm run db:check:d1 -- --local`.
+   The default build does NOT migrate remote D1. Before an authorized release,
+   run the schema-only remote preflight and review existing tables, constraints,
+   indexes and D1 migration history. Existing schemas may need a tailored additive
+   upgrade rather than blind application of a fresh-database baseline. D1 token
+   permissions are currently insufficient for remote inspection; no live upgrade
+   or data conversion has been performed. See `D1_DATABASE_FIX.md`.
+
 2. **A VAPID key pair**, for sending push notifications to the caregiver's
    phone. Generate one with `npx web-push generate-vapid-keys` and set
    `VITE_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`
@@ -56,7 +107,7 @@ npm run dev            # local dev server at http://localhost:8080
 
 # Deploy to Cloudflare:
 npx wrangler login
-wrangler secret put DATABASE_URL
+ # D1 uses the existing DB binding; DATABASE_URL is only for an intentional Postgres deployment.
 wrangler secret put VAPID_PRIVATE_KEY
 wrangler secret put VAPID_SUBJECT
 wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON   # or GOOGLE_VERTEX_API_KEY
@@ -95,8 +146,7 @@ fit for this specific feature, not just a cheaper one.
 - **Reminders**: loud chime, spoken reminder ("It is time to take your
   Lisinopril"), and vibration, repeating until acted on.
 - **Take a pill**: photograph the pill in hand, AI compares it to the saved
-  photo, and gives a plain-language "this is right" / "put it back" / "not
-  sure — compare these two photos yourself" result, with both photos shown
+  photo, and gives a bounded "similar" / "different" / "uncertain" observation, with both photos shown
   side by side whenever the person needs to double-check by eye.
 - **Family text**: after a confirmed dose, opens a pre-written text message
   to the saved family phone number — the person just taps Send (see note
@@ -175,6 +225,35 @@ description shown. The parsers are unit-tested against the documented
 formats and the lookup/cache flow against mocked responses, but they have
 not been run against the live government APIs from here — run one real
 scan of a bottle with an NDC after deploying.
+
+## Pill library (opt-in, groundwork for pill search)
+
+When someone adds a medicine with **their own** pill photo, step 4 offers an
+unticked box: "Also add this pill photo to the SureDose pill library". If
+ticked (remembered as `settings.sharePillPhotos`), `cachePillReference`
+(`src/lib/pill-cache.ts`) saves the photo to R2 at `pills/<sha256>.jpg`
+and a row in `pill_images` (`migrations/0004_pill_library.sql`) with the
+confirmed name/strength, the NDC and how it was verified, and the imprint,
+color and shape read by the vision model.
+
+Safety rules:
+
+- **Opt-in, off by default.** A pill photo plus a medicine name is health
+  information.
+- **Fails closed.** The vision model must confirm "exactly one pill"; if it
+  can't run, nothing is saved, so a bottle photo can't slip in.
+- **Only where it adds something:** never practice photos, never a pill
+  that looked different from the maker's photo, and never a medicine that
+  already has a maker's photo in `drug_products`.
+- **Deletable:** removing a medicine deletes its row; the Family tab has
+  "Delete my pill library photos". Rows are keyed by a random per-phone
+  `deviceId`, not a name or family code. Capped at 40 rows per phone.
+- **No search endpoint yet.** It would be unauthenticated and spend AI
+  credits per call. Before adding one, put a Cloudflare rate-limiting rule
+  on the server-function path, and rank NDC-verified rows first.
+
+Labels come from users. Never use the library to confirm a dose — the dose
+check compares against the person's own saved reference.
 
 ## Design choices worth knowing about
 

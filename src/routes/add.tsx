@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Check, Loader2, ShieldAlert, ShieldCheck, TriangleAlert } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
@@ -6,9 +6,11 @@ import { PhotoCapture } from "@/components/photo-capture";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { readBottleLabel } from "@/lib/ai";
+import { medicineSaveError } from "@/lib/add-medicine";
 import { canonicalProductNdc, normName, normStrength } from "@/lib/drug-data";
 import { verifyMedicine } from "@/lib/drug-verify";
 import { shrinkDataUrl, toDataUrl } from "@/lib/image";
+import { cachePillReference, forgetPillReferences } from "@/lib/pill-cache";
 import { formatTimeLabel, periodPreset } from "@/lib/schedule";
 import { useAppStore } from "@/lib/store";
 import type { Medicine, MedicineCheck, VerifiedMedicine } from "@/lib/types";
@@ -41,6 +43,11 @@ function AddMedicine() {
   const medicines = useAppStore((s) => s.medicines);
   const addMedicine = useAppStore((s) => s.addMedicine);
   const updateMedicine = useAppStore((s) => s.updateMedicine);
+  const ensureDeviceId = useAppStore((s) => s.ensureDeviceId);
+  const setSettings = useAppStore((s) => s.setSettings);
+  const deviceId = useAppStore((s) => s.settings.deviceId);
+  // Opt-in: only an explicit "yes" from this person shares a photo.
+  const sharePillPhotos = useAppStore((s) => s.settings.sharePillPhotos === true);
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [bottleImage, setBottleImage] = useState<string | null>(null);
@@ -52,7 +59,11 @@ function AddMedicine() {
   const [ndc, setNdc] = useState("");
   const [labelDescription, setLabelDescription] = useState("");
   const [instructions, setInstructions] = useState("");
-  const [times, setTimes] = useState<string[]>(["08:00"]);
+  const [times, setTimes] = useState<string[]>([]);
+
+  const [scheduleConfirmed, setScheduleConfirmed] = useState(false);
+  const [newTime, setNewTime] = useState("");
+  const [labelTimes, setLabelTimes] = useState<string[]>([]);
 
   const [checking, setChecking] = useState(false);
   const [check, setCheck] = useState<MedicineCheck | null>(null);
@@ -60,9 +71,13 @@ function AddMedicine() {
   /** What the person confirmed in step 2 (null = continued without a check). */
   const [confirmed, setConfirmed] = useState<VerifiedMedicine | null>(null);
 
+  const [pillImageBack, setPillImageBack] = useState<string | null>(null);
   const [pillImage, setPillImage] = useState<string | null>(null);
+  // Practice photos from /samples are never added to the pill library.
+  const [pillIsSample, setPillIsSample] = useState(false);
   const [officialRejected, setOfficialRejected] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const verified = check?.status === "verified" ? check.medicine : null;
 
@@ -81,12 +96,21 @@ function AddMedicine() {
   const current = confirmed ?? verified;
   const makerChanged = Boolean(
     existing &&
-      current?.ndc &&
-      existing.ndc &&
-      canonicalProductNdc(existing.ndc) !== canonicalProductNdc(current.ndc),
+    current?.ndc &&
+    existing.ndc &&
+    canonicalProductNdc(existing.ndc) !== canonicalProductNdc(current.ndc),
   );
 
   async function runCheck(n: string, s: string, code: string) {
+    if (!n.trim() || !s.trim()) {
+      setCheck({
+        status: "not_found",
+        message:
+          "Type the medicine name and strength from your bottle. We will not fill unreadable details from the drug list.",
+      });
+      setEditing(true);
+      return;
+    }
     setChecking(true);
     setCheck(null);
     try {
@@ -112,21 +136,33 @@ function AddMedicine() {
     setReading(true);
     setReadError(null);
     setCheck(null);
+    setConfirmed(null);
+    setName("");
+    setStrength("");
+    setNdc("");
+    setInstructions("");
+    setLabelDescription("");
+    setLabelTimes([]);
+    setTimes([]);
+    setScheduleConfirmed(false);
     let n = "";
     let s = "";
     let code = "";
+    let photoCheck: MedicineCheck | null = null;
     try {
       const result = await readBottleLabel({ data: { image: dataUrl } });
       if (result.ok) {
         n = result.bottle.name;
         s = result.bottle.strength;
         code = result.bottle.ndc;
+        photoCheck = result.check ?? null;
         setName(n);
         setStrength(s);
         setNdc(code);
         setLabelDescription(result.bottle.pillDescription);
         if (result.bottle.instructions) setInstructions(result.bottle.instructions);
-        if (result.bottle.times.length) setTimes(result.bottle.times);
+        setTimes(result.bottle.times);
+        setLabelTimes(result.bottle.times);
       } else {
         setReadError(result.error);
       }
@@ -136,14 +172,26 @@ function AddMedicine() {
       setReading(false);
     }
     setStep(2);
-    if (n) await runCheck(n, s, code);
-    else setEditing(true);
+    if (n && s && photoCheck) {
+      setCheck(photoCheck);
+      if (photoCheck.status === "verified") {
+        setName(photoCheck.medicine.name);
+        setStrength(photoCheck.medicine.strength);
+        setEditing(false);
+      } else {
+        setEditing(true);
+      }
+    } else {
+      setEditing(true);
+    }
   }
 
   function acceptMedicine(med: VerifiedMedicine | null) {
     setConfirmed(med);
+    setScheduleConfirmed(false);
     setOfficialRejected(false);
     setPillImage(null);
+    setPillImageBack(null);
     if (existing) {
       // Keep the schedule the person already set up for this medicine.
       setTimes(existing.times);
@@ -153,6 +201,7 @@ function AddMedicine() {
   }
 
   function togglePeriod(period: (typeof PERIODS)[number]) {
+    setScheduleConfirmed(false);
     const t = periodPreset(period);
     setTimes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t].sort()));
   }
@@ -164,11 +213,38 @@ function AddMedicine() {
     (!officialRejected && confirmed?.appearance) || labelDescription || "",
   );
 
+  // The library only takes the person's own photo of a real pill, for a
+  // medicine with no maker's photo — and never one that looked different
+  // from the maker's photo (its label may be wrong).
+  const canShareToLibrary =
+    Boolean(pillImage) && !pillIsSample && !officialRejected && !confirmed?.officialImage;
+
+  // After the front photo, bring the "turn the pill over" camera into view.
+  useEffect(() => {
+    if (pillImage && !pillImageBack) {
+      document.getElementById("pill-back")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [pillImage, pillImageBack]);
+
   async function save(image: string, source: "official" | "own") {
-    if (!name.trim() || times.length === 0 || saving) return;
+    const validationError = medicineSaveError({ name, strength, times, scheduleConfirmed });
+    if (validationError) {
+      setSaveError(validationError);
+      return;
+    }
+    if (source === "own" && !pillImageBack) {
+      setSaveError("Take a picture of the other side first.");
+      return;
+    }
+    if (source === "own" && image === pillImageBack) {
+      setSaveError("That is the same photo. Turn the pill over and take a new photo.");
+      return;
+    }
+    if (saving) return;
+    setSaveError(null);
     setSaving(true);
     try {
-      const pill = source === "official" ? await shrinkDataUrl(image) : image;
+      const pill = source === "official" ? await shrinkDataUrl(image, 1600, 0.9) : image;
       const fields = {
         name: name.trim(),
         strength: strength.trim(),
@@ -176,6 +252,7 @@ function AddMedicine() {
         // On a refill scanned without a new bottle photo, keep the old one.
         bottleImage: bottleImage ?? existing?.bottleImage ?? "",
         pillImage: pill,
+        pillImageBack: source === "own" ? (pillImageBack ?? undefined) : undefined,
         times,
         verifiedBy: confirmed?.by ?? ("none" as const),
         // Explicitly cleared (not just omitted) so a refill checked by name
@@ -187,9 +264,32 @@ function AddMedicine() {
         appearance: appearance || undefined,
         pillImageSource: source,
       };
+      const medicineId = existing ? existing.id : addMedicine(fields);
       if (existing) updateMedicine(existing.id, fields);
-      else addMedicine(fields);
+
+      if (source === "own" && canShareToLibrary && sharePillPhotos) {
+        // Only the pill photo, never the bottle photo. Fire and forget:
+        // saving the medicine never waits on this.
+        void cachePillReference({
+          data: {
+            deviceId: ensureDeviceId(),
+            medicineId,
+            name: fields.name,
+            strength: fields.strength,
+            ndc: confirmed?.ndc ?? "",
+            verifiedBy: fields.verifiedBy,
+            image,
+          },
+        }).catch(() => {
+          /* offline or AI unavailable — the medicine is saved either way */
+        });
+      } else if (existing && deviceId) {
+        // A refill that is no longer shared: drop the old library photo.
+        void forgetPillReferences({ data: { deviceId, medicineId: existing.id } }).catch(() => {});
+      }
       navigate({ to: "/" });
+    } catch {
+      setSaveError("Could not save this medicine. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -204,13 +304,16 @@ function AddMedicine() {
           <Waiting title="Reading the bottle…" />
         ) : (
           <PhotoCapture
+            labelDetail
             title="Picture of the bottle"
-            hint="Hold the bottle so the label is clear. We will read the name and check it for you."
+            hint="Fill the picture with the label, in bright light, and hold the phone steady. Turn the bottle a little if the label curves away or shows a glare."
             preview={bottleImage}
             onCapture={(img) => void onBottle(img)}
             extraAction={
               <>
-                <SampleBottlePicker onPick={(src) => void toDataUrl(src).then((d) => onBottle(d))} />
+                <SampleBottlePicker
+                  onPick={(src) => void toDataUrl(src).then((d) => onBottle(d))}
+                />
                 <Button
                   size="xl"
                   variant="ghost"
@@ -253,9 +356,13 @@ function AddMedicine() {
                   ) : null}
                 </section>
 
-                {existing ? <RefillNotice name={existing.name} makerChanged={makerChanged} /> : null}
+                {existing ? (
+                  <RefillNotice name={existing.name} makerChanged={makerChanged} />
+                ) : null}
 
-                <h3 className="text-2xl font-bold leading-tight">Is this the medicine on your bottle?</h3>
+                <h3 className="text-2xl font-bold leading-tight">
+                  Is this the medicine on your bottle?
+                </h3>
                 <Button size="xl" onClick={() => acceptMedicine(verified)}>
                   <Check className="size-7" />
                   Yes, this is my medicine
@@ -301,7 +408,7 @@ function AddMedicine() {
                 </div>
                 <Button
                   size="xl"
-                  disabled={!name.trim()}
+                  disabled={!name.trim() || !strength.trim()}
                   onClick={() => void runCheck(name.trim(), strength.trim(), ndc)}
                 >
                   <ShieldCheck className="size-7" />
@@ -317,7 +424,7 @@ function AddMedicine() {
                       size="xl"
                       variant="ghost"
                       className="mt-2"
-                      disabled={!name.trim()}
+                      disabled={!name.trim() || !strength.trim()}
                       onClick={() => acceptMedicine(null)}
                     >
                       Continue without checking
@@ -338,14 +445,29 @@ function AddMedicine() {
         <div className="flex flex-col gap-5">
           <h2 className="text-3xl font-bold leading-tight">When do you take {name}?</h2>
           {existing ? (
-            <p className="text-xl text-muted">These are the times you already use for this medicine.</p>
+            <p className="text-xl text-muted">
+              These are the times you already use for this medicine.
+            </p>
+          ) : null}
+          <p className="text-xl text-muted">
+            Choose reminder times using your prescription directions or your pharmacist's guidance.
+            SureDose does not choose dose times for you.
+          </p>
+          {labelTimes.length > 0 ? (
+            <p className="text-xl">
+              Read from the photo, not yet confirmed: {labelTimes.map(formatTimeLabel).join(", ")}.
+              Check each time against your label.
+            </p>
           ) : null}
           <div className="flex flex-col gap-2">
             <Label htmlFor="how">How to take it</Label>
             <Input
               id="how"
               value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
+              onChange={(e) => {
+                setInstructions(e.target.value);
+                setScheduleConfirmed(false);
+              }}
               placeholder="For example, take with food"
             />
           </div>
@@ -364,12 +486,69 @@ function AddMedicine() {
                   )}
                 >
                   {period}
-                  <span className="mt-1 block text-lg font-bold opacity-80">{formatTimeLabel(t)}</span>
+                  <span className="mt-1 block text-lg font-bold opacity-80">
+                    {formatTimeLabel(t)}
+                  </span>
                 </button>
               );
             })}
           </div>
-          <Button size="xl" disabled={times.length === 0} onClick={() => setStep(4)}>
+          <div className="flex flex-col gap-3 rounded-lg bg-paper p-4 shadow-card">
+            <Label htmlFor="reminder-time">Add an exact reminder time</Label>
+            <Input
+              id="reminder-time"
+              type="time"
+              value={newTime}
+              onChange={(e) => setNewTime(e.target.value)}
+            />
+            <Button
+              size="lg"
+              variant="secondary"
+              disabled={!newTime}
+              onClick={() => {
+                if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(newTime)) return;
+                setTimes((prev) => [...new Set([...prev, newTime])].sort());
+                setScheduleConfirmed(false);
+                setNewTime("");
+              }}
+            >
+              Add this time
+            </Button>
+            {times.map((time) => (
+              <Button
+                key={time}
+                size="lg"
+                variant="ghost"
+                onClick={() => {
+                  setTimes((prev) => prev.filter((t) => t !== time));
+                  setScheduleConfirmed(false);
+                }}
+              >
+                Remove {formatTimeLabel(time)}
+              </Button>
+            ))}
+          </div>
+          <label className="flex min-h-20 items-start gap-3 text-xl">
+            <input
+              type="checkbox"
+              checked={scheduleConfirmed}
+              disabled={times.length === 0}
+              onChange={(e) => setScheduleConfirmed(e.target.checked)}
+              className="mt-1 size-8 shrink-0"
+            />
+            I checked these reminder times and directions against my prescription or with my
+            pharmacist.
+          </label>
+          {medicineSaveError({ name, strength, times, scheduleConfirmed }) ? (
+            <p aria-live="polite" className="text-lg font-bold text-danger">
+              {medicineSaveError({ name, strength, times, scheduleConfirmed })}
+            </p>
+          ) : null}
+          <Button
+            size="xl"
+            disabled={times.length === 0 || !scheduleConfirmed}
+            onClick={() => setStep(4)}
+          >
             Next: the pill
           </Button>
           <Button size="xl" variant="secondary" onClick={() => setStep(2)}>
@@ -381,6 +560,11 @@ function AddMedicine() {
 
       {step === 4 ? (
         <div className="flex flex-col gap-5">
+          {saveError ? (
+            <p role="alert" className="text-xl font-bold text-danger">
+              {saveError}
+            </p>
+          ) : null}
           {officialImage ? (
             <>
               <h2 className="text-3xl font-bold leading-tight">Does your pill look like this?</h2>
@@ -394,11 +578,21 @@ function AddMedicine() {
                 {confirmed?.labeler ? ` from ${confirmed.labeler}` : ""}.
               </p>
               {appearance ? (
-                <p className="rounded-lg bg-paper p-4 text-xl font-bold shadow-card">Look for: {appearance}</p>
+                <p className="rounded-lg bg-paper p-4 text-xl font-bold shadow-card">
+                  Look for: {appearance}
+                </p>
               ) : null}
               <p className="text-xl text-muted">Take one pill out of your bottle and compare.</p>
-              <Button size="xl" disabled={saving} onClick={() => void save(officialImage, "official")}>
-                {saving ? <Loader2 className="size-7 animate-spin" /> : <Check className="size-7" />}
+              <Button
+                size="xl"
+                disabled={saving}
+                onClick={() => void save(officialImage, "official")}
+              >
+                {saving ? (
+                  <Loader2 className="size-7 animate-spin" />
+                ) : (
+                  <Check className="size-7" />
+                )}
                 Yes, my pill looks like this
               </Button>
               <Button size="xl" variant="secondary" onClick={() => setOfficialRejected(true)}>
@@ -407,6 +601,11 @@ function AddMedicine() {
             </>
           ) : (
             <>
+              {!officialRejected ? (
+                <p className="rounded-lg bg-bg-warm p-4 text-xl font-bold">
+                  No official photo found — we&apos;ll use your pill photo.
+                </p>
+              ) : null}
               {officialRejected ? (
                 <section className="rounded-xl bg-danger p-5 text-danger-fg shadow-card">
                   <p className="flex items-center gap-2 text-lg font-bold uppercase tracking-wide">
@@ -414,10 +613,12 @@ function AddMedicine() {
                     Check with your pharmacy
                   </p>
                   <p className="mt-3 text-xl">
-                    Do not take this medicine until you call your pharmacy. Tell them the pill does not
-                    look like the picture for this bottle.
+                    Do not take this medicine until you call your pharmacy. Tell them the pill does
+                    not look like the picture for this bottle.
                   </p>
-                  <p className="mt-3 text-lg">You can still save it with a picture of your own pill.</p>
+                  <p className="mt-3 text-lg">
+                    You can still save it with a picture of your own pill.
+                  </p>
                 </section>
               ) : null}
               {appearance ? (
@@ -425,14 +626,94 @@ function AddMedicine() {
                   <span className="font-bold">Your pill should look like:</span> {appearance}
                 </p>
               ) : null}
-              <PhotoCapture
-                title="Picture of the pill"
-                hint="Put one pill on a dark table. We save this so we can check it later."
-                preview={pillImage}
-                onCapture={setPillImage}
-                extraAction={<SamplePillPicker onPick={(src) => void toDataUrl(src).then(setPillImage)} />}
-              />
+              {!pillImage ? (
+                <PhotoCapture
+                  pillDetail
+                  blurGate
+                  title="Picture of the pill"
+                  hint="Put one pill on a dark table and hold the phone about 20 cm (a hand-span) above it. Do not get closer: most phone cameras cannot focus up close and the picture goes blurry. We keep the part inside the dashed box."
+                  preview={pillImage}
+                  onCapture={(img) => {
+                    setPillImage(img);
+                    setPillImageBack(null);
+                    setPillIsSample(false);
+                  }}
+                  extraAction={
+                    <SamplePillPicker
+                      onPick={(src) =>
+                        void toDataUrl(src).then((img) => {
+                          setPillImage(img);
+                          setPillImageBack(null);
+                          setPillIsSample(true);
+                        })
+                      }
+                    />
+                  }
+                />
+              ) : (
+                <section className="flex flex-col gap-3 rounded-xl bg-paper p-4 shadow-card">
+                  <p className="flex items-center gap-2 text-xl font-bold text-success">
+                    <Check className="size-6 shrink-0" />
+                    {pillImageBack ? "Both sides saved" : "Front saved. Now turn the pill over."}
+                  </p>
+                  <div className="flex gap-3">
+                    <img
+                      src={pillImage}
+                      alt="Front of the pill"
+                      className="h-28 w-28 rounded-lg object-cover"
+                    />
+                    {pillImageBack ? (
+                      <img
+                        src={pillImageBack}
+                        alt="Back of the pill"
+                        className="h-28 w-28 rounded-lg object-cover"
+                      />
+                    ) : null}
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setPillImage(null);
+                      setPillImageBack(null);
+                    }}
+                  >
+                    Retake both sides
+                  </Button>
+                </section>
+              )}
               {pillImage ? (
+                <div id="pill-back" className="scroll-mt-24">
+                  <PhotoCapture
+                    pillDetail
+                    blurGate
+                    title="Turn the same pill over"
+                    hint="Take a clear picture of the other side, even if it is blank."
+                    preview={pillImageBack}
+                    onCapture={setPillImageBack}
+                  />
+                </div>
+              ) : null}
+              {canShareToLibrary ? (
+                <label className="flex min-h-20 cursor-pointer items-start gap-4 rounded-lg bg-paper p-4 shadow-card">
+                  <input
+                    type="checkbox"
+                    checked={sharePillPhotos}
+                    onChange={(e) => setSettings({ sharePillPhotos: e.target.checked })}
+                    className="mt-1 size-8 shrink-0 accent-[var(--color-primary)]"
+                  />
+                  <span className="text-xl leading-snug">
+                    <span className="block font-bold">
+                      Also add this pill photo to the SureDose pill library
+                    </span>
+                    <span className="mt-1 block text-lg text-muted">
+                      Optional. It helps us recognize pills in the future. Only the pill picture and
+                      the medicine name are shared — never your bottle or your name. You can delete
+                      it any time.
+                    </span>
+                  </span>
+                </label>
+              ) : null}
+              {pillImage && pillImageBack ? (
                 <Button size="xl" disabled={saving} onClick={() => void save(pillImage, "own")}>
                   <Check className="size-7" />
                   {existing ? `Update ${existing.name}` : "Save this medicine"}
