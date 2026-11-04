@@ -1,3 +1,9 @@
+/** Shrinking to 0x0 frees the bitmap memory right away (matters on older phones). */
+function releaseCanvas(canvas: HTMLCanvasElement) {
+  canvas.width = 0;
+  canvas.height = 0;
+}
+
 const MAX_EDGE = 720;
 const QUALITY = 0.74;
 
@@ -19,7 +25,10 @@ export function compressImage(file: Blob, maxEdge = MAX_EDGE, quality = QUALITY)
         return;
       }
       ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL("image/jpeg", quality));
+      const out = canvas.toDataURL("image/jpeg", quality);
+      releaseCanvas(canvas); // phones keep canvas pixels alive otherwise
+      img.src = "";
+      resolve(out);
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -59,7 +68,9 @@ export function captureFromVideo(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not take this photo.");
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", quality);
+  const out = canvas.toDataURL("image/jpeg", quality);
+  releaseCanvas(canvas);
+  return out;
 }
 
 /** Re-encode any image data URL (e.g. an official pill photo) to the app's 720px JPEG. */
@@ -101,5 +112,7 @@ export async function capturePillPhoto(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not take this photo.");
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", PILL_QUALITY);
+  const out = canvas.toDataURL("image/jpeg", PILL_QUALITY);
+  releaseCanvas(canvas);
+  return out;
 }

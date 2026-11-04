@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { browserStorage } from "./kv-storage";
 import type { DoseEvent, Medicine, Settings } from "./types";
 import { eventKey, todayISO } from "./schedule";
 import { forgetPillReferences } from "./pill-cache";
@@ -109,6 +110,9 @@ function sampleSet(): Medicine[] {
     },
   ];
 }
+
+/** How many of the newest dose records keep their check photo on this phone. */
+const KEEP_CHECK_PHOTOS = 20;
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -244,11 +248,28 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "suredose-v1",
-      partialize: (s) => ({
-        settings: s.settings,
-        medicines: s.medicines,
-        events: s.events.slice(-200),
+      // IndexedDB (with an automatic move of older localStorage data), not localStorage:
+      // photos are base64 text and overflowed localStorage's ~5 MB.
+      storage: createJSONStorage(() => {
+        const storage = browserStorage();
+        // On the server there is nothing to persist: throwing makes zustand skip persistence.
+        if (!storage) throw new Error("no browser storage");
+        return storage;
       }),
+      partialize: (s) => {
+        const recent = s.events.slice(-200);
+        return {
+          settings: s.settings,
+          medicines: s.medicines,
+          // Keep the check photo only for the newest few doses; older ones add megabytes
+          // the caregiver already has on the server.
+          events: recent.map((e, i) =>
+            e.checkImage && i < recent.length - KEEP_CHECK_PHOTOS
+              ? { ...e, checkImage: undefined }
+              : e,
+          ),
+        };
+      },
     },
   ),
 );
