@@ -10,3 +10,4 @@ node_modules/
 
 # Vision evaluation output (real label photos; never commit)
 eval-results/
+eval-photos/
