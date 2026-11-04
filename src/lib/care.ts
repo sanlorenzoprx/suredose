@@ -5,7 +5,7 @@ import { getSql, type Sql } from "./db";
 import { sendPushToHousehold } from "./push.server";
 import { formatTimeLabel } from "./schedule";
 import { videoRoomName } from "./video";
-import { generateToken04 } from "./zego-token";
+import { cleanSecret, generateToken04 } from "./zego-token";
 import type { CareActivityItem, CareMedicineSummary } from "./types";
 import { uid } from "./utils";
 
@@ -321,12 +321,17 @@ export const getVideoToken = createServerFn({ method: "POST" })
       data,
     }): Promise<
       | { ok: true; appId: number; token: string; roomId: string; userId: string }
-      | { ok: false; reason: "not-configured" | "unknown-family" | "failed" }
+      | { ok: false; reason: string }
     > => {
-      const appId = Number(process.env.ZEGO_APP_ID);
-      const secret = process.env.ZEGO_SERVER_SECRET;
-      if (!Number.isInteger(appId) || appId <= 0 || !secret) {
+      const appId = Number(cleanSecret(process.env.ZEGO_APP_ID));
+      const secret = cleanSecret(process.env.ZEGO_SERVER_SECRET);
+      if (!process.env.ZEGO_APP_ID || !process.env.ZEGO_SERVER_SECRET) {
         return { ok: false, reason: "not-configured" };
+      }
+      if (!Number.isInteger(appId) || appId <= 0) return { ok: false, reason: "bad-app-id" };
+      // Only the LENGTH is reported, never the value. A real ServerSecret is 32 characters.
+      if (![16, 24, 32].includes(new TextEncoder().encode(secret).length)) {
+        return { ok: false, reason: `bad-secret-length-${secret.length}` };
       }
       const sql = await getSql();
       const rows = await sql<{ id: string }>`select id from households where id = ${data.code}`;
