@@ -12,6 +12,7 @@
  * same answer shape, so switching is a configuration change, not a code change.
  */
 
+import { splitStrengthFromName } from "./label-strength.ts";
 import { metaVision } from "./vision-meta.ts";
 import { vertexVision, type VisionResult } from "./vertex.ts";
 
@@ -67,9 +68,17 @@ function hasLowConfidenceMarker(value: unknown): boolean {
   return Object.values(fields).some(hasLowConfidenceMarker);
 }
 
+/** A bottle label whose strength sits inside the name counts as read (see label-strength.ts). */
+function withStrengthSplit(parsed: unknown): unknown {
+  if (!isRecord(parsed) || typeof parsed.name !== "string") return parsed;
+  if (typeof parsed.strength === "string" && parsed.strength.trim()) return parsed;
+  const split = splitStrengthFromName(parsed.name, "");
+  return { ...parsed, name: split.name, strength: split.strength };
+}
+
 function isUnreadable(result: VisionResult): boolean {
   if (!result.ok) return true;
-  const parsed = parseResponse(result.text);
+  const parsed = withStrengthSplit(parseResponse(result.text));
   if (!isRecord(parsed)) return true;
 
   const fields = parsed;

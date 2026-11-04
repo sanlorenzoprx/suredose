@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { splitStrengthFromName } from "./label-strength.ts";
 import type { BottleRead, PillMatch } from "./types.ts";
 import type { vertexVision } from "./vertex.ts";
 
@@ -49,10 +50,13 @@ export async function readLabelPhoto(
     const response = await vision({ images: [image], maxTokens: 500, prompt: LABEL_PROMPT });
     if (!response.ok) return response;
     const parsed = bottleResult.parse(extractJson(response.text));
+    const split = splitStrengthFromName(parsed.name, parsed.strength);
     return {
       ok: true,
       bottle: {
         ...parsed,
+        name: split.name,
+        strength: split.strength,
         times: [...new Set(parsed.times)],
         ndc: /^[\d-]+$/.test(parsed.ndc) ? parsed.ndc : "",
       },
