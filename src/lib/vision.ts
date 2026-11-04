@@ -121,14 +121,23 @@ export async function vision(
   env: Env = typeof process !== "undefined" ? process.env : {},
 ): Promise<VisionResult> {
   if (visionProvider(env) === "google") {
+    console.log("vision: provider=google (forced or no Meta key)");
     return callProvider(() => vertexVision(opts, env));
   }
 
   const meta = await callProvider(() => metaVision(opts, env));
-  if (meta.ok && !isUnreadable(meta)) return meta;
+  if (meta.ok && !isUnreadable(meta)) {
+    console.log("vision: provider=meta result=used");
+    return meta;
+  }
 
   const metaWasUnreadable = meta.ok;
+  console.log(
+    `vision: provider=meta result=${metaWasUnreadable ? "unreadable" : "failed"}; trying google`,
+  );
   const google = await callProvider(() => vertexVision(opts, env));
   if (!google.ok) return metaWasUnreadable ? { ok: false, error: MANUAL_CHECK_ERROR } : google;
-  return isUnreadable(google) ? { ok: false, error: MANUAL_CHECK_ERROR } : google;
+  if (isUnreadable(google)) return { ok: false, error: MANUAL_CHECK_ERROR };
+  console.log("vision: provider=google result=used (fallback)");
+  return google;
 }
