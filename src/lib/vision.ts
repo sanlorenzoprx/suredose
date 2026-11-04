@@ -124,9 +124,9 @@ function describeShape(parsed: Record<string, unknown>): string {
 }
 
 /** Why an answer was rejected — a short category only, never label or photo content. */
-function unreadableReason(result: VisionResult): string {
+export function unreadableReason(result: VisionResult): string {
   if (!result.ok) return "provider-error";
-  const parsed = parseResponse(result.text);
+  const parsed = withStrengthSplit(parseResponse(result.text));
   if (!isRecord(parsed)) return `no-json textLen=${result.text.length}`;
   const f = parsed;
   const shape = describeShape(parsed);

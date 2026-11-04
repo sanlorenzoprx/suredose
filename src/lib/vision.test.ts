@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { vision, visionProvider } from "./vision.ts";
+import { unreadableReason, vision, visionProvider } from "./vision.ts";
 import { buildMetaRequest, metaConfig, metaVision } from "./vision-meta.ts";
 
 const image = "data:image/jpeg;base64,AAAABBBBCCCCDDDD";
@@ -302,4 +302,23 @@ test("Meta unparseable model text falls back to Google", async () => {
   } finally {
     m.restore();
   }
+});
+
+test("a label with the strength inside the name is accepted, and the log reason agrees", async () => {
+  const inName = '{"name":"Metformin HCl 500 mg","strength":"","timesPerDay":null,"times":[]}';
+  assert.equal(unreadableReason({ ok: true, text: inName }), "ok");
+  const m = mockFetch(() => googleReply(inName));
+  try {
+    const result = await vision(
+      { prompt: "p", images: [image], maxTokens: 1 },
+      { VISION_PROVIDER: "google", GOOGLE_VERTEX_API_KEY: "k" },
+    );
+    assert.deepEqual(result, { ok: true, text: inName });
+  } finally {
+    m.restore();
+  }
+  assert.match(
+    unreadableReason({ ok: true, text: '{"name":"Metformin","strength":"","times":[]}' }),
+    /^strength-empty/,
+  );
 });
