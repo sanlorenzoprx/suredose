@@ -27,11 +27,13 @@ or change it without user confirmation.
 
 ## Hard rules
 
-1. Vision order (user decision Nov 3, 2026): Meta Muse first when
-   META_API_KEY is set, Google Vertex as fallback (on Meta error or
-   unreadable photo). VISION_PROVIDER=google forces Google only. Never
-   deploy a guessed Meta model/URL: confirm META_VISION_MODEL and
-   META_API_BASE_URL against Meta's docs before relying on Meta live.
+1. Vision provider (user decision Nov 4, 2026): live uses Google
+   Gemini only (VISION_PROVIDER=google on suredose-test). Meta Muse
+   was tried first and rejected: Muse answered but its label reads
+   were judged unreadable where Gemini read the same poor label fine.
+   Meta code stays in the repo, off by default via the forced-Google
+   setting. Re-enable only after a deliberate retest and a confirmed
+   Meta model name; never deploy a guessed Meta model/URL.
 2. Never hallucinate a drug name. Obscured label = needs_manual_check.
 3. Never mark a dose taken except through the pill-check flow.
 4. Never paste or print secrets anywhere (chat, code, commits, shots).
