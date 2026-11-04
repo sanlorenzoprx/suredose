@@ -57,8 +57,16 @@ export async function verifyMedicineData(input: {
           name: data.name,
           strength: data.strength,
         });
-      } catch {
-        console.error("Official pill image lookup failed; continuing without an image");
+      } catch (err) {
+        // The kind of failure only. Never the error text, request URL (it can carry an API key)
+        // or any patient detail.
+        const kind =
+          err instanceof LookupUnavailable
+            ? "government drug service unreachable or refused"
+            : err instanceof Error
+              ? `internal ${err.name}`
+              : "unknown";
+        console.error(`Official pill image lookup failed (${kind}); continuing without an image`);
       }
 
       return {
