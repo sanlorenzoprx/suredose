@@ -2,18 +2,36 @@
 
 Last updated: Nov 3, 2026
 
-## Current status: PAUSED for live migration/deploy (code work resumed Nov 3)
+## Current status: LIVE ON suredose-test (Nov 4, 2026)
 
-- Paused at user request Nov 3, 2026. Do NOT resume live migration,
-  deployment, commit, push, merge, tag, secret/provider changes, or
-  phone testing without a new explicit user instruction.
-- D1 runtime commit c5ca712 and memory commit 9ae14cf are pushed.
-  At 9ae14cf, pre-hackathon-fixes matched origin/pre-hackathon-fixes.
-- Preserve all existing uncommitted/untracked work. Never stash or
-  discard without approval.
-- Latest verified gates: typecheck PASS; npm test PASS (352 tests:
-  197 script + 155 application); git diff --check PASS.
-- No live migration or deployment occurred during the D1 work.
+- D1 migration 0003 APPLIED to live DB suredose (Nov 4; restore bookmarks
+  before: 00000422-00000000-00005119-f82110c675abfeabe528ceb2ebca14cc,
+  after: 00000423-00000006-00005119-eb38730407f2edafca4442bbf9d0be4c).
+  Recorded in d1_migrations. Do not rerun.
+- Worker suredose-test deployed from pre-hackathon-fixes; cron */15 active.
+  Secrets set by name: BETTER_AUTH_SECRET, BETTER_AUTH_URL, META_API_KEY,
+  GOOGLE_SERVICE_ACCOUNT_JSON, OPENFDA_API_KEY, VAPID_PRIVATE_KEY,
+  VAPID_SUBJECT, VITE_VAPID_PUBLIC_KEY. Rate limit: set VISION_RATE_LIMIT /
+  VISION_RATE_REFILL_MINUTES as SECRETS (deploy wipes dashboard vars).
+- Verified live: Meta Muse read a bottle itself (provider=meta result=used).
+  Offline eval: Muse 10/10 and Gemini 10/10 on clear labels (easy set only).
+- Domain: suredose.app owned; attach as Custom Domain to suredose-test, then
+  set BETTER_AUTH_URL to https://suredose.app (single trusted origin).
+- STILL NOT RUN: real-phone checklist (PHONE_TEST_RESULTS.md). STOP RULE:
+  any real-phone failure = no merge, no tag; open a GitHub Issue first.
+- Branch d1-port (other agent) diverged from pre-hackathon-fixes; NOT merged.
+- Flaky test: "D1 atomic token bucket..." fails intermittently; not triaged.
+
+## Remaining (priority order)
+1. Deploy latest main work (photo capture best-of-3, drug-lookup fix).
+2. Attach suredose.app; BETTER_AUTH_URL; redeploy; retest; QR code.
+3. Set VISION_RATE_LIMIT=30 and VISION_RATE_REFILL_MINUTES=1 (secrets).
+4. Real-phone run: scan, Metformin/Atorvastatin/Levothyroxine checks, pill
+   check, photos persist after close, pairing, push, video call, missed dose.
+5. Cleanup: delete eval Google key, eval-photos/eval-results, unneeded
+   Codespace secrets; remove VISION_PROVIDER secret if set.
+6. Submission: confirm track with user; demo notes; merge/tag only after
+   phone checklist passes.
 
 ## Project
 
@@ -100,8 +118,8 @@ local D1, desktop/mobile renders PASS, screenshots/ verdicts) does
 NOT prove real Google recognition, Android camera behavior, real
 push delivery, or deployed config. Real-phone outcomes remain
 NOT RUN — see PHONE_TEST_RESULTS.md and PRE_LIVE_TEST_CHECKLIST.md
-(read only before phone testing/release). Jitsi video call (commit b11c36c, Family page
-button + push nudge) is implemented but untested on real phones;
+(read only before phone testing/release). Jitsi video call (Family page button + push nudge) is
+implemented but untested on real phones;
 caregiver reply flow is NOT implemented.
 
 ## Gates after any code change
