@@ -1,4 +1,4 @@
-import { assessPhoto, THRESHOLDS, type PhotoQuality } from "./image-quality";
+import { assessPhoto, THRESHOLDS, type PhotoKind, type PhotoQuality } from "./image-quality";
 
 /** Shrinking to 0x0 frees the bitmap memory right away (matters on older phones). */
 function releaseCanvas(canvas: HTMLCanvasElement) {
@@ -127,7 +127,7 @@ export async function capturePillPhoto(
 const ASSESS_EDGE = 640;
 
 /** Sharpness / light / glare of a photo, measured on a small copy. */
-export function assessDataUrl(dataUrl: string): Promise<PhotoQuality> {
+export function assessDataUrl(dataUrl: string, kind: PhotoKind = "label"): Promise<PhotoQuality> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -143,7 +143,7 @@ export function assessDataUrl(dataUrl: string): Promise<PhotoQuality> {
         return;
       }
       ctx.drawImage(img, 0, 0, w, h);
-      const quality = assessPhoto(ctx.getImageData(0, 0, w, h));
+      const quality = assessPhoto(ctx.getImageData(0, 0, w, h), kind);
       releaseCanvas(canvas);
       img.src = "";
       resolve(quality);
@@ -162,12 +162,13 @@ export async function captureBest(
   track: MediaStreamTrack,
   maxEdge: number,
   quality: number,
+  kind: PhotoKind,
   shots = 3,
 ): Promise<{ dataUrl: string; quality: PhotoQuality }> {
   let best: { dataUrl: string; quality: PhotoQuality } | null = null;
   for (let i = 0; i < shots; i += 1) {
     const dataUrl = await grabStill(video, track, maxEdge, quality);
-    const q = await assessDataUrl(dataUrl).catch(() => null);
+    const q = await assessDataUrl(dataUrl, kind).catch(() => null);
     if (!q) return best ?? { dataUrl, quality: { sharpness: 0, brightness: 128, blownShare: 0, issues: [] } };
     if (!best || q.sharpness > best.quality.sharpness) best = { dataUrl, quality: q };
     if (q.sharpness >= THRESHOLDS.minSharpness * 3 && q.issues.length === 0) break;

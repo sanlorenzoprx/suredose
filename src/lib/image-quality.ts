@@ -15,6 +15,12 @@ export type PixelData = {
 
 export type PhotoIssue = "blurry" | "dark" | "glare";
 
+/**
+ * Bottle labels should be evenly lit. Pills are photographed on a DARK table on purpose, so
+ * a dark average is correct there: only sharpness is judged for pills.
+ */
+export type PhotoKind = "label" | "pill";
+
 export type PhotoQuality = {
   /** Variance of the Laplacian on luma: higher = more fine detail. */
   sharpness: number;
@@ -74,12 +80,14 @@ export function exposureStats(img: PixelData): { brightness: number; blownShare:
   return { brightness: total / y.length, blownShare: blown / y.length };
 }
 
-export function assessPhoto(img: PixelData): PhotoQuality {
+export function assessPhoto(img: PixelData, kind: PhotoKind = "label"): PhotoQuality {
   const sharpness = laplacianVariance(img);
   const { brightness, blownShare } = exposureStats(img);
   const issues: PhotoIssue[] = [];
-  if (brightness < THRESHOLDS.minBrightness) issues.push("dark");
-  if (blownShare > THRESHOLDS.maxBlownShare) issues.push("glare");
+  if (kind === "label") {
+    if (brightness < THRESHOLDS.minBrightness) issues.push("dark");
+    if (blownShare > THRESHOLDS.maxBlownShare) issues.push("glare");
+  }
   // A dark photo has little contrast by nature; report the light problem first.
   if (!issues.includes("dark") && sharpness < THRESHOLDS.minSharpness) issues.push("blurry");
   return { sharpness, brightness, blownShare, issues };

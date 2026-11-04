@@ -46,10 +46,12 @@ export function PhotoCapture({
   const [torchAvailable, setTorchAvailable] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const detailed = pillDetail || labelDetail;
+  /** Only bottle labels get a "retake?" warning; pills sit on a dark table by design. */
+  const gated = labelDetail && !pillDetail;
 
   /** Send a photo on, unless it looks poor and the person should decide first. */
   async function deliver(dataUrl: string, issues: PhotoIssue[]) {
-    if (detailed && issues.length > 0) {
+    if (gated && issues.length > 0) {
       setPending({ dataUrl, issues });
       return;
     }
@@ -147,6 +149,7 @@ export function PhotoCapture({
             track,
             pillDetail ? PILL_MAX_EDGE : LABEL_MAX_EDGE,
             pillDetail ? PILL_QUALITY : LABEL_QUALITY,
+            pillDetail ? "pill" : "label",
           )
         : { dataUrl: captureFromVideo(video), quality: { issues: [] as PhotoIssue[] } };
       stopCamera();
@@ -177,7 +180,7 @@ export function PhotoCapture({
               : compressImage(file),
         async (data) => {
           setCameraFallback(false);
-          const issues = detailed ? await assessDataUrl(data).then((q) => q.issues).catch(() => []) : [];
+          const issues = gated ? await assessDataUrl(data, "label").then((q) => q.issues).catch(() => []) : [];
           await deliver(data, issues);
         },
       );

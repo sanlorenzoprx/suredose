@@ -24,6 +24,28 @@ page.on("response", async (response) => {
   }
 });
 page.on("pageerror", (error) => errors.push(error.message));
+// The app keeps its saved state in IndexedDB (older data in localStorage is moved over on
+// first load). This reads it from wherever it lives so checks do not depend on the store.
+await page.addInitScript(() => {
+  window.__savedState = async () => {
+    const fromIdb = await new Promise((resolve) => {
+      const open = indexedDB.open("suredose", 1);
+      open.onupgradeneeded = () => open.result.createObjectStore("kv");
+      open.onerror = () => resolve(null);
+      open.onsuccess = () => {
+        try {
+          const req = open.result.transaction("kv").objectStore("kv").get("suredose-v1");
+          req.onsuccess = () => resolve(typeof req.result === "string" ? req.result : null);
+          req.onerror = () => resolve(null);
+        } catch {
+          resolve(null);
+        }
+      };
+    });
+    const raw = fromIdb ?? localStorage.getItem("suredose-v1");
+    return raw ? JSON.parse(raw).state : null;
+  };
+});
 
 try {
   await page.clock.install({ time: new Date("2026-10-24T09:45:00") });
@@ -133,8 +155,8 @@ try {
   );
   await page.locator("#gallery-photo-input").setInputFiles("public/samples/peach-tablet.jpg");
   await page.getByRole("button", { name: "Save this medicine", exact: true }).click();
-  await page.waitForFunction(() =>
-    JSON.parse(localStorage.getItem("suredose-v1")).state.medicines.some(
+  await page.waitForFunction(async () =>
+    ((await window.__savedState())?.medicines ?? []).some(
       (m) => m.name === "Synthetic example" && m.pillImageBack,
     ),
   );
@@ -162,7 +184,7 @@ try {
   await page.getByText("That is your saved photo.", { exact: false }).waitFor();
   assert.equal(await page.getByRole("button", { name: /record my confirmation/ }).count(), 0);
   const events = await page.evaluate(
-    () => JSON.parse(localStorage.getItem("suredose-v1")).state.events,
+    async () => (await window.__savedState()).events,
   );
   assert.deepEqual(events, [], "replayed image cannot mark a dose taken");
   assert.deepEqual(errors, [], "no uncaught browser errors");
@@ -263,7 +285,7 @@ try {
   await took.click();
   await page.getByRole("heading", { name: "You marked this dose taken.", exact: true }).waitFor();
   const recorded = await page.evaluate(
-    () => JSON.parse(localStorage.getItem("suredose-v1")).state.events,
+    async () => (await window.__savedState()).events,
   );
   assert.equal(recorded.length, 1);
   assert.equal(recorded[0].verified, true, "photo-checked doses are saved as checked");

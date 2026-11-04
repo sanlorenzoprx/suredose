@@ -47,3 +47,14 @@ test("a large washed-out patch is flagged as glare, but clean white paper is not
 test("a tiny image never throws", () => {
   assert.equal(laplacianVariance(make(2, 2, () => 100)), 0);
 });
+
+test("a pill on a dark table is not called dark; only sharpness is judged for pills", () => {
+  // Dark table with a small bright, detailed disc: typical pill photo.
+  const pill = make(120, 120, (x, y) => {
+    const inDisc = (x - 60) ** 2 + (y - 60) ** 2 < 20 ** 2;
+    return inDisc ? (Math.floor(x / 2) % 2 === 0 ? 230 : 150) : 25;
+  });
+  assert.ok(assessPhoto(pill, "label").issues.includes("dark"));
+  assert.deepEqual(assessPhoto(pill, "pill").issues, []);
+  assert.deepEqual(assessPhoto(blurred, "pill").issues, ["blurry"]);
+});
