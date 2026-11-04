@@ -96,5 +96,46 @@ export function assessPhoto(img: PixelData, kind: PhotoKind = "label"): PhotoQua
 export const ISSUE_MESSAGE: Record<PhotoIssue, string> = {
   blurry: "This photo looks blurry. Hold the phone steady, or rest it on the table, and try again.",
   dark: "This photo is dark. Move to a brighter spot or turn on a light, and try again.",
-  glare: "There is a bright glare on the label. Tilt the bottle slightly to move it, and try again.",
+  glare:
+    "There is a bright glare on the label. Tilt the bottle slightly to move it, and try again.",
 };
+
+export type LightStats = { mean: number; p95: number; blownShare: number };
+
+/** Cheap brightness summary of a small live-preview frame. */
+export function lightStats(img: PixelData): LightStats {
+  const y = lumaPlane(img);
+  const hist = new Uint32Array(256);
+  let total = 0;
+  let blown = 0;
+  for (let i = 0; i < y.length; i += 1) {
+    const v = Math.min(255, Math.max(0, Math.round(y[i])));
+    hist[v] += 1;
+    total += y[i];
+    if (y[i] >= 250) blown += 1;
+  }
+  const target = y.length * 0.95;
+  let seen = 0;
+  let p95 = 255;
+  for (let v = 0; v < 256; v += 1) {
+    seen += hist[v];
+    if (seen >= target) {
+      p95 = v;
+      break;
+    }
+  }
+  return { mean: total / y.length, p95, blownShare: blown / y.length };
+}
+
+export type LightAdvice = "dim" | "ok" | "washed";
+
+/**
+ * Should the phone's light be offered? Only in dim light. Pills sit on a dark table, so for pills
+ * "dim" means even the brightest part is dim. With the light ON, a big blown-out area means it is
+ * washing out the lettering, so say so.
+ */
+export function lightAdvice(stats: LightStats, kind: PhotoKind, torchOn: boolean): LightAdvice {
+  if (torchOn) return stats.blownShare > (kind === "label" ? 0.08 : 0.12) ? "washed" : "ok";
+  const dim = kind === "label" ? stats.mean < 90 : stats.p95 < 120;
+  return dim ? "dim" : "ok";
+}

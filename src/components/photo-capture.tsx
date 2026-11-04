@@ -12,7 +12,13 @@ import {
   PILL_MAX_EDGE,
   PILL_QUALITY,
 } from "@/lib/image";
-import { ISSUE_MESSAGE, type PhotoIssue } from "@/lib/image-quality";
+import {
+  ISSUE_MESSAGE,
+  lightAdvice,
+  lightStats,
+  type LightAdvice,
+  type PhotoIssue,
+} from "@/lib/image-quality";
 import { readPhotoInput } from "@/lib/photo-input";
 
 type Props = {
@@ -51,6 +57,8 @@ export function PhotoCapture({
   const [videoShape, setVideoShape] = useState<{ w: number; h: number } | null>(null);
   const [torchAvailable, setTorchAvailable] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  /** What the live picture says about the light: dim (offer the light), ok, or washed out by it. */
+  const [light, setLight] = useState<LightAdvice>("ok");
   const detailed = pillDetail || labelDetail;
   /**
    * Bottle labels get a full warning (blur, dark, glare). Saved pill references get a blur-only
@@ -90,6 +98,38 @@ export function PhotoCapture({
     });
   }, [cameraOn]);
 
+  // While the camera is on, look at the live picture every moment or so. The phone's light is only
+  // offered in dim light, and if it is on and washing out the lettering, say so.
+  useEffect(() => {
+    if (!cameraOn || !torchAvailable) {
+      setLight("ok");
+      return undefined;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = 48;
+    canvas.height = 48;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const recent: LightAdvice[] = [];
+    const timer = window.setInterval(() => {
+      const video = videoRef.current;
+      if (!ctx || !video || !video.videoWidth) return;
+      ctx.drawImage(video, 0, 0, 48, 48);
+      const advice = lightAdvice(
+        lightStats(ctx.getImageData(0, 0, 48, 48)),
+        pillDetail ? "pill" : "label",
+        torchOn,
+      );
+      recent.push(advice);
+      if (recent.length > 3) recent.shift();
+      // Change only when the last three looks agree, so the button does not flicker.
+      if (recent.length === 3 && recent.every((a) => a === recent[0])) setLight(recent[0]);
+    }, 600);
+    return () => {
+      window.clearInterval(timer);
+      canvas.width = 0;
+    };
+  }, [cameraOn, torchAvailable, torchOn, pillDetail]);
+
   function stopCamera() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
@@ -97,6 +137,7 @@ export function PhotoCapture({
     setCameraReady(false);
     setTorchAvailable(false);
     setTorchOn(false);
+    setLight("ok");
     setVideoShape(null);
   }
 
@@ -314,10 +355,23 @@ export function PhotoCapture({
         </div>
       ) : cameraOn ? (
         <div className="flex flex-col gap-3">
-          {torchAvailable ? (
-            <Button size="lg" variant="secondary" onClick={() => void toggleTorch()}>
+          {torchAvailable && torchOn && light === "washed" ? (
+            <p
+              role="alert"
+              className="flex items-start gap-2 rounded-lg bg-bg-warm p-4 text-xl font-bold"
+            >
+              <TriangleAlert className="mt-1 size-6 shrink-0" />
+              The light is washing out the letters. Turn it off.
+            </p>
+          ) : null}
+          {torchAvailable && (torchOn || light === "dim") ? (
+            <Button
+              size="lg"
+              variant={torchOn && light === "washed" ? "primary" : "secondary"}
+              onClick={() => void toggleTorch()}
+            >
               <Zap className="size-6" />
-              {torchOn ? "Turn the light off" : "Turn the light on"}
+              {torchOn ? "Turn the light off" : "It is dim. Turn the light on"}
             </Button>
           ) : null}
           <Button size="xl" disabled={busy || !cameraReady} onClick={() => void snap()}>

@@ -219,7 +219,21 @@ function CheckReady({
   // though the dose now also shows up as "already taken" in `events`.
   if (doneAt) {
     return (
-      <AppShell title={practice ? "Practice" : "Check this pill"}>
+      <AppShell
+        title={practice ? "Practice" : "Check this pill"}
+        headerAction={
+          practice ? (
+            <Button
+              variant="primary"
+              className="min-h-12 px-4 text-lg"
+              onClick={() => navigate({ to: "/" })}
+            >
+              <X className="size-6" />
+              Exit practice
+            </Button>
+          ) : undefined
+        }
+      >
         <div className="flex flex-col gap-5">
           {practice ? (
             <section className="rounded-xl bg-paper p-5 shadow-card">
@@ -306,17 +320,25 @@ function CheckReady({
   }
 
   return (
-    <AppShell title={practice ? "Practice" : "Check this pill"}>
+    <AppShell
+      title={practice ? "Practice" : "Check this pill"}
+      headerAction={
+        practice ? (
+          <Button
+            variant="primary"
+            className="min-h-12 px-4 text-lg"
+            onClick={() => navigate({ to: "/" })}
+          >
+            <X className="size-6" />
+            Exit practice
+          </Button>
+        ) : undefined
+      }
+    >
       <div className="flex flex-col gap-5">
         {practice ? (
-          <div className="flex flex-col gap-3">
-            <div className="rounded-lg bg-bg-warm px-4 py-3 text-center text-lg font-bold text-ink">
-              Practice — this will not be saved or texted
-            </div>
-            <Button size="md" variant="secondary" onClick={() => navigate({ to: "/" })}>
-              <X className="size-6" />
-              Exit practice
-            </Button>
+          <div className="rounded-lg bg-bg-warm px-4 py-3 text-center text-lg font-bold text-ink">
+            Practice — this will not be saved or texted
           </div>
         ) : null}
 

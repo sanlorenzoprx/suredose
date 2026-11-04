@@ -38,7 +38,9 @@ test("a dark photo is flagged dark, not also blurry", () => {
 });
 
 test("a large washed-out patch is flagged as glare, but clean white paper is not", () => {
-  const glare = make(120, 120, (x, y) => (x > 30 && x < 90 && y > 30 && y < 90 ? 255 : Math.floor(x / 2) % 2 ? 90 : 180));
+  const glare = make(120, 120, (x, y) =>
+    x > 30 && x < 90 && y > 30 && y < 90 ? 255 : Math.floor(x / 2) % 2 ? 90 : 180,
+  );
   assert.ok(assessPhoto(glare).issues.includes("glare"));
   const paper = make(120, 120, (x) => (Math.floor(x / 2) % 2 === 0 ? 210 : 235));
   assert.ok(!assessPhoto(paper).issues.includes("glare"));
@@ -57,4 +59,28 @@ test("a pill on a dark table is not called dark; only sharpness is judged for pi
   assert.ok(assessPhoto(pill, "label").issues.includes("dark"));
   assert.deepEqual(assessPhoto(pill, "pill").issues, []);
   assert.deepEqual(assessPhoto(blurred, "pill").issues, ["blurry"]);
+});
+
+import { lightAdvice, lightStats } from "./image-quality.ts";
+
+test("light is offered only in dim light, and flagged when it washes the picture out", () => {
+  const dimLabel = make(60, 60, () => 55);
+  const brightLabel = make(60, 60, () => 170);
+  assert.equal(lightAdvice(lightStats(dimLabel), "label", false), "dim");
+  assert.equal(lightAdvice(lightStats(brightLabel), "label", false), "ok");
+  // Light on: a normal picture is fine, a mostly blown-out one is "washed".
+  assert.equal(lightAdvice(lightStats(brightLabel), "label", true), "ok");
+  const washed = make(60, 60, (x) => (x < 20 ? 120 : 255));
+  assert.equal(lightAdvice(lightStats(washed), "label", true), "washed");
+});
+
+test("a pill on a dark table is not 'dim' while the pill itself is bright", () => {
+  const darkTableBrightPill = make(60, 60, (x, y) =>
+    (x - 30) ** 2 + (y - 30) ** 2 < 14 ** 2 ? 235 : 30,
+  );
+  const stats = lightStats(darkTableBrightPill);
+  assert.ok(stats.mean < 90);
+  assert.equal(lightAdvice(stats, "pill", false), "ok");
+  const allDark = make(60, 60, () => 35);
+  assert.equal(lightAdvice(lightStats(allDark), "pill", false), "dim");
 });
