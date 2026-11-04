@@ -107,19 +107,27 @@ function isUnreadable(result: VisionResult): boolean {
   return hasLowConfidenceMarker(parsed);
 }
 
+/** Field names and lengths only (never the text), to tell "missing" from "blank". */
+function describeShape(parsed: Record<string, unknown>): string {
+  const len = (v: unknown) =>
+    v === undefined ? "missing" : typeof v === "string" ? String(v.trim().length) : typeof v;
+  return ` keys=[${Object.keys(parsed).slice(0, 12).join(",")}] nameLen=${len(parsed.name)} strengthLen=${len(parsed.strength)}`;
+}
+
 /** Why an answer was rejected — a short category only, never label or photo content. */
 function unreadableReason(result: VisionResult): string {
   if (!result.ok) return "provider-error";
   const parsed = parseResponse(result.text);
-  if (!isRecord(parsed)) return "no-json";
+  if (!isRecord(parsed)) return `no-json textLen=${result.text.length}`;
   const f = parsed;
-  if (f.needs_manual_check === true) return "model-said-manual-check";
+  const shape = describeShape(parsed);
+  if (f.needs_manual_check === true) return `model-said-manual-check${shape}`;
   if ("name" in f || "strength" in f) {
-    if (typeof f.name !== "string" || !f.name.trim()) return "name-empty";
-    if (typeof f.strength !== "string" || !f.strength.trim()) return "strength-empty";
+    if (typeof f.name !== "string" || !f.name.trim()) return `name-empty${shape}`;
+    if (typeof f.strength !== "string" || !f.strength.trim()) return `strength-empty${shape}`;
   }
-  if (hasLowConfidenceMarker(parsed)) return "low-confidence-marker";
-  return isUnreadable(result) ? "failed-validation" : "ok";
+  if (hasLowConfidenceMarker(parsed)) return `low-confidence-marker${shape}`;
+  return isUnreadable(result) ? `failed-validation${shape}` : "ok";
 }
 
 async function callProvider(call: () => Promise<VisionResult>): Promise<VisionResult> {
