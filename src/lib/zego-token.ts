@@ -55,3 +55,11 @@ export async function generateToken04(
   for (const byte of out) binary += String.fromCharCode(byte);
   return `04${btoa(binary)}`;
 }
+
+/** A pasted secret often carries a space, a newline or wrapping quotes: keep only the value. */
+export function cleanSecret(raw: string | undefined): string {
+  return (raw ?? "")
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, "")
+    .trim();
+}

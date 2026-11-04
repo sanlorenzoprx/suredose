@@ -57,3 +57,12 @@ test("bad input is refused before anything is signed", async () => {
   await assert.rejects(() => generateToken04(1, "", SECRET));
   await assert.rejects(() => generateToken04(1, "u", "too-short"));
 });
+
+import { cleanSecret } from "./zego-token.ts";
+
+test("a pasted secret loses stray spaces, newlines and wrapping quotes", () => {
+  assert.equal(cleanSecret(`  "${SECRET}"\n`), SECRET);
+  assert.equal(cleanSecret(`'${SECRET}'`), SECRET);
+  assert.equal(cleanSecret(SECRET), SECRET);
+  assert.equal(cleanSecret(undefined), "");
+});

@@ -1,5 +1,51 @@
 # SureDose — MVP
 
+> **Live demo: [suredose.app](https://suredose.app)** · hackathon build
+>
+> ![QR code for suredose.app](docs/qr-suredose-app.png)
+
+SureDose helps older adults take the right pill. They photograph the bottle and the pill; AI reads
+what is printed; the app checks it against the U.S. drug list and tells them "matched", "does not
+match", or "we can't check this". A family member's phone gets alerts and can join a video call.
+
+## Try it in about 60 seconds
+
+1. Open **https://suredose.app** on a phone (Chrome works best) and tap **I take medicine**.
+2. **Add a medicine.** Photograph a prescription bottle (or pick a sample bottle). The AI reads the
+   name and strength, and the app checks them against the U.S. drug list ("Checked with the U.S.
+   drug list").
+3. **Photograph one pill, front and back.** Put it on a dark table, hold the phone about 20 cm
+   above it, and keep the pill inside the dashed box.
+4. On Home, tap **Practice taking this pill**: your saved photo and the new one appear side by
+   side. Practice saves nothing and texts no one.
+5. **Family:** on a second phone choose **I'm helping a family member**, enter the family code,
+   and on that phone's Home tap **Turn on alerts**. Then tap **Call** on either phone for the
+   in-app video call.
+
+## What it is built with
+
+- **AI reading:** Meta Muse is tried first; Google Gemini is the automatic fallback. Each read is
+  checked by our own rules: an unclear photo, a missing field or an unreadable imprint never turns
+  into a green check. The pill check compares extracted features (markings, shape, colour) with the
+  saved photo. It is not a medication identity check.
+- **Drug list:** RxNorm, openFDA and DailyMed (official pill photos when available).
+- **Platform:** Cloudflare Workers, D1 and R2; TanStack Start; Web Push for caregiver alerts.
+- **Video call:** ZEGOCLOUD (token built server-side), with a Jitsi room as the fallback.
+
+## Honest status
+
+- **Automated:** typecheck, build, unit tests and browser regression suites run in CI, against
+  both a Postgres and a D1 database.
+- **Measured:** Meta Muse and Google Gemini each read 10 of 10 clear, redacted sample labels
+  correctly with no confident wrong reads. That set is easy; hard labels, glare and curved bottles
+  are not measured.
+- **Phones:** tried on Android Chrome with a bottle scan, drug-list check, photo capture, pairing
+  and an in-app video call between two phones. Push-alert delivery on real phones and iPhone are
+  not yet confirmed.
+- **Known limits:** Muse can take several seconds per read (Gemini takes over after 20 s); phone
+  cameras that cannot focus up close need the pill held about 20 cm away; the caregiver reply
+  flow is not built. The "Photo and schedule boundaries" notes below describe the design in detail.
+
 A medication reminder app for older adults. It reminds someone (by loud
 chime, spoken words, and vibration) when it's time for a pill, checks a
 photo of the pill against a saved reference photo before they take it, opens

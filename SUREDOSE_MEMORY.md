@@ -1,37 +1,43 @@
 # SUREDOSE MEMORY — HOT STATE
 
-Last updated: Nov 3, 2026
+Last updated: Nov 4, 2026
 
-## Current status: LIVE ON suredose-test (Nov 4, 2026)
+## Current status (Nov 4, 2026, ~7 PM ET)
 
-- D1 migration 0003 APPLIED to live DB suredose (Nov 4; restore bookmarks
-  before: 00000422-00000000-00005119-f82110c675abfeabe528ceb2ebca14cc,
-  after: 00000423-00000006-00005119-eb38730407f2edafca4442bbf9d0be4c).
-  Recorded in d1_migrations. Do not rerun.
-- Worker suredose-test deployed from pre-hackathon-fixes; cron */15 active.
-  Secrets set by name: BETTER_AUTH_SECRET, BETTER_AUTH_URL, META_API_KEY,
+- MERGED: PR #1 (pre-hackathon-fixes) merged into main as 205f121 (merge
+  commit; CI green on b7afe9f). NO release tag created. The merge was made on
+  an ambiguous "merge now?" message; the owner may want it reverted (a revert
+  commit, never a force push). Live deploys come from the branch, so the live
+  app was not affected by the merge.
+- Live: Worker suredose-test, domain https://suredose.app (BETTER_AUTH_URL set
+  to it; workers.dev can no longer sign in). D1 migration 0003 applied
+  (restore bookmarks before 00000422-00000000-00005119-f82110c675abfeabe528ceb2ebca14cc,
+  after 00000423-00000006-00005119-eb38730407f2edafca4442bbf9d0be4c). Do not rerun.
+- Secrets (names): BETTER_AUTH_SECRET, BETTER_AUTH_URL, META_API_KEY,
   GOOGLE_SERVICE_ACCOUNT_JSON, OPENFDA_API_KEY, VAPID_PRIVATE_KEY,
-  VAPID_SUBJECT, VITE_VAPID_PUBLIC_KEY. Rate limit: set VISION_RATE_LIMIT /
-  VISION_RATE_REFILL_MINUTES as SECRETS (deploy wipes dashboard vars).
-- Verified live: Meta Muse read a bottle itself (provider=meta result=used).
-  Offline eval: Muse 10/10 and Gemini 10/10 on clear labels (easy set only).
-- Domain: suredose.app owned; attach as Custom Domain to suredose-test, then
-  set BETTER_AUTH_URL to https://suredose.app (single trusted origin).
-- STILL NOT RUN: real-phone checklist (PHONE_TEST_RESULTS.md). STOP RULE:
-  any real-phone failure = no merge, no tag; open a GitHub Issue first.
-- Branch d1-port (other agent) diverged from pre-hackathon-fixes; NOT merged.
+  VAPID_SUBJECT, VITE_VAPID_PUBLIC_KEY, VISION_RATE_LIMIT,
+  VISION_RATE_REFILL_MINUTES, ZEGO_APP_ID, ZEGO_SERVER_SECRET. Set limits as
+  secrets (a deploy wipes dashboard vars).
+- Vision: Meta Muse first, Google fallback (live: provider=meta result=used).
+  Muse timeout 20s. Pill reads need a sharp photo ~20 cm away (phone cameras
+  cannot focus close); the app names which photo is blurry.
+- Video: /video uses ZEGOCLOUD prebuilt (token built server-side, SDK served
+  from public/vendor/zego); falls back to Jitsi and shows a "Reason:" code.
+  NOT yet verified on two real phones.
+- Push: a caregiver phone must tap Home > "Alerts on this phone" > Turn on
+  alerts (the Family-page button only enables local notifications).
+- Still NOT run: real-phone checklist (PHONE_TEST_RESULTS.md). Install-to-home
+  screen not offered on the owner's Android Chrome (skipped, not critical).
+- Branch d1-port (other agent) diverged; NOT merged; left untouched.
 - Flaky test: "D1 atomic token bucket..." fails intermittently; not triaged.
 
-## Remaining (priority order)
-1. Deploy latest main work (photo capture best-of-3, drug-lookup fix).
-2. Attach suredose.app; BETTER_AUTH_URL; redeploy; retest; QR code.
-3. Set VISION_RATE_LIMIT=30 and VISION_RATE_REFILL_MINUTES=1 (secrets).
-4. Real-phone run: scan, Metformin/Atorvastatin/Levothyroxine checks, pill
-   check, photos persist after close, pairing, push, video call, missed dose.
+## Remaining
+1. Confirm ZEGOCLOUD works on two phones (read the Reason: line if it falls back).
+2. Caregiver push: Turn on alerts, then dose/call notification arrives.
+3. Real-phone checklist; record in PHONE_TEST_RESULTS.md. Tag only after it passes.
+4. Submission: track unresolved; write-up, demo script, QR code for suredose.app.
 5. Cleanup: delete eval Google key, eval-photos/eval-results, unneeded
    Codespace secrets; remove VISION_PROVIDER secret if set.
-6. Submission: confirm track with user; demo notes; merge/tag only after
-   phone checklist passes.
 
 ## Project
 
