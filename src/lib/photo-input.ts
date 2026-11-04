@@ -6,7 +6,7 @@ type PhotoInputLike = {
 export async function readPhotoInput(
   input: PhotoInputLike,
   readFile: (file: File) => Promise<string>,
-  onCapture: (dataUrl: string) => void,
+  onCapture: (dataUrl: string) => void | Promise<void>,
 ): Promise<void> {
   const file = input.files?.[0];
   if (!file) {
@@ -18,7 +18,7 @@ export async function readPhotoInput(
     if (file.type && !file.type.startsWith("image/")) {
       throw new Error("Choose an image file to continue.");
     }
-    onCapture(await readFile(file));
+    await onCapture(await readFile(file));
   } finally {
     input.value = "";
   }

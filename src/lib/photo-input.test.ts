@@ -29,8 +29,10 @@ test("gallery and camera file inputs use the same photo handler, with capture on
     photoCapture.match(/async function onFileSelection[\s\S]*?\n\s{2}\}/)?.[0] ?? "";
   const cameraHandler = photoCapture.match(/async function snap[\s\S]*?\n\s{2}\}/)?.[0] ?? "";
   assert.match(fileHandler, /readPhotoInput/);
-  assert.match(fileHandler, /onCapture\(data\)/);
-  assert.match(cameraHandler, /onCapture\(data\)/);
+  // Both paths hand the photo to the same step, which checks quality and then calls onCapture.
+  assert.match(fileHandler, /deliver\(data, issues\)/);
+  assert.match(cameraHandler, /deliver\(shot\.dataUrl, shot\.quality\.issues\)/);
+  assert.match(photoCapture, /async function deliver[\s\S]*?onCapture\(dataUrl\)/);
   assert.match(addRoute, /onCapture=\{\(img\)\s+=>\s+void\s+onBottle\(img\)\}/);
   assert.match(checkRoute, /onCapture=\{\(img\)\s+=>\s+void\s+runCheck\(img\)\}/);
 });
@@ -45,7 +47,9 @@ test("same gallery photo can be read twice and each read produces the same previ
     assert.equal(selected, file);
     return `data:image/jpeg;base64,preview-${selected.name}`;
   };
-  const onCapture = (preview: string) => previews.push(preview);
+  const onCapture = (preview: string): void => {
+    previews.push(preview);
+  };
 
   for (let selection = 0; selection < 2; selection += 1) {
     input.value = "pill.jpg";

@@ -299,7 +299,7 @@ function AddMedicine() {
           <PhotoCapture
             labelDetail
             title="Picture of the bottle"
-            hint="Hold the bottle so the label is clear. We will read the name and check it for you."
+            hint="Fill the picture with the label, in bright light, and hold the phone steady. Turn the bottle a little if the label curves away or shows a glare."
             preview={bottleImage}
             onCapture={(img) => void onBottle(img)}
             extraAction={

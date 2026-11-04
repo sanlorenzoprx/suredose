@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Camera, ImagePlus, RefreshCw } from "lucide-react";
+import { Camera, ImagePlus, RefreshCw, TriangleAlert, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  assessDataUrl,
+  captureBest,
   captureFromVideo,
-  capturePillPhoto,
   compressImage,
   LABEL_MAX_EDGE,
   LABEL_QUALITY,
   PILL_MAX_EDGE,
   PILL_QUALITY,
 } from "@/lib/image";
+import { ISSUE_MESSAGE, type PhotoIssue } from "@/lib/image-quality";
 import { readPhotoInput } from "@/lib/photo-input";
 
 type Props = {
@@ -39,6 +41,21 @@ export function PhotoCapture({
   const [cameraOn, setCameraOn] = useState(false);
   const [cameraFallback, setCameraFallback] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** A photo that looks blurry, dark or glary: the person chooses to retake or use it. */
+  const [pending, setPending] = useState<{ dataUrl: string; issues: PhotoIssue[] } | null>(null);
+  const [torchAvailable, setTorchAvailable] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const detailed = pillDetail || labelDetail;
+
+  /** Send a photo on, unless it looks poor and the person should decide first. */
+  async function deliver(dataUrl: string, issues: PhotoIssue[]) {
+    if (detailed && issues.length > 0) {
+      setPending({ dataUrl, issues });
+      return;
+    }
+    setPending(null);
+    onCapture(dataUrl);
+  }
 
   function openFilePicker(inputId: "camera-photo-input" | "gallery-photo-input") {
     document.getElementById(inputId)?.click();
@@ -65,6 +82,20 @@ export function PhotoCapture({
     streamRef.current = null;
     setCameraOn(false);
     setCameraReady(false);
+    setTorchAvailable(false);
+    setTorchOn(false);
+  }
+
+  async function toggleTorch() {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    const next = !torchOn;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
+      setTorchOn(next);
+    } catch {
+      setTorchAvailable(false);
+    }
   }
 
   async function startCamera() {
@@ -75,8 +106,8 @@ export function PhotoCapture({
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "environment" },
-          width: { ideal: pillDetail ? 1920 : 1280 },
-          height: { ideal: pillDetail ? 1080 : 720 },
+          width: { ideal: detailed ? 3840 : 1280 },
+          height: { ideal: detailed ? 2160 : 720 },
         },
         audio: false,
       });
@@ -91,6 +122,7 @@ export function PhotoCapture({
           .applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] })
           .catch(() => {});
       }
+      setTorchAvailable(Boolean((capabilities as { torch?: boolean } | undefined)?.torch));
       setCameraOn(true);
     } catch {
       setError("Camera is not available here. Choose a photo from your phone instead.");
@@ -109,13 +141,16 @@ export function PhotoCapture({
     try {
       const track = streamRef.current?.getVideoTracks()[0];
       if (!track) throw new Error("Camera is not ready. Try again.");
-      const data = pillDetail
-        ? await capturePillPhoto(video, track)
-        : labelDetail
-          ? captureFromVideo(video, LABEL_MAX_EDGE, LABEL_QUALITY)
-          : captureFromVideo(video);
+      const shot = detailed
+        ? await captureBest(
+            video,
+            track,
+            pillDetail ? PILL_MAX_EDGE : LABEL_MAX_EDGE,
+            pillDetail ? PILL_QUALITY : LABEL_QUALITY,
+          )
+        : { dataUrl: captureFromVideo(video), quality: { issues: [] as PhotoIssue[] } };
       stopCamera();
-      onCapture(data);
+      await deliver(shot.dataUrl, shot.quality.issues);
     } catch {
       setError("Could not take the photo. Hold still and try again.");
     } finally {
@@ -140,9 +175,10 @@ export function PhotoCapture({
             : labelDetail
               ? compressImage(file, LABEL_MAX_EDGE, LABEL_QUALITY)
               : compressImage(file),
-        (data) => {
+        async (data) => {
           setCameraFallback(false);
-          onCapture(data);
+          const issues = detailed ? await assessDataUrl(data).then((q) => q.issues).catch(() => []) : [];
+          await deliver(data, issues);
         },
       );
     } catch (err) {
@@ -159,6 +195,13 @@ export function PhotoCapture({
         <p className="mt-2 text-xl text-muted">{hint}</p>
       </div>
 
+      {pending ? (
+        <p role="alert" className="flex items-start gap-2 rounded-lg bg-bg-warm p-4 text-xl font-bold">
+          <TriangleAlert className="mt-1 size-6 shrink-0" />
+          {pending.issues.map((i) => ISSUE_MESSAGE[i]).join(" ")}
+        </p>
+      ) : null}
+
       <div className="overflow-hidden rounded-xl bg-ink shadow-card">
         {cameraOn ? (
           <video
@@ -169,8 +212,12 @@ export function PhotoCapture({
             muted
             autoPlay
           />
-        ) : preview ? (
-          <img src={preview} alt="Photo you took" className="aspect-square w-full object-cover" />
+        ) : pending ?? preview ? (
+          <img
+            src={pending?.dataUrl ?? preview ?? ""}
+            alt="Photo you took"
+            className="aspect-square w-full object-cover"
+          />
         ) : (
           <div className="flex aspect-square w-full flex-col items-center justify-center gap-3 bg-ink text-due-fg">
             <Camera className="size-12" strokeWidth={2} />
@@ -197,8 +244,32 @@ export function PhotoCapture({
         onChange={(event) => void onFileSelection(event)}
       />
 
-      {cameraOn ? (
+      {pending ? (
         <div className="flex flex-col gap-3">
+          <Button size="xl" onClick={() => setPending(null)}>
+            <RefreshCw className="size-7" />
+            Retake the photo
+          </Button>
+          <Button
+            size="xl"
+            variant="secondary"
+            onClick={() => {
+              const photo = pending.dataUrl;
+              setPending(null);
+              onCapture(photo);
+            }}
+          >
+            Use this photo anyway
+          </Button>
+        </div>
+      ) : cameraOn ? (
+        <div className="flex flex-col gap-3">
+          {torchAvailable ? (
+            <Button size="lg" variant="secondary" onClick={() => void toggleTorch()}>
+              <Zap className="size-6" />
+              {torchOn ? "Turn the light off" : "Turn the light on"}
+            </Button>
+          ) : null}
           <Button size="xl" disabled={busy || !cameraReady} onClick={() => void snap()}>
             <Camera className="size-7" />
             {busy ? "Taking photo…" : "Take photo"}
