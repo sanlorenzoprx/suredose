@@ -1,6 +1,9 @@
 import { getSql } from "./db";
 import {
+  COMPONENT_DRUG_TTYS,
   SPECIFIC_DRUG_TTYS,
+  parseRelatedConcepts,
+  plainFormFirst,
   canonicalProductNdc,
   dailyMedImageUrl,
   describeAppearance,
@@ -417,24 +420,59 @@ function displayStrength(bottle: string, official: string): string {
   return official;
 }
 
+type SpecificDrug = { c: RxConcept; parsed: NonNullable<ReturnType<typeof parseClinicalDrugName>> };
+
+function toSpecific(concepts: RxConcept[]): SpecificDrug[] {
+  return concepts
+    .filter((c) => SPECIFIC_DRUG_TTYS.has(c.tty))
+    .map((c) => ({ c, parsed: parseClinicalDrugName(c.name) }))
+    .filter((x): x is SpecificDrug => x.parsed !== null);
+}
+
 async function lookupByNameUncached(name: string, strength: string): Promise<NameLookup> {
   const term = `${name} ${strength}`.trim();
-  const approx = await fetchJson(`${RXNAV}/approximateTerm.json?term=${encodeURIComponent(term)}&maxEntries=10&option=1`);
-  const rxcuis = approx ? parseApproximateTerm(approx).slice(0, 6) : [];
+  const approx = await fetchJson(`${RXNAV}/approximateTerm.json?term=${encodeURIComponent(term)}&maxEntries=15&option=1`);
+  const rxcuis = approx ? parseApproximateTerm(approx).slice(0, 10) : [];
   const concepts = (await Promise.all(rxcuis.map(rxProperties))).filter((c): c is RxConcept => c !== null);
 
   const sameDrug = concepts.filter((c) => namesMatch(name, [c.name]));
   if (sameDrug.length === 0) return { found: false, reason: "no_drug" };
 
-  const specific = sameDrug
-    .filter((c) => SPECIFIC_DRUG_TTYS.has(c.tty))
-    .map((c) => ({ c, parsed: parseClinicalDrugName(c.name) }))
-    .filter((x): x is { c: RxConcept; parsed: NonNullable<typeof x.parsed> } => x.parsed !== null);
+  let specific = toSpecific(sameDrug);
+  const hasStrength = (list: SpecificDrug[]) =>
+    strength !== "" && list.some((x) => strengthMatches(strength, x.parsed.strength) === true);
+
+  // Searches often return component-level entries ("metformin hydrochloride 500 MG") and not
+  // the full tablet entry. When none of the full entries match, follow the matching
+  // components to their full entries instead of reporting a wrong "different strength".
+  if (strength && !hasStrength(specific)) {
+    const components = sameDrug
+      .filter((c) => COMPONENT_DRUG_TTYS.has(c.tty))
+      .filter((c) => {
+        const parsed = parseClinicalDrugName(c.name);
+        return parsed !== null && strengthMatches(strength, parsed.strength) === true;
+      })
+      .slice(0, 3);
+    for (const component of components) {
+      const related = await fetchJson(
+        `${RXNAV}/rxcui/${encodeURIComponent(component.rxcui)}/related.json?tty=SCD+SBD`,
+      );
+      const full = toSpecific(
+        parseRelatedConcepts(related).filter((c) => namesMatch(name, [c.name])),
+      );
+      for (const item of full) {
+        if (!specific.some((x) => x.c.rxcui === item.c.rxcui)) specific = [...specific, item];
+      }
+    }
+  }
 
   const drugName = specific[0]?.parsed.ingredients ?? sameDrug[0].name;
   if (!strength) return { found: false, reason: "need_strength", drugName };
 
-  const withStrength = specific.filter((x) => strengthMatches(strength, x.parsed.strength) === true);
+  const withStrength = plainFormFirst(
+    specific.filter((x) => strengthMatches(strength, x.parsed.strength) === true),
+    name,
+  );
   if (withStrength.length === 0) return { found: false, reason: "strength", drugName };
 
   // Bottle says a brand ("Lipitor") → the branded concept; otherwise generic.
@@ -453,7 +491,8 @@ async function lookupByNameUncached(name: string, strength: string): Promise<Nam
 }
 
 export async function lookupByName(name: string, strength: string): Promise<NameLookup> {
-  const key = `${normName(name)}|${normStrength(strength)}`;
+  // v2: earlier versions cached wrong "different strength" answers for 30 days.
+  const key = `v2|${normName(name)}|${normStrength(strength)}`;
   const sql = await getSql();
   const cached = await sql<{ result: NameLookup; fetched_at: string }>`
     select result, fetched_at from drug_name_lookups where query_key = ${key}
@@ -467,6 +506,8 @@ export async function lookupByName(name: string, strength: string): Promise<Name
     if (cached[0]) return cached[0].result;
     throw err;
   }
+  // Only remember successes: a "not found" can be a search miss, and must be retried.
+  if (!result.found) return result;
   await sql`
     insert into drug_name_lookups (query_key, result, fetched_at)
     values (${key}, ${JSON.stringify(result)}::jsonb, now())

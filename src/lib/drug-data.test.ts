@@ -228,3 +228,26 @@ test("product agrees with the label it was read from", () => {
   // No hint at all (e.g. the cache warmer): anything agrees.
   assert.equal(productAgreesWithLabel(lisinopril10, {}), true);
 });
+
+import { parseRelatedConcepts, plainFormFirst } from "./drug-data.ts";
+
+test("related concepts are flattened and de-duplicated", () => {
+  const json = {
+    relatedGroup: {
+      conceptGroup: [
+        { tty: "SCD", conceptProperties: [{ rxcui: "1", name: "a 5 MG Oral Tablet", tty: "SCD" }] },
+        { tty: "SBD", conceptProperties: [{ rxcui: "1", name: "a 5 MG Oral Tablet", tty: "SCD" }, { rxcui: "2", name: "b 5 MG [X]", tty: "SBD" }] },
+        { tty: "X" },
+      ],
+    },
+  };
+  assert.deepEqual(parseRelatedConcepts(json).map((c) => c.rxcui), ["1", "2"]);
+  assert.deepEqual(parseRelatedConcepts(null), []);
+});
+
+test("plain tablets come before extended-release unless the bottle asks for it", () => {
+  const items = [{ parsed: { form: "extended-release tablet" }, id: "er" }, { parsed: { form: "tablet" }, id: "ir" }];
+  assert.deepEqual(plainFormFirst(items, "Metformin").map((i) => i.id), ["ir", "er"]);
+  assert.deepEqual(plainFormFirst(items, "Metformin ER").map((i) => i.id), ["er", "ir"]);
+  assert.deepEqual(plainFormFirst(items, "Metformin Extended Release").map((i) => i.id), ["er", "ir"]);
+});

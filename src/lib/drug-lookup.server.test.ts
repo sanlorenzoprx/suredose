@@ -83,6 +83,7 @@ const sqlMock = async (strings: TemplateStringsArray, ...values: unknown[]) => {
     products.set(row.product_ndc, row);
     return [row];
   }
+  if (query.includes("drug_name_lookups")) return []; // name-lookup cache: always empty here
   throw new Error(`Unexpected SQL in test: ${query}`);
 };
 
@@ -475,4 +476,68 @@ test("DailyMed image authorization errors return no image and log no request det
     if (originalKey === undefined) delete process.env.OPENFDA_API_KEY;
     else process.env.OPENFDA_API_KEY = originalKey;
   }
+});
+
+test("a search that returns only the component entry still finds the full tablet (Metformin 500 mg)", async () => {
+  const concepts: Record<string, { name: string; tty: string }> = {
+    "1": { name: "metformin hydrochloride 500 MG", tty: "SCDC" },
+    "2": { name: "metformin", tty: "IN" },
+    "861004": { name: "metformin hydrochloride 500 MG Extended Release Oral Tablet", tty: "SCD" },
+    "861007": { name: "metformin hydrochloride 500 MG Oral Tablet", tty: "SCD" },
+  };
+  const rxnavCalls: string[] = [];
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    rxnavCalls.push(url);
+    if (url.includes("approximateTerm")) {
+      return Response.json({ approximateGroup: { candidate: [{ rxcui: "1", source: "RXNORM" }, { rxcui: "2", source: "RXNORM" }] } });
+    }
+    const related = url.match(/rxcui\/(\d+)\/related\.json/);
+    if (related) {
+      assert.equal(related[1], "1");
+      return Response.json({
+        relatedGroup: {
+          conceptGroup: [
+            { tty: "SCD", conceptProperties: [
+              { rxcui: "861004", name: concepts["861004"].name, tty: "SCD" },
+              { rxcui: "861007", name: concepts["861007"].name, tty: "SCD" },
+            ] },
+          ],
+        },
+      });
+    }
+    const props = url.match(/rxcui\/(\d+)\/properties\.json/);
+    if (props) {
+      const c = concepts[props[1]];
+      return Response.json({ properties: { rxcui: props[1], name: c.name, tty: c.tty } });
+    }
+    throw new Error(`Unexpected URL ${url}`);
+  };
+  const { lookupByName } = (await server.ssrLoadModule("/src/lib/drug-lookup.server.ts")) as {
+    lookupByName: (name: string, strength: string) => Promise<Record<string, unknown>>;
+  };
+  const res = await lookupByName("Metformin", "500 mg");
+  assert.equal(res.found, true);
+  assert.equal(res.rxcui, "861007"); // plain tablet, not the extended-release one
+  assert.equal(res.name, "Metformin Hydrochloride");
+  assert.equal(res.strength, "500 mg");
+  assert.equal(res.form, "tablet");
+  assert.ok(rxnavCalls.some((u) => u.includes("/rxcui/1/related.json")));
+});
+
+test("a truly different strength is still refused", async () => {
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    if (url.includes("approximateTerm")) {
+      return Response.json({ approximateGroup: { candidate: [{ rxcui: "1", source: "RXNORM" }] } });
+    }
+    if (url.includes("related.json")) throw new Error("must not follow a non-matching component");
+    return Response.json({ properties: { rxcui: "1", name: "metformin hydrochloride 500 MG", tty: "SCDC" } });
+  };
+  const { lookupByName } = (await server.ssrLoadModule("/src/lib/drug-lookup.server.ts")) as {
+    lookupByName: (name: string, strength: string) => Promise<Record<string, unknown>>;
+  };
+  const res = await lookupByName("Metformin", "850 mg");
+  assert.equal(res.found, false);
+  assert.equal(res.reason, "strength");
 });

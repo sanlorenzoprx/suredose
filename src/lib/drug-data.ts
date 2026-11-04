@@ -497,3 +497,52 @@ export function parseClinicalDrugName(name: string): ParsedClinicalDrug | null {
 
 /** Term types that name a specific drug with its strength and form. */
 export const SPECIFIC_DRUG_TTYS = new Set(["SCD", "SBD", "GPCK", "BPCK"]);
+
+/**
+ * Component-level entries ("metformin hydrochloride 500 MG", no dosage form). A search often
+ * returns these instead of the full tablet entry; follow them to the full entries.
+ */
+export const COMPONENT_DRUG_TTYS = new Set(["SCDC", "SBDC"]);
+
+/** RxNav "related" response → the concepts it lists, any term type. */
+export function parseRelatedConcepts(json: unknown): RxConcept[] {
+  const groups =
+    (
+      json as {
+        relatedGroup?: {
+          conceptGroup?: {
+            conceptProperties?: { rxcui?: string; name?: string; tty?: string }[];
+          }[];
+        };
+      }
+    )?.relatedGroup?.conceptGroup ?? [];
+  const out: RxConcept[] = [];
+  for (const g of groups) {
+    for (const c of g.conceptProperties ?? []) {
+      if (c.rxcui && c.name && c.tty && !out.some((o) => o.rxcui === c.rxcui)) {
+        out.push({ rxcui: c.rxcui, name: c.name, tty: c.tty });
+      }
+    }
+  }
+  return out;
+}
+
+const MODIFIED_FORM = /extended-release|delayed-release|chewable|dissolving|sublingual|buccal/;
+
+/**
+ * Same strength can exist as plain tablets and as extended-release / chewable versions.
+ * Put the plain form first unless the bottle's own wording asks for the modified one.
+ */
+export function plainFormFirst<T extends { parsed: { form: string } }>(
+  items: T[],
+  bottleName: string,
+): T[] {
+  const wanted = bottleName.toLowerCase();
+  const asksModified = /\b(er|xr|xl|sr|cr|dr|ec)\b|extended|delayed|chew|dissolv|sublingual|buccal/.test(
+    wanted,
+  );
+  if (asksModified) return items;
+  return [...items].sort(
+    (a, b) => Number(MODIFIED_FORM.test(a.parsed.form)) - Number(MODIFIED_FORM.test(b.parsed.form)),
+  );
+}
