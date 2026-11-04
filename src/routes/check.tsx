@@ -343,18 +343,21 @@ function CheckReady({
         ) : null}
 
         {practice ? (
-          <section className="flex items-center gap-4 rounded-xl bg-paper p-4 shadow-card">
+          <section className="rounded-xl bg-paper p-4 shadow-card">
             <img
               src={medicine.pillImage}
               alt={`Saved photo of ${medicine.name}`}
-              className="size-20 shrink-0 rounded-lg object-cover"
+              className="h-64 w-full rounded-lg bg-ink object-contain"
             />
-            <div>
-              <h2 className="text-2xl font-bold leading-tight">{medicine.name}</h2>
-              <p className="text-xl">
-                {[medicine.strength, medicine.form].filter(Boolean).join(" · ")}
-              </p>
-            </div>
+            <h2 className="mt-3 text-3xl font-bold leading-tight">{medicine.name}</h2>
+            <p className="text-xl">
+              {[medicine.strength, medicine.form].filter(Boolean).join(" · ")}
+            </p>
+            <p className="mt-1 text-lg text-muted">
+              {medicine.pillImageSource === "official"
+                ? "The maker's photo of this pill. Take a photo of yours to compare."
+                : "Your saved photo of this pill. Take a photo of yours to compare."}
+            </p>
           </section>
         ) : (
           <section className="rounded-xl bg-paper p-4 shadow-card">

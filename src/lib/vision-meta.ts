@@ -20,7 +20,8 @@ import type { VisionResult } from "./vertex.ts";
 
 export const META_DEFAULT_MODEL = "muse-spark-1.3";
 export const META_DEFAULT_BASE_URL = "https://api.meta.ai/v1";
-const REQUEST_TIMEOUT_MS = 30_000;
+// A slow Muse answer should not hold the person up for long: past this, Google takes over.
+const REQUEST_TIMEOUT_MS = 20_000;
 // Muse Spark is a reasoning model: hidden "thinking" tokens count against max_tokens, so a
 // small cap can leave nothing for the visible answer ("empty response"). Give it headroom.
 const MIN_META_MAX_TOKENS = 4096;
