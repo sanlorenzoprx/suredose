@@ -63,7 +63,7 @@ test("meta config needs a key and has safe defaults", () => {
 test("request uses the documented chat format with the photo as a data URL", () => {
   const body = buildMetaRequest({ prompt: "p", images: [image], maxTokens: 300, model: "m" });
   assert.equal(body.model, "m");
-  assert.equal(body.max_tokens, 300);
+  assert.equal(body.max_tokens, 4096);
   assert.deepEqual(body.messages, [
     {
       role: "user",

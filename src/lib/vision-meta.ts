@@ -21,6 +21,9 @@ import type { VisionResult } from "./vertex.ts";
 export const META_DEFAULT_MODEL = "muse-spark-1.3";
 export const META_DEFAULT_BASE_URL = "https://api.meta.ai/v1";
 const REQUEST_TIMEOUT_MS = 30_000;
+// Muse Spark is a reasoning model: hidden "thinking" tokens count against max_tokens, so a
+// small cap can leave nothing for the visible answer ("empty response"). Give it headroom.
+const MIN_META_MAX_TOKENS = 4096;
 
 type Env = Record<string, string | undefined>;
 
@@ -54,13 +57,27 @@ export function buildMetaRequest(opts: {
   return {
     model: opts.model,
     messages: [{ role: "user", content }],
-    max_tokens: opts.maxTokens,
+    max_tokens: Math.max(opts.maxTokens * 8, MIN_META_MAX_TOKENS),
   };
 }
 
 type ChatCompletionResponse = {
-  choices?: { message?: { content?: string | null } }[];
+  choices?: { finish_reason?: string | null; message?: { content?: string | null } }[];
 };
+
+/** Shape only — never the content — so an empty reply can be diagnosed from the logs. */
+export function describeMetaResponse(json: unknown): string {
+  const body = json as ChatCompletionResponse | null;
+  const choice = body?.choices?.[0];
+  const message = choice?.message as Record<string, unknown> | undefined;
+  return JSON.stringify({
+    topKeys: body && typeof body === "object" ? Object.keys(body).slice(0, 12) : typeof body,
+    choices: Array.isArray(body?.choices) ? body.choices.length : null,
+    finish: choice?.finish_reason ?? null,
+    messageKeys: message ? Object.keys(message).slice(0, 12) : null,
+    contentType: message ? typeof message.content : null,
+  });
+}
 
 export function metaResponseText(json: unknown): { text: string } | { error: string } {
   const body = json as ChatCompletionResponse;
@@ -103,9 +120,10 @@ export async function metaVision(
       console.error(`meta ${res.status}: ${(await res.text()).slice(0, 300)}`);
       return { ok: false, error: userError(res.status) };
     }
-    const out = metaResponseText(await res.json());
+    const json = await res.json();
+    const out = metaResponseText(json);
     if ("error" in out) {
-      console.error("meta:", out.error);
+      console.error("meta:", out.error, describeMetaResponse(json));
       return { ok: false, error: "AI did not return a result." };
     }
     return { ok: true, text: out.text };
