@@ -297,6 +297,7 @@ function AddMedicine() {
           <Waiting title="Reading the bottle…" />
         ) : (
           <PhotoCapture
+            labelDetail
             title="Picture of the bottle"
             hint="Hold the bottle so the label is clear. We will read the name and check it for you."
             preview={bottleImage}

@@ -41,17 +41,25 @@ export async function toDataUrl(src: string): Promise<string> {
   return compressImage(blob);
 }
 
-export function captureFromVideo(video: HTMLVideoElement): string {
+/** Pharmacy label print is small: keep enough detail for the AI to read it. */
+export const LABEL_MAX_EDGE = 1600;
+export const LABEL_QUALITY = 0.88;
+
+export function captureFromVideo(
+  video: HTMLVideoElement,
+  maxEdge = MAX_EDGE,
+  quality = QUALITY,
+): string {
   const canvas = document.createElement("canvas");
   const w = video.videoWidth || 720;
   const h = video.videoHeight || 720;
-  const scale = Math.min(1, MAX_EDGE / Math.max(w, h));
+  const scale = Math.min(1, maxEdge / Math.max(w, h));
   canvas.width = Math.max(1, Math.round(w * scale));
   canvas.height = Math.max(1, Math.round(h * scale));
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not take this photo.");
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", QUALITY);
+  return canvas.toDataURL("image/jpeg", quality);
 }
 
 /** Re-encode any image data URL (e.g. an official pill photo) to the app's 720px JPEG. */

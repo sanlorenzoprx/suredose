@@ -5,6 +5,8 @@ import {
   captureFromVideo,
   capturePillPhoto,
   compressImage,
+  LABEL_MAX_EDGE,
+  LABEL_QUALITY,
   PILL_MAX_EDGE,
   PILL_QUALITY,
 } from "@/lib/image";
@@ -17,6 +19,8 @@ type Props = {
   preview?: string | null;
   extraAction?: React.ReactNode;
   pillDetail?: boolean;
+  /** Bottle label photo: keep high detail so small print stays readable. */
+  labelDetail?: boolean;
 };
 
 export function PhotoCapture({
@@ -26,6 +30,7 @@ export function PhotoCapture({
   preview,
   extraAction,
   pillDetail = false,
+  labelDetail = false,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -104,7 +109,11 @@ export function PhotoCapture({
     try {
       const track = streamRef.current?.getVideoTracks()[0];
       if (!track) throw new Error("Camera is not ready. Try again.");
-      const data = pillDetail ? await capturePillPhoto(video, track) : captureFromVideo(video);
+      const data = pillDetail
+        ? await capturePillPhoto(video, track)
+        : labelDetail
+          ? captureFromVideo(video, LABEL_MAX_EDGE, LABEL_QUALITY)
+          : captureFromVideo(video);
       stopCamera();
       onCapture(data);
     } catch {
@@ -126,7 +135,11 @@ export function PhotoCapture({
       await readPhotoInput(
         input,
         (file) =>
-          pillDetail ? compressImage(file, PILL_MAX_EDGE, PILL_QUALITY) : compressImage(file),
+          pillDetail
+            ? compressImage(file, PILL_MAX_EDGE, PILL_QUALITY)
+            : labelDetail
+              ? compressImage(file, LABEL_MAX_EDGE, LABEL_QUALITY)
+              : compressImage(file),
         (data) => {
           setCameraFallback(false);
           onCapture(data);
