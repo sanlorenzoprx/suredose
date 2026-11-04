@@ -18,6 +18,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as MedicinesRouteImport } from './routes/medicines'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as VideoRouteImport } from './routes/video'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiDrugCacheWarmRouteImport } from './routes/api/drug-cache/warm'
 
@@ -66,6 +67,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VideoRoute = VideoRouteImport.update({
+  id: '/video',
+  path: '/video',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/medicines': typeof MedicinesRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/video': typeof VideoRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/drug-cache/warm': typeof ApiDrugCacheWarmRoute
 }
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/medicines': typeof MedicinesRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/video': typeof VideoRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/drug-cache/warm': typeof ApiDrugCacheWarmRoute
 }
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/medicines': typeof MedicinesRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/video': typeof VideoRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/drug-cache/warm': typeof ApiDrugCacheWarmRoute
 }
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/medicines'
     | '/privacy'
     | '/terms'
+    | '/video'
     | '/api/auth/$'
     | '/api/drug-cache/warm'
   fileRoutesByTo: FileRoutesByTo
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/medicines'
     | '/privacy'
     | '/terms'
+    | '/video'
     | '/api/auth/$'
     | '/api/drug-cache/warm'
   id:
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/medicines'
     | '/privacy'
     | '/terms'
+    | '/video'
     | '/api/auth/$'
     | '/api/drug-cache/warm'
   fileRoutesById: FileRoutesById
@@ -169,6 +181,7 @@ export interface RootRouteChildren {
   MedicinesRoute: typeof MedicinesRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
+  VideoRoute: typeof VideoRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDrugCacheWarmRoute: typeof ApiDrugCacheWarmRoute
 }
@@ -238,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/video': {
+      id: '/video'
+      path: '/video'
+      fullPath: '/video'
+      preLoaderRoute: typeof VideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -265,6 +285,7 @@ const rootRouteChildren: RootRouteChildren = {
   MedicinesRoute: MedicinesRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
+  VideoRoute: VideoRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDrugCacheWarmRoute: ApiDrugCacheWarmRoute,
 }

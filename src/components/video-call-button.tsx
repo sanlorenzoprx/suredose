@@ -1,10 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ringFamilyVideo } from "@/lib/care";
-import { videoCallUrl } from "@/lib/video";
 
-/** Opens the family's private video room and nudges the other phone. */
+/** Rings the other phone, then opens the family's private video call. */
 export function VideoCallButton({
   familyCode,
   myName,
@@ -14,23 +14,15 @@ export function VideoCallButton({
   myName: string;
   otherName: string;
 }) {
+  const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
 
   async function start() {
     setBusy(true);
-    setError("");
-    try {
-      const url = await videoCallUrl(familyCode, myName);
-      // Open synchronously-after-await may be blocked on iOS; navigate this tab as a fallback.
-      const win = window.open(url, "_blank", "noopener");
-      if (!win) window.location.href = url;
-      void ringFamilyVideo({ data: { code: familyCode, callerName: myName } }).catch(() => undefined);
-    } catch {
-      setError("Could not start the video call. Please try again.");
-    } finally {
-      setBusy(false);
-    }
+    // The nudge is best-effort and must never delay or block the call itself.
+    void ringFamilyVideo({ data: { code: familyCode, callerName: myName } }).catch(() => undefined);
+    await navigate({ to: "/video" });
+    setBusy(false);
   }
 
   return (
@@ -46,7 +38,6 @@ export function VideoCallButton({
         <Video className="size-6" />
         {busy ? "Starting…" : `Call ${otherName || "family"}`}
       </Button>
-      {error ? <p className="mt-3 text-lg font-bold text-danger">{error}</p> : null}
     </section>
   );
 }

@@ -4,6 +4,8 @@ import { z } from "zod";
 import { getSql, type Sql } from "./db";
 import { sendPushToHousehold } from "./push.server";
 import { formatTimeLabel } from "./schedule";
+import { videoRoomName } from "./video";
+import { generateToken04 } from "./zego-token";
 import type { CareActivityItem, CareMedicineSummary } from "./types";
 import { uid } from "./utils";
 
@@ -300,6 +302,51 @@ export const recordDoseEvent = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+/**
+ * Join details for the in-app family video call (ZEGOCLOUD). The token is built here, with the
+ * ServerSecret kept as a Worker secret, so it never reaches a phone. When ZEGOCLOUD is not set up
+ * the page falls back to the public Jitsi room.
+ */
+export const getVideoToken = createServerFn({ method: "POST" })
+  .validator((input: { code: string; userId: string; userName?: string }) => ({
+    code: codeSchema.parse(input.code),
+    userId: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{8,64}$/)
+      .parse(input.userId),
+  }))
+  .handler(
+    async ({
+      data,
+    }): Promise<
+      | { ok: true; appId: number; token: string; roomId: string; userId: string }
+      | { ok: false; reason: "not-configured" | "unknown-family" | "failed" }
+    > => {
+      const appId = Number(process.env.ZEGO_APP_ID);
+      const secret = process.env.ZEGO_SERVER_SECRET;
+      if (!Number.isInteger(appId) || appId <= 0 || !secret) {
+        return { ok: false, reason: "not-configured" };
+      }
+      const sql = await getSql();
+      const rows = await sql<{ id: string }>`select id from households where id = ${data.code}`;
+      if (rows.length === 0) return { ok: false, reason: "unknown-family" };
+      try {
+        const token = await generateToken04(appId, data.userId, secret, 3600);
+        return {
+          ok: true,
+          appId,
+          token,
+          roomId: await videoRoomName(data.code),
+          userId: data.userId,
+        };
+      } catch (err) {
+        // Error kind only: the message could echo the secret's length or shape.
+        console.error("video token failed:", err instanceof Error ? err.name : "unknown");
+        return { ok: false, reason: "failed" };
+      }
+    },
+  );
 
 export const ringFamilyVideo = createServerFn({ method: "POST" })
   .validator((input: { code: string; callerName?: string }) => ({
