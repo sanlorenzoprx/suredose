@@ -631,7 +631,7 @@ function AddMedicine() {
                   pillDetail
                   blurGate
                   title="Picture of the pill"
-                  hint="Put one pill on a dark table. Bring the phone close so the pill fills the dashed box. We save this so we can check it later."
+                  hint="Put one pill on a dark table and hold the phone about 20 cm (a hand-span) above it. Do not get closer: most phone cameras cannot focus up close and the picture goes blurry. We keep the part inside the dashed box."
                   preview={pillImage}
                   onCapture={(img) => {
                     setPillImage(img);

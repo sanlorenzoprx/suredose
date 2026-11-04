@@ -258,3 +258,54 @@ test("reference back reaches only reference extraction; replay against either si
   );
   assert.equal(calls, 2);
 });
+
+const blurFailure = {
+  ok: false as const,
+  error: "We could not check this clearly.",
+  quality: "blur",
+};
+const okReading = JSON.stringify({
+  quality: "clear",
+  sides: [{ marking: "ABC", readable: true }],
+  shape: "round",
+  color: "white",
+});
+
+test("a blurry saved photo is named as the problem, not a generic failure", async () => {
+  let call = 0;
+  const response = await comparePillPhotos(input, async () =>
+    ++call === 1 ? blurFailure : { ok: true, text: okReading },
+  );
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.match(response.error, /saved photo/i);
+    assert.match(response.error, /blurry/);
+    assert.match(response.error, /Pills/);
+  }
+});
+
+test("a blurry NEW photo says how to hold the phone", async () => {
+  let call = 0;
+  const response = await comparePillPhotos(input, async () =>
+    ++call === 1 ? { ok: true, text: okReading } : blurFailure,
+  );
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.match(response.error, /new photo looks blurry/);
+    assert.match(response.error, /20 cm/);
+  }
+});
+
+test("both photos unreadable tells the person to fix the saved one first", async () => {
+  const response = await comparePillPhotos(input, async () => blurFailure);
+  assert.equal(response.ok, false);
+  if (!response.ok) assert.match(response.error, /saved photo[\s\S]*Pills first/);
+});
+
+test("a failure with no stated reason keeps its original message", async () => {
+  const response = await comparePillPhotos(input, async () => ({
+    ok: false as const,
+    error: "AI is not available right now.",
+  }));
+  assert.deepEqual(response, { ok: false, error: "AI is not available right now." });
+});

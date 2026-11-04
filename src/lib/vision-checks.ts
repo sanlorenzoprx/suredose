@@ -4,7 +4,7 @@ import type { BottleRead, PillMatch } from "./types.ts";
 import type { vertexVision } from "./vertex.ts";
 
 type Vision = typeof vertexVision;
-type Failed = { ok: false; error: string };
+type Failed = { ok: false; error: string; quality?: string };
 
 export function extractJson(text: string): unknown {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -210,6 +210,33 @@ export function decidePillMatch(
   return finish("similar", "The letters, numbers, shape, and color match your pill.");
 }
 
+const QUALITY_PROBLEM: Record<string, string> = {
+  blur: "blurry",
+  dark: "too dark",
+  glare: "washed out by glare",
+  not_pill: "not clearly one pill",
+};
+const QUALITY_TIP: Record<string, string> = {
+  blur: "Hold the phone about 20 cm (a hand-span) above the pill, keep it steady, and try again.",
+  dark: "Use brighter light and try again.",
+  glare: "Tilt the phone or move the light so the shine goes away, then try again.",
+  not_pill: "Show one pill on a plain surface and try again.",
+};
+
+/** Plain-English reason when a pill photo could not be read, naming which photo is the problem. */
+export function unreadablePillMessage(ref: Failed | null, current: Failed | null): string | null {
+  const refQ = ref?.quality && QUALITY_PROBLEM[ref.quality] ? ref.quality : null;
+  const curQ = current?.quality && QUALITY_PROBLEM[current.quality] ? current.quality : null;
+  if (refQ && curQ) {
+    return `Your saved photo looks ${QUALITY_PROBLEM[refQ]} and this new photo looks ${QUALITY_PROBLEM[curQ]}. Retake the saved photo in Pills first, then take this one again.`;
+  }
+  if (refQ) {
+    return `Your saved photo of this pill looks ${QUALITY_PROBLEM[refQ]}, so we cannot compare. Open Pills and take it again.`;
+  }
+  if (curQ) return `This new photo looks ${QUALITY_PROBLEM[curQ]}. ${QUALITY_TIP[curQ]}`;
+  return null;
+}
+
 export async function comparePillPhotos(
   data: {
     reference: string;
@@ -254,6 +281,8 @@ export async function comparePillPhotos(
       vision({ images: photos, maxTokens: 600, prompt: PILL_READING_PROMPT }),
     ]);
     const [ref, current] = responses;
+    const pillProblem = unreadablePillMessage(ref.ok ? null : ref, current.ok ? null : current);
+    if (pillProblem) return { ok: false, error: pillProblem };
     if (!ref.ok) return ref;
     if (!current.ok) return current;
     const result = decidePillMatch(

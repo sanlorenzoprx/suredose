@@ -19,10 +19,7 @@ const okReply = (text: string) =>
   new Response(JSON.stringify({ choices: [{ message: { content: text } }] }), { status: 200 });
 
 const googleReply = (text: string, status = 200) =>
-  new Response(
-    JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }),
-    { status },
-  );
+  new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }), { status });
 
 const readableLabel = '{"name":"Metformin","strength":"500 mg"}';
 
@@ -321,4 +318,25 @@ test("a label with the strength inside the name is accepted, and the log reason 
     unreadableReason({ ok: true, text: '{"name":"Metformin","strength":"","times":[]}' }),
     /^strength-empty/,
   );
+});
+
+test("when both providers say a pill photo is blurry, the failure carries that reason", async () => {
+  const blur = '{"quality":"blur","sides":[{"marking":"","readable":false}],"shape":"","color":""}';
+  const m = mockFetch((url) => (url.includes("api.meta.ai") ? okReply(blur) : googleReply(blur)));
+  try {
+    const result = await withQuietErrors(() =>
+      vision(
+        { prompt: "p", images: [image], maxTokens: 1 },
+        { META_API_KEY: "k", GOOGLE_VERTEX_API_KEY: "g" },
+      ),
+    );
+    assert.deepEqual(result, {
+      ok: false,
+      error:
+        "We could not check this clearly. Please check the details manually or ask your pharmacist.",
+      quality: "blur",
+    });
+  } finally {
+    m.restore();
+  }
 });

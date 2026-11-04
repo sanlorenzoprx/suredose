@@ -158,6 +158,24 @@ export function unreadableReason(result: VisionResult): string {
   return isUnreadable(result) ? `failed-validation${shape}` : "ok";
 }
 
+const PHOTO_QUALITY_WORDS = ["blur", "dark", "glare", "not_pill"];
+
+/** Why a pill photo could not be read, when the model said so. */
+function qualityOf(result: VisionResult): string | undefined {
+  if (!result.ok) return undefined;
+  const parsed = parseResponse(result.text);
+  const quality = isRecord(parsed) && typeof parsed.quality === "string" ? parsed.quality : "";
+  return PHOTO_QUALITY_WORDS.includes(quality) ? quality : undefined;
+}
+
+function unreadableFailure(...results: VisionResult[]): VisionResult {
+  for (const result of results) {
+    const quality = qualityOf(result);
+    if (quality) return { ok: false, error: MANUAL_CHECK_ERROR, quality };
+  }
+  return { ok: false, error: MANUAL_CHECK_ERROR };
+}
+
 async function callProvider(call: () => Promise<VisionResult>): Promise<VisionResult> {
   try {
     return await call();
@@ -191,11 +209,11 @@ export async function vision(
   const google = await callProvider(() => vertexVision(opts, env));
   if (!google.ok) {
     console.log("vision: provider=google result=failed reason=provider-error");
-    return metaWasUnreadable ? { ok: false, error: MANUAL_CHECK_ERROR } : google;
+    return metaWasUnreadable ? unreadableFailure(meta) : google;
   }
   if (isUnreadable(google)) {
     console.log(`vision: provider=google result=unreadable reason=${unreadableReason(google)}`);
-    return { ok: false, error: MANUAL_CHECK_ERROR };
+    return unreadableFailure(google, meta);
   }
   console.log("vision: provider=google result=used (fallback)");
   return google;
