@@ -8,6 +8,7 @@ import {
   compressImage,
   LABEL_MAX_EDGE,
   LABEL_QUALITY,
+  PILL_GUIDE_SHARE,
   PILL_MAX_EDGE,
   PILL_QUALITY,
 } from "@/lib/image";
@@ -46,6 +47,8 @@ export function PhotoCapture({
   const [error, setError] = useState<string | null>(null);
   /** A photo that looks blurry, dark or glary: the person chooses to retake or use it. */
   const [pending, setPending] = useState<{ dataUrl: string; issues: PhotoIssue[] } | null>(null);
+  /** Size of the live camera picture, to draw the pill guide box at the size that gets cropped. */
+  const [videoShape, setVideoShape] = useState<{ w: number; h: number } | null>(null);
   const [torchAvailable, setTorchAvailable] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const detailed = pillDetail || labelDetail;
@@ -94,6 +97,7 @@ export function PhotoCapture({
     setCameraReady(false);
     setTorchAvailable(false);
     setTorchOn(false);
+    setVideoShape(null);
   }
 
   async function toggleTorch() {
@@ -165,6 +169,7 @@ export function PhotoCapture({
             pillDetail ? PILL_MAX_EDGE : LABEL_MAX_EDGE,
             pillDetail ? PILL_QUALITY : LABEL_QUALITY,
             pillDetail ? "pill" : "label",
+            pillDetail ? PILL_GUIDE_SHARE : 1,
           )
         : { dataUrl: captureFromVideo(video), quality: { issues: [] as PhotoIssue[] } };
       stopCamera();
@@ -229,14 +234,34 @@ export function PhotoCapture({
 
       <div className="overflow-hidden rounded-xl bg-ink shadow-card">
         {cameraOn ? (
-          <video
-            ref={videoRef}
-            className="aspect-square w-full object-contain"
-            onLoadedData={() => setCameraReady(true)}
-            playsInline
-            muted
-            autoPlay
-          />
+          <div className="relative">
+            <video
+              ref={videoRef}
+              className="aspect-square w-full object-contain"
+              onLoadedData={(event) => {
+                const v = event.currentTarget;
+                setVideoShape({ w: v.videoWidth, h: v.videoHeight });
+                setCameraReady(true);
+              }}
+              playsInline
+              muted
+              autoPlay
+            />
+            {pillDetail && videoShape ? (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 grid place-items-center"
+              >
+                <div
+                  className="rounded-xl border-4 border-dashed border-white/90"
+                  style={{
+                    width: `${PILL_GUIDE_SHARE * (Math.min(videoShape.w, videoShape.h) / Math.max(videoShape.w, videoShape.h)) * 100}%`,
+                    aspectRatio: "1",
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
         ) : (pending ?? preview) ? (
           <img
             src={pending?.dataUrl ?? preview ?? ""}

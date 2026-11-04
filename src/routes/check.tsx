@@ -504,7 +504,7 @@ function CheckReady({
             <PhotoCapture
               pillDetail
               title={takingBack ? "Turn the pill over" : "Take a picture of your pill"}
-              hint="Put one pill on a plain table in bright light. Show the letters and numbers. Hold your phone still."
+              hint="Put one pill on a plain table in bright light. Bring the phone close so the pill fills the dashed box and the letters and numbers show. Hold your phone still."
               preview={takingBack ? candidateBack : candidate}
               onCapture={(img) => void runCheck(img)}
             />

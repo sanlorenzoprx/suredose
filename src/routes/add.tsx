@@ -631,7 +631,7 @@ function AddMedicine() {
                   pillDetail
                   blurGate
                   title="Picture of the pill"
-                  hint="Put one pill on a dark table. We save this so we can check it later."
+                  hint="Put one pill on a dark table. Bring the phone close so the pill fills the dashed box. We save this so we can check it later."
                   preview={pillImage}
                   onCapture={(img) => {
                     setPillImage(img);

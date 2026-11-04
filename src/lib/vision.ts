@@ -120,7 +120,26 @@ function isUnreadable(result: VisionResult): boolean {
 function describeShape(parsed: Record<string, unknown>): string {
   const len = (v: unknown) =>
     v === undefined ? "missing" : typeof v === "string" ? String(v.trim().length) : typeof v;
-  return ` keys=[${Object.keys(parsed).slice(0, 12).join(",")}] nameLen=${len(parsed.name)} strengthLen=${len(parsed.strength)}`;
+  let out = ` keys=[${Object.keys(parsed).slice(0, 12).join(",")}] nameLen=${len(parsed.name)} strengthLen=${len(parsed.strength)}`;
+  if ("quality" in parsed) {
+    // Pill readings: the quality label (a short word) and, per side, readable flag + marking length.
+    const quality =
+      typeof parsed.quality === "string"
+        ? parsed.quality.replace(/[^a-z_]/gi, "").slice(0, 12)
+        : typeof parsed.quality;
+    const sides = Array.isArray(parsed.sides)
+      ? parsed.sides
+          .slice(0, 2)
+          .map((side) =>
+            isRecord(side)
+              ? `${side.readable === true ? "readable" : "unreadable"}:${typeof side.marking === "string" ? side.marking.trim().length : "?"}`
+              : "?",
+          )
+          .join(";")
+      : "none";
+    out += ` quality=${quality} sides=[${sides}]`;
+  }
+  return out;
 }
 
 /** Why an answer was rejected — a short category only, never label or photo content. */

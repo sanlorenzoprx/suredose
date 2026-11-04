@@ -1,3 +1,4 @@
+import { centerCrop, PILL_GUIDE_SHARE } from "./image-crop";
 import { assessPhoto, THRESHOLDS, type PhotoKind, type PhotoQuality } from "./image-quality";
 
 /** Shrinking to 0x0 frees the bitmap memory right away (matters on older phones). */
@@ -9,15 +10,23 @@ function releaseCanvas(canvas: HTMLCanvasElement) {
 const MAX_EDGE = 720;
 const QUALITY = 0.74;
 
-export function compressImage(file: Blob, maxEdge = MAX_EDGE, quality = QUALITY): Promise<string> {
+export { PILL_GUIDE_SHARE };
+
+export function compressImage(
+  file: Blob,
+  maxEdge = MAX_EDGE,
+  quality = QUALITY,
+  cropShare = 1,
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
-      const w = Math.max(1, Math.round(img.width * scale));
-      const h = Math.max(1, Math.round(img.height * scale));
+      const { sx, sy, sw, sh } = centerCrop(img.width, img.height, cropShare);
+      const scale = Math.min(1, maxEdge / Math.max(sw, sh));
+      const w = Math.max(1, Math.round(sw * scale));
+      const h = Math.max(1, Math.round(sh * scale));
       const canvas = document.createElement("canvas");
       canvas.width = w;
       canvas.height = h;
@@ -26,7 +35,7 @@ export function compressImage(file: Blob, maxEdge = MAX_EDGE, quality = QUALITY)
         reject(new Error("Could not read this photo."));
         return;
       }
-      ctx.drawImage(img, 0, 0, w, h);
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
       const out = canvas.toDataURL("image/jpeg", quality);
       releaseCanvas(canvas); // phones keep canvas pixels alive otherwise
       img.src = "";
@@ -60,16 +69,18 @@ export function captureFromVideo(
   video: HTMLVideoElement,
   maxEdge = MAX_EDGE,
   quality = QUALITY,
+  cropShare = 1,
 ): string {
+  const vw = video.videoWidth || 720;
+  const vh = video.videoHeight || 720;
+  const { sx, sy, sw, sh } = centerCrop(vw, vh, cropShare);
   const canvas = document.createElement("canvas");
-  const w = video.videoWidth || 720;
-  const h = video.videoHeight || 720;
-  const scale = Math.min(1, maxEdge / Math.max(w, h));
-  canvas.width = Math.max(1, Math.round(w * scale));
-  canvas.height = Math.max(1, Math.round(h * scale));
+  const scale = Math.min(1, maxEdge / Math.max(sw, sh));
+  canvas.width = Math.max(1, Math.round(sw * scale));
+  canvas.height = Math.max(1, Math.round(sh * scale));
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not take this photo.");
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
   const out = canvas.toDataURL("image/jpeg", quality);
   releaseCanvas(canvas);
   return out;
@@ -102,26 +113,27 @@ export async function grabStill(
   track: MediaStreamTrack,
   maxEdge: number,
   quality: number,
+  cropShare = 1,
 ): Promise<string> {
   const Camera = (globalThis as typeof globalThis & { ImageCapture?: StillCaptureConstructor })
     .ImageCapture;
   if (Camera) {
     try {
       const blob = await new Camera(track).takePhoto();
-      return await compressImage(blob, maxEdge, quality);
+      return await compressImage(blob, maxEdge, quality, cropShare);
     } catch {
       // Some Android browsers expose ImageCapture but cannot take a still.
     }
   }
   if (!video.videoWidth || !video.videoHeight) throw new Error("Camera is not ready. Try again.");
-  return captureFromVideo(video, maxEdge, quality);
+  return captureFromVideo(video, maxEdge, quality, cropShare);
 }
 
 export async function capturePillPhoto(
   video: HTMLVideoElement,
   track: MediaStreamTrack,
 ): Promise<string> {
-  return grabStill(video, track, PILL_MAX_EDGE, PILL_QUALITY);
+  return grabStill(video, track, PILL_MAX_EDGE, PILL_QUALITY, PILL_GUIDE_SHARE);
 }
 
 const ASSESS_EDGE = 640;
@@ -163,13 +175,17 @@ export async function captureBest(
   maxEdge: number,
   quality: number,
   kind: PhotoKind,
+  cropShare = 1,
   shots = 3,
 ): Promise<{ dataUrl: string; quality: PhotoQuality }> {
   let best: { dataUrl: string; quality: PhotoQuality } | null = null;
   for (let i = 0; i < shots; i += 1) {
-    const dataUrl = await grabStill(video, track, maxEdge, quality);
+    const dataUrl = await grabStill(video, track, maxEdge, quality, cropShare);
     const q = await assessDataUrl(dataUrl, kind).catch(() => null);
-    if (!q) return best ?? { dataUrl, quality: { sharpness: 0, brightness: 128, blownShare: 0, issues: [] } };
+    if (!q)
+      return (
+        best ?? { dataUrl, quality: { sharpness: 0, brightness: 128, blownShare: 0, issues: [] } }
+      );
     if (!best || q.sharpness > best.quality.sharpness) best = { dataUrl, quality: q };
     if (q.sharpness >= THRESHOLDS.minSharpness * 3 && q.issues.length === 0) break;
     if (i < shots - 1) await new Promise((r) => setTimeout(r, 150));
