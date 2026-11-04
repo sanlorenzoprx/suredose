@@ -23,6 +23,8 @@ type Props = {
   pillDetail?: boolean;
   /** Bottle label photo: keep high detail so small print stays readable. */
   labelDetail?: boolean;
+  /** Pill photo that is SAVED as a reference: warn (blur only) before saving an unreadable one. */
+  blurGate?: boolean;
 };
 
 export function PhotoCapture({
@@ -33,6 +35,7 @@ export function PhotoCapture({
   extraAction,
   pillDetail = false,
   labelDetail = false,
+  blurGate = false,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -46,8 +49,13 @@ export function PhotoCapture({
   const [torchAvailable, setTorchAvailable] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const detailed = pillDetail || labelDetail;
-  /** Only bottle labels get a "retake?" warning; pills sit on a dark table by design. */
-  const gated = labelDetail && !pillDetail;
+  /**
+   * Bottle labels get a full warning (blur, dark, glare). Saved pill references get a blur-only
+   * warning: pills sit on a DARK table by design, so darkness is not a defect there. The pill
+   * photo taken at check time is never gated, because the check itself says when it cannot read it.
+   */
+  const gated = (labelDetail && !pillDetail) || (pillDetail && blurGate);
+  const assessKind = pillDetail ? "pill" : "label";
 
   /** Send a photo on, unless it looks poor and the person should decide first. */
   async function deliver(dataUrl: string, issues: PhotoIssue[]) {
@@ -187,7 +195,11 @@ export function PhotoCapture({
               : compressImage(file),
         async (data) => {
           setCameraFallback(false);
-          const issues = gated ? await assessDataUrl(data, "label").then((q) => q.issues).catch(() => []) : [];
+          const issues = gated
+            ? await assessDataUrl(data, assessKind)
+                .then((q) => q.issues)
+                .catch(() => [])
+            : [];
           await deliver(data, issues);
         },
       );
@@ -206,7 +218,10 @@ export function PhotoCapture({
       </div>
 
       {pending ? (
-        <p role="alert" className="flex items-start gap-2 rounded-lg bg-bg-warm p-4 text-xl font-bold">
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-lg bg-bg-warm p-4 text-xl font-bold"
+        >
           <TriangleAlert className="mt-1 size-6 shrink-0" />
           {pending.issues.map((i) => ISSUE_MESSAGE[i]).join(" ")}
         </p>
@@ -222,7 +237,7 @@ export function PhotoCapture({
             muted
             autoPlay
           />
-        ) : pending ?? preview ? (
+        ) : (pending ?? preview) ? (
           <img
             src={pending?.dataUrl ?? preview ?? ""}
             alt="Photo you took"

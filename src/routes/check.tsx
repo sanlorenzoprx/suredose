@@ -309,49 +309,71 @@ function CheckReady({
     <AppShell title={practice ? "Practice" : "Check this pill"}>
       <div className="flex flex-col gap-5">
         {practice ? (
-          <div className="rounded-lg bg-bg-warm px-4 py-3 text-center text-lg font-bold text-ink">
-            Practice — this will not be saved or texted
+          <div className="flex flex-col gap-3">
+            <div className="rounded-lg bg-bg-warm px-4 py-3 text-center text-lg font-bold text-ink">
+              Practice — this will not be saved or texted
+            </div>
+            <Button size="md" variant="secondary" onClick={() => navigate({ to: "/" })}>
+              <X className="size-6" />
+              Exit practice
+            </Button>
           </div>
         ) : null}
 
-        <section className="rounded-xl bg-paper p-4 shadow-card">
-          <p className="text-lg font-bold text-muted">
-            {periodOfDay(time)} · {formatTimeLabel(time)}
-          </p>
-          <p className="mt-2 text-lg font-bold">Your bottle should say:</p>
-          <h2 className="mt-1 text-4xl font-bold leading-tight">{medicine.name}</h2>
-          <p className="text-2xl font-bold">
-            {[medicine.strength, medicine.form].filter(Boolean).join(" · ")}
-          </p>
-          {medicine.appearance ? (
-            <p className="mt-3 rounded-lg bg-bg-warm p-3 text-xl">
-              <span className="font-bold">The pill:</span> {medicine.appearance}
-            </p>
-          ) : null}
-          {medicine.instructions ? <p className="mt-3 text-xl">{medicine.instructions}</p> : null}
-          {medicine.verifiedBy === "ndc" || medicine.verifiedBy === "name" ? (
-            <p className="mt-2 flex items-center gap-2 text-lg text-success">
-              <ShieldCheck className="size-6 shrink-0" />
-              Checked with the U.S. drug list
-            </p>
-          ) : null}
-          <div className="mt-4">
-            <p className="mb-2 text-lg font-bold">
-              {medicine.pillImageSource === "official"
-                ? "The maker's photo of this pill"
-                : "Your photo of this pill"}
-            </p>
+        {practice ? (
+          <section className="flex items-center gap-4 rounded-xl bg-paper p-4 shadow-card">
             <img
               src={medicine.pillImage}
-              alt={`Photo of ${medicine.name}`}
-              className={
-                medicine.pillImageSource === "official"
-                  ? "aspect-square w-full rounded-lg bg-paper object-contain"
-                  : "aspect-square w-full rounded-lg object-cover"
-              }
+              alt={`Saved photo of ${medicine.name}`}
+              className="size-20 shrink-0 rounded-lg object-cover"
             />
-          </div>
-        </section>
+            <div>
+              <h2 className="text-2xl font-bold leading-tight">{medicine.name}</h2>
+              <p className="text-xl">
+                {[medicine.strength, medicine.form].filter(Boolean).join(" · ")}
+              </p>
+            </div>
+          </section>
+        ) : (
+          <section className="rounded-xl bg-paper p-4 shadow-card">
+            <p className="text-lg font-bold text-muted">
+              {periodOfDay(time)} · {formatTimeLabel(time)}
+            </p>
+            <p className="mt-2 text-lg font-bold">Your bottle should say:</p>
+            <h2 className="mt-1 text-4xl font-bold leading-tight">{medicine.name}</h2>
+            <p className="text-2xl font-bold">
+              {[medicine.strength, medicine.form].filter(Boolean).join(" · ")}
+            </p>
+            {medicine.appearance ? (
+              <p className="mt-3 rounded-lg bg-bg-warm p-3 text-xl">
+                <span className="font-bold">The pill:</span> {medicine.appearance}
+              </p>
+            ) : null}
+            {medicine.instructions ? <p className="mt-3 text-xl">{medicine.instructions}</p> : null}
+            {medicine.verifiedBy === "ndc" || medicine.verifiedBy === "name" ? (
+              <p className="mt-2 flex items-center gap-2 text-lg text-success">
+                <ShieldCheck className="size-6 shrink-0" />
+                Checked with the U.S. drug list
+              </p>
+            ) : null}
+            <div className="mt-4">
+              <p className="mb-2 text-lg font-bold">
+                {medicine.pillImageSource === "official"
+                  ? "The maker's photo of this pill"
+                  : "Your photo of this pill"}
+              </p>
+              <img
+                src={medicine.pillImage}
+                alt={`Photo of ${medicine.name}`}
+                className={
+                  medicine.pillImageSource === "official"
+                    ? "aspect-square w-full rounded-lg bg-paper object-contain"
+                    : "aspect-square w-full rounded-lg object-cover"
+                }
+              />
+            </div>
+          </section>
+        )}
 
         {checking ? (
           <div className="flex flex-col items-center gap-4 py-8 text-center">
@@ -405,15 +427,22 @@ function CheckReady({
                 <figcaption className="mt-2 text-center text-lg">Pill you have now</figcaption>
               </figure>
             </div>
-            {result.observation === "similar" ? (
+            {practice ? (
+              <>
+                <p className="mt-4 text-xl font-bold">
+                  This is only practice. Nothing was saved, and no pill was taken.
+                </p>
+                <Button size="xl" className="mt-4" onClick={() => navigate({ to: "/" })}>
+                  Finish practice
+                </Button>
+              </>
+            ) : result.observation === "similar" ? (
               <>
                 <p className="mt-4 text-2xl font-bold">
-                  {practice
-                    ? "This is only practice. Do not take a pill now."
-                    : "You can take your dose now. Take the amount your bottle says."}
+                  You can take your dose now. Take the amount your bottle says.
                 </p>
                 <Button size="xl" className="mt-4" onClick={() => void confirmTaken()}>
-                  {practice ? "Finish practice" : "I took it"}
+                  I took it
                 </Button>
               </>
             ) : (
@@ -439,10 +468,33 @@ function CheckReady({
         ) : (
           <>
             {error ? (
-              <p className="flex items-start gap-2 text-xl font-bold text-danger">
-                <TriangleAlert className="mt-1 size-6 shrink-0" />
-                {error}
-              </p>
+              <div className="flex flex-col gap-3">
+                <p className="flex items-start gap-2 text-xl font-bold text-danger">
+                  <TriangleAlert className="mt-1 size-6 shrink-0" />
+                  {error}
+                </p>
+                {/* Only for read failures: a rate-limit message has nothing to do with the saved photo. */}
+                {/too many photo checks/i.test(error) ? null : (
+                  <>
+                    <p className="text-lg text-muted">
+                      If this keeps happening, your saved photo of the pill may be blurry. Open
+                      Pills to take it again.
+                    </p>
+                    <Button
+                      size="lg"
+                      variant="secondary"
+                      onClick={() => navigate({ to: "/medicines" })}
+                    >
+                      Open Pills
+                    </Button>
+                  </>
+                )}
+                {practice ? (
+                  <Button size="lg" onClick={() => navigate({ to: "/" })}>
+                    Finish practice
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
             {takingBack ? (
               <p className="text-xl font-bold">

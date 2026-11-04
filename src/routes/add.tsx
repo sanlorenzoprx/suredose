@@ -629,6 +629,7 @@ function AddMedicine() {
               {!pillImage ? (
                 <PhotoCapture
                   pillDetail
+                  blurGate
                   title="Picture of the pill"
                   hint="Put one pill on a dark table. We save this so we can check it later."
                   preview={pillImage}
@@ -684,6 +685,7 @@ function AddMedicine() {
                 <div id="pill-back" className="scroll-mt-24">
                   <PhotoCapture
                     pillDetail
+                    blurGate
                     title="Turn the same pill over"
                     hint="Take a clear picture of the other side, even if it is blank."
                     preview={pillImageBack}
