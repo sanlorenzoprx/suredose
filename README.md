@@ -463,3 +463,11 @@ Triggers to confirm the cron trigger is listed.
 - The Privacy/Terms/Help pages are accurate, plain-language drafts written
   to match the actual code, not lawyer-reviewed legal documents — see "My
   review" above and the note on each page.
+
+## License
+
+SureDose is released under the [MIT License](LICENSE). The ZEGOCLOUD call screen in
+`public/vendor/zego/` is a third-party file (ISC license) and keeps its own notice there.
+
+SureDose is a hackathon prototype. It is not medical advice and not a substitute for a
+pharmacist; see "Honest status" above.
