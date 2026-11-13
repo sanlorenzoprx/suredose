@@ -30,7 +30,7 @@ match", or "we can't check this". A family member's phone gets alerts and can jo
   saved photo. It is not a medication identity check.
 - **Drug list:** RxNorm, openFDA and DailyMed (official pill photos when available).
 - **Platform:** Cloudflare Workers, D1 and R2; TanStack Start; Web Push for caregiver alerts.
-- **Video call:** ZEGOCLOUD (token built server-side), with a Jitsi room as the fallback.
+- **Video call:** ZEGOCLOUD (token built server-side), with in-app retry and return-to-Family controls when unavailable.
 
 ## Honest status
 

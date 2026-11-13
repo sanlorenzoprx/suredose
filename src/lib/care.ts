@@ -306,7 +306,7 @@ export const recordDoseEvent = createServerFn({ method: "POST" })
 /**
  * Join details for the in-app family video call (ZEGOCLOUD). The token is built here, with the
  * ServerSecret kept as a Worker secret, so it never reaches a phone. When ZEGOCLOUD is not set up
- * the page falls back to the public Jitsi room.
+ * the page stays in-app with retry and return-to-Family controls.
  */
 export const getVideoToken = createServerFn({ method: "POST" })
   .validator((input: { code: string; userId: string; userName?: string }) => ({
