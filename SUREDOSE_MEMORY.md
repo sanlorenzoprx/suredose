@@ -22,7 +22,7 @@ Last updated: Nov 4, 2026
   Muse timeout 20s. Pill reads need a sharp photo ~20 cm away (phone cameras
   cannot focus close); the app names which photo is blurry.
 - Video: /video uses ZEGOCLOUD prebuilt (token built server-side, SDK served
-  from public/vendor/zego); falls back to Jitsi and shows a "Reason:" code.
+  from public/vendor/zego); stays in-app with retry/leave controls when unavailable; no Jitsi redirect.
   NOT yet verified on two real phones.
 - Push: a caregiver phone must tap Home > "Alerts on this phone" > Turn on
   alerts (the Family-page button only enables local notifications).
@@ -124,7 +124,7 @@ local D1, desktop/mobile renders PASS, screenshots/ verdicts) does
 NOT prove real Google recognition, Android camera behavior, real
 push delivery, or deployed config. Real-phone outcomes remain
 NOT RUN — see PHONE_TEST_RESULTS.md and PRE_LIVE_TEST_CHECKLIST.md
-(read only before phone testing/release). Jitsi video call (Family page button + push nudge) is
+(read only before phone testing/release). ZEGOCLOUD video call (Family page button + push nudge) is
 implemented but untested on real phones;
 caregiver reply flow is NOT implemented.
 
@@ -147,3 +147,5 @@ Report failures honestly; never claim phone/live verification not run.
 Full history: SUREDOSE_MEMORY_ARCHIVE_2026-11-03.md
 (sha256 8a6dcd7024f792e72e7c2b6bac12064a62c8967849256a89f8f108c67760cf84)
 Read only for a specific historical question; never by default.
+
+- 2026-11-13 owner request: removed the public Jitsi fallback from the active call workflow. Keep ZEGOCLOUD room identity stable; failed calls offer retry or return to Family. No provider/settings/deployment change. Historical archived notes remain historical.
